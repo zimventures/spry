@@ -4,6 +4,7 @@
 #include "box.h"
 #include "color.h"
 #include "context.h"
+#include "input.h"
 #include "layout.h"
 #include "renderer.h"
 #include "theme.h"

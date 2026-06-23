@@ -1,8 +1,10 @@
 #pragma once
 #include <memory>
+#include <string>
 #include <utility>
 #include <vector>
 
+#include "input.h"
 #include "layout.h"
 #include "renderer.h"
 #include "theme.h"
@@ -11,6 +13,9 @@
 // `rect`, layout hints, and lifecycle hooks. Containers arrange children; leaves
 // override paint()/measure(). The base Widget is a simple stack container.
 namespace spry {
+
+// Accessibility role (#216) — exposed via the a11y tree; no platform backend yet.
+enum class Role { None, Group, Label, Button, Checkbox, TextField, Panel };
 
 class Widget {
 public:
@@ -25,8 +30,12 @@ public:
     // Computed by layout each frame.
     Rect rect{};
 
-    // Interaction state (set by Context::frame from hit-testing).
+    // Interaction state (#216). hovered/pressed/focused are set by Context as it
+    // routes input; focusable opts a widget into click-focus + Tab navigation.
     bool hovered = false;
+    bool pressed = false;
+    bool focused = false;
+    bool focusable = false;
 
     // Tree.
     Widget* add(std::unique_ptr<Widget> child);
@@ -51,6 +60,19 @@ public:
     virtual void paint(Renderer&, const Theme&) {} // self-paint hook for leaves
 
     Widget* hitTest(float x, float y);
+    void collectFocusable(std::vector<Widget*>& out); // tree-order, for Tab nav
+
+    // Input hooks (#216). Return true to consume the event.
+    virtual bool onMouseDown(float /*x*/, float /*y*/, int /*button*/) { return false; }
+    virtual bool onMouseUp(float /*x*/, float /*y*/, int /*button*/) { return false; }
+    virtual void onClick() {}
+    virtual bool onKey(Key /*key*/, bool /*shift*/, bool /*ctrl*/, bool /*alt*/) { return false; }
+    virtual void onText(const char* /*utf8*/) {}
+    virtual void onFocusChanged(bool /*focused*/) {}
+
+    // Accessibility hooks (#216): expose roles + labels for an a11y tree.
+    virtual Role accessibleRole() const { return Role::None; }
+    virtual std::string accessibleLabel() const { return {}; }
 
 protected:
     Widget* parent_ = nullptr;

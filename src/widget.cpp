@@ -53,4 +53,10 @@ Widget* Widget::hitTest(float x, float y) {
     return this;
 }
 
+void Widget::collectFocusable(std::vector<Widget*>& out) {
+    if (!visible) return;
+    if (focusable) out.push_back(this);
+    for (auto& c : children_) c->collectFocusable(out);
+}
+
 } // namespace spry

@@ -1,8 +1,12 @@
 #pragma once
 #include <algorithm>
+#include <functional>
 #include <memory>
+#include <string>
+#include <vector>
 
 #include "anim.h"
+#include "input.h"
 #include "renderer.h"
 #include "theme.h"
 #include "widget.h"
@@ -40,6 +44,66 @@ public:
     }
     const Theme& displayedTheme() const { return displayed_; }
 
+    // ---- input, focus & keyboard (#216) ----
+    Widget* focused() const { return focused_; }
+    void setFocus(Widget* w) {
+        if (w == focused_) return;
+        if (focused_) {
+            focused_->focused = false;
+            focused_->onFocusChanged(false);
+        }
+        focused_ = w;
+        if (focused_) {
+            focused_->focused = true;
+            focused_->onFocusChanged(true);
+        }
+    }
+    // Host feeds translated platform events here.
+    void handleEvent(const InputEvent& e) {
+        if (!root_) return;
+        switch (e.type) {
+            case InputEvent::MouseMove:
+                updateHover(root_->hitTest(e.x, e.y));
+                break;
+            case InputEvent::MouseDown: {
+                Widget* hit = root_->hitTest(e.x, e.y);
+                pressed_ = hit;
+                setFocus(hit && hit->focusable ? hit : nullptr);
+                if (hit) {
+                    hit->pressed = true;
+                    hit->onMouseDown(e.x, e.y, e.button);
+                }
+                break;
+            }
+            case InputEvent::MouseUp:
+                if (pressed_) {
+                    pressed_->pressed = false;
+                    pressed_->onMouseUp(e.x, e.y, e.button);
+                    if (root_->hitTest(e.x, e.y) == pressed_) pressed_->onClick();
+                    pressed_ = nullptr;
+                }
+                break;
+            case InputEvent::KeyDown:
+                if (e.key == Key::Tab) {
+                    moveFocus(e.shift ? -1 : 1);
+                } else if (focused_) {
+                    bool consumed = focused_->onKey(e.key, e.shift, e.ctrl, e.alt);
+                    if (!consumed && (e.key == Key::Enter || e.key == Key::Space)) focused_->onClick();
+                }
+                break;
+            case InputEvent::Text:
+                if (focused_ && e.text) focused_->onText(e.text);
+                break;
+            case InputEvent::Wheel:
+                break;
+        }
+    }
+    // Walk the accessibility tree (role + label per non-None widget). The hook is
+    // present so a platform a11y backend can be added later without rework.
+    void visitAccessible(const std::function<void(Widget*, Role, const std::string&)>& fn) const {
+        if (root_) visitA(root_.get(), fn);
+    }
+
     void frame(Renderer& r, float dt, float mouseX, float mouseY) {
         if (!root_) return;
         trans_ = std::min(1.0f, trans_ + dt * 4.0f);
@@ -49,20 +113,43 @@ public:
         r.outputSize(w, h);
         root_->arrange(r, Rect{0, 0, (float)w, (float)h});
 
-        Widget* hv = root_->hitTest(mouseX, mouseY);
-        if (hv != hovered_) {
-            if (hovered_) hovered_->hovered = false;
-            hovered_ = hv;
-            if (hovered_) hovered_->hovered = true;
-        }
+        updateHover(root_->hitTest(mouseX, mouseY));
 
         root_->update(dt);
         root_->draw(r, displayed_);
     }
 
 private:
+    void updateHover(Widget* hv) {
+        if (hv == hovered_) return;
+        if (hovered_) hovered_->hovered = false;
+        hovered_ = hv;
+        if (hovered_) hovered_->hovered = true;
+    }
+    void moveFocus(int dir) {
+        std::vector<Widget*> f;
+        root_->collectFocusable(f);
+        if (f.empty()) return;
+        int n = (int)f.size(), idx = -1;
+        for (int i = 0; i < n; ++i)
+            if (f[i] == focused_) {
+                idx = i;
+                break;
+            }
+        int next = (idx < 0) ? (dir > 0 ? 0 : n - 1) : (((idx + dir) % n) + n) % n;
+        setFocus(f[next]);
+    }
+    static void visitA(Widget* w, const std::function<void(Widget*, Role, const std::string&)>& fn) {
+        if (!w->visible) return;
+        Role role = w->accessibleRole();
+        if (role != Role::None) fn(w, role, w->accessibleLabel());
+        for (auto& c : w->children()) visitA(c.get(), fn);
+    }
+
     std::unique_ptr<Widget> root_;
     Widget* hovered_ = nullptr;
+    Widget* pressed_ = nullptr;
+    Widget* focused_ = nullptr;
     Theme from_, to_, displayed_;
     float trans_ = 1.0f;
 };
