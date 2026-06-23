@@ -1,0 +1,10 @@
+# midnight — cool dark theme
+color background  17 18 23
+color surface     40 43 62
+color surfaceAlt  32 34 48
+color text        224 227 238
+color textDim     140 144 160
+color accent      96 126 205
+color accentText  235 238 248
+metric radius     12
+metric pad        24

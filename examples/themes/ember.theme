@@ -1,0 +1,10 @@
+# ember — warm theme (note the rounder radius to show metric tokens animate too)
+color background  26 18 16
+color surface     58 40 38
+color surfaceAlt  44 30 28
+color text        240 230 224
+color textDim     180 150 140
+color accent      230 120 70
+color accentText  30 18 14
+metric radius     18
+metric pad        24
