@@ -61,9 +61,11 @@ static bool loadGlFns() {
     return true;
 }
 
-// GLSL 130 to match Cleat's OpenGL 3.0 core context (attribute locations bound
-// explicitly since `layout(location=)` is a 330 feature).
-static const char* kVert = R"(#version 130
+// Shader bodies are GLSL 130/150 compatible (in/out, texture(), custom frag out).
+// The #version line is chosen at runtime from the context: 130 for GL 3.0 on
+// Win/Linux, 150 for GL 3.2+ core on macOS (which rejects <150 in core profile).
+// Attribute locations are bound explicitly since layout(location=) is a 330 feature.
+static const char* kVert = R"(
 in vec2 aPos;
 in vec4 aColor;
 in vec2 aUV;
@@ -76,7 +78,7 @@ void main(){
     gl_Position = vec4(x, y, 0.0, 1.0);
 })";
 
-static const char* kFrag = R"(#version 130
+static const char* kFrag = R"(
 in vec4 vColor; in vec2 vUV;
 uniform sampler2D uTex;
 out vec4 FragColor;
@@ -85,9 +87,10 @@ void main(){
     FragColor = vec4(vColor.rgb, vColor.a * a);
 })";
 
-static GLuint compile(GLenum type, const char* src) {
+static GLuint compile(GLenum type, const char* version, const char* body) {
     GLuint s = glCreateShader(type);
-    glShaderSource(s, 1, &src, nullptr);
+    const char* srcs[2] = {version, body};
+    glShaderSource(s, 2, srcs, nullptr);
     glCompileShader(s);
     GLint ok = 0;
     glGetShaderiv(s, GL_COMPILE_STATUS, &ok);
@@ -123,8 +126,14 @@ struct GlRenderer::Impl {
     std::unordered_map<uint64_t, GlGlyph> glyphs;
 
     void initGL() {
-        GLuint vs = compile(GL_VERTEX_SHADER, kVert);
-        GLuint fs = compile(GL_FRAGMENT_SHADER, kFrag);
+        GLint major = 0, minor = 0;
+        glGetIntegerv(GL_MAJOR_VERSION, &major);
+        glGetIntegerv(GL_MINOR_VERSION, &minor);
+        // macOS core profile requires GLSL >= 150; GL 3.0 (Win/Linux) caps at 130.
+        const char* glsl =
+            ((major > 3) || (major == 3 && minor >= 2)) ? "#version 150\n" : "#version 130\n";
+        GLuint vs = compile(GL_VERTEX_SHADER, glsl, kVert);
+        GLuint fs = compile(GL_FRAGMENT_SHADER, glsl, kFrag);
         prog = glCreateProgram();
         glAttachShader(prog, vs);
         glAttachShader(prog, fs);
