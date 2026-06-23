@@ -80,6 +80,8 @@ static void renderFrame(App& app) {
 
     app.ren->beginFrame(app.ctx->displayedTheme().color("background", Color{17, 18, 23}));
     app.ctx->frame(*app.ren, dt, mx, my);
+    app.ren->endFrame();             // unbind the FBO
+    app.ren->blitToDefault(wp, hp);  // copy the FBO to the window (Cleat will use ImGui::Image)
     SDL_GL_SwapWindow(app.win);
 }
 
@@ -93,7 +95,7 @@ int main(int, char**) {
     SDL_SetMainReady();
     if (!SDL_Init(SDL_INIT_VIDEO)) return 1;
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 3);
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 0); // match Cleat's GL 3.0 core context
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
     SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
 

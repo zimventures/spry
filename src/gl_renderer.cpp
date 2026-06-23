@@ -27,6 +27,7 @@ namespace spry {
     X(PFNGLDELETESHADERPROC, glDeleteShader)                                                            \
     X(PFNGLCREATEPROGRAMPROC, glCreateProgram)                                                          \
     X(PFNGLATTACHSHADERPROC, glAttachShader)                                                            \
+    X(PFNGLBINDATTRIBLOCATIONPROC, glBindAttribLocation)                                                \
     X(PFNGLLINKPROGRAMPROC, glLinkProgram)                                                              \
     X(PFNGLGETPROGRAMIVPROC, glGetProgramiv)                                                            \
     X(PFNGLGETPROGRAMINFOLOGPROC, glGetProgramInfoLog)                                                  \
@@ -41,7 +42,11 @@ namespace spry {
     X(PFNGLBUFFERDATAPROC, glBufferData)                                                                \
     X(PFNGLVERTEXATTRIBPOINTERPROC, glVertexAttribPointer)                                              \
     X(PFNGLENABLEVERTEXATTRIBARRAYPROC, glEnableVertexAttribArray)                                      \
-    X(PFNGLACTIVETEXTUREPROC, glActiveTexture)
+    X(PFNGLACTIVETEXTUREPROC, glActiveTexture)                                                          \
+    X(PFNGLGENFRAMEBUFFERSPROC, glGenFramebuffers)                                                      \
+    X(PFNGLBINDFRAMEBUFFERPROC, glBindFramebuffer)                                                      \
+    X(PFNGLFRAMEBUFFERTEXTURE2DPROC, glFramebufferTexture2D)                                            \
+    X(PFNGLBLITFRAMEBUFFERPROC, glBlitFramebuffer)
 
 #define SPRY_GL_DECL(type, name) static type name = nullptr;
 SPRY_GL_FUNCS(SPRY_GL_DECL)
@@ -56,10 +61,12 @@ static bool loadGlFns() {
     return true;
 }
 
-static const char* kVert = R"(#version 330 core
-layout(location=0) in vec2 aPos;
-layout(location=1) in vec4 aColor;
-layout(location=2) in vec2 aUV;
+// GLSL 130 to match Cleat's OpenGL 3.0 core context (attribute locations bound
+// explicitly since `layout(location=)` is a 330 feature).
+static const char* kVert = R"(#version 130
+in vec2 aPos;
+in vec4 aColor;
+in vec2 aUV;
 uniform vec2 uViewport;
 out vec4 vColor; out vec2 vUV;
 void main(){
@@ -69,7 +76,7 @@ void main(){
     gl_Position = vec4(x, y, 0.0, 1.0);
 })";
 
-static const char* kFrag = R"(#version 330 core
+static const char* kFrag = R"(#version 130
 in vec4 vColor; in vec2 vUV;
 uniform sampler2D uTex;
 out vec4 FragColor;
@@ -104,9 +111,10 @@ struct Shaped {
 struct GlRenderer::Impl {
     int vpW = 1, vpH = 1;
     GLuint prog = 0, vao = 0, vbo = 0, ebo = 0, white = 0;
+    GLuint fbo = 0, fboTex = 0;
+    int fboW = 0, fboH = 0;
     GLint uViewport = -1, uTex = -1;
 
-    // font
     FT_Library lib = nullptr;
     FT_Face face = nullptr;
     hb_font_t* hb = nullptr;
@@ -114,14 +122,15 @@ struct GlRenderer::Impl {
     int curPx = 0;
     std::unordered_map<uint64_t, GlGlyph> glyphs;
 
-    std::vector<float> vbuf; // scratch: 8 floats/vertex (pos2,color4,uv2)
-
     void initGL() {
         GLuint vs = compile(GL_VERTEX_SHADER, kVert);
         GLuint fs = compile(GL_FRAGMENT_SHADER, kFrag);
         prog = glCreateProgram();
         glAttachShader(prog, vs);
         glAttachShader(prog, fs);
+        glBindAttribLocation(prog, 0, "aPos");
+        glBindAttribLocation(prog, 1, "aColor");
+        glBindAttribLocation(prog, 2, "aUV");
         glLinkProgram(prog);
         glDeleteShader(vs);
         glDeleteShader(fs);
@@ -142,7 +151,6 @@ struct GlRenderer::Impl {
         glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, stride, (void*)(6 * sizeof(float)));
         glEnableVertexAttribArray(2);
 
-        // 1x1 white texture for solid fills
         glGenTextures(1, &white);
         glBindTexture(GL_TEXTURE_2D, white);
         unsigned char w = 255;
@@ -152,6 +160,25 @@ struct GlRenderer::Impl {
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    }
+
+    void resizeFbo(int w, int h) {
+        if (w < 1) w = 1;
+        if (h < 1) h = 1;
+        if (fbo && w == fboW && h == fboH) return;
+        fboW = w;
+        fboH = h;
+        if (!fbo) glGenFramebuffers(1, &fbo);
+        if (!fboTex) glGenTextures(1, &fboTex);
+        glBindTexture(GL_TEXTURE_2D, fboTex);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+        glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, fboTex, 0);
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
     }
 
     void draw(const std::vector<float>& verts, const std::vector<int>& idx, GLuint tex) {
@@ -166,7 +193,6 @@ struct GlRenderer::Impl {
         glDrawElements(GL_TRIANGLES, (GLsizei)idx.size(), GL_UNSIGNED_INT, nullptr);
     }
 
-    // ---- font ----
     bool loadFont(const char* path) {
         if (FT_Init_FreeType(&lib)) return false;
         if (FT_New_Face(lib, path, 0, &face)) {
@@ -229,7 +255,6 @@ struct GlRenderer::Impl {
     }
 };
 
-// ---- GlRenderer -----------------------------------------------------------
 GlRenderer::GlRenderer() : d_(new Impl()) {
     loadGlFns();
     d_->initGL();
@@ -247,13 +272,23 @@ bool GlRenderer::loadFont(const char* path) { return d_->loadFont(path); }
 void GlRenderer::setSize(int w, int h) {
     d_->vpW = w > 0 ? w : 1;
     d_->vpH = h > 0 ? h : 1;
+    d_->resizeFbo(d_->vpW, d_->vpH);
 }
 void GlRenderer::outputSize(int& w, int& h) {
     w = d_->vpW;
     h = d_->vpH;
 }
+unsigned int GlRenderer::targetTexture() const { return d_->fboTex; }
+
+void GlRenderer::blitToDefault(int dstW, int dstH) {
+    glBindFramebuffer(GL_READ_FRAMEBUFFER, d_->fbo);
+    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+    glBlitFramebuffer(0, 0, d_->fboW, d_->fboH, 0, 0, dstW, dstH, GL_COLOR_BUFFER_BIT, GL_LINEAR);
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+}
 
 void GlRenderer::beginFrame(Color clear) {
+    glBindFramebuffer(GL_FRAMEBUFFER, d_->fbo); // render into our FBO, not the host's screen
     glViewport(0, 0, d_->vpW, d_->vpH);
     glClearColor(clear.r / 255.0f, clear.g / 255.0f, clear.b / 255.0f, clear.a / 255.0f);
     glClear(GL_COLOR_BUFFER_BIT);
@@ -264,7 +299,7 @@ void GlRenderer::beginFrame(Color clear) {
     glUniform2f(d_->uViewport, (float)d_->vpW, (float)d_->vpH);
     glUniform1i(d_->uTex, 0);
 }
-void GlRenderer::endFrame() { /* host swaps the window */ }
+void GlRenderer::endFrame() { glBindFramebuffer(GL_FRAMEBUFFER, 0); }
 
 static void pushVert(std::vector<float>& v, float x, float y, Color c, float u, float w) {
     v.insert(v.end(), {x, y, c.r / 255.0f, c.g / 255.0f, c.b / 255.0f, c.a / 255.0f, u, w});

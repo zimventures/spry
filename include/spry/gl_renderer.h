@@ -16,6 +16,11 @@ public:
     bool loadFont(const char* path);
     void setSize(int w, int h); // drawable size in pixels; call on resize
 
+    // Spry renders to an offscreen FBO so it composes with a host that owns the
+    // default framebuffer (e.g. Cleat's ImGui frame, which clears late).
+    unsigned int targetTexture() const;          // GL texture of the rendered UI (for ImGui::Image)
+    void blitToDefault(int dstW, int dstH);       // copy the FBO to the default framebuffer
+
     void beginFrame(Color clear) override;
     void endFrame() override;
     void outputSize(int& w, int& h) override;
