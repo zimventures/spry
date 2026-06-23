@@ -58,16 +58,20 @@ if(NOT TARGET harfbuzz)
         GIT_TAG 10.4.0
         GIT_SHALLOW TRUE)
     FetchContent_MakeAvailable(harfbuzz)
+    set(_spry_built_harfbuzz TRUE)
 endif()
 
 # HarfBuzz's heavy templates leave undefined refs to inlinable iterator/lambda
 # methods when compiled at -O0 (Debug) on MinGW. Force optimization on just these
-# targets so the link resolves, without rebuilding the other deps in Release.
-foreach(_hb harfbuzz harfbuzz-subset)
-    if(TARGET ${_hb})
-        target_compile_options(${_hb} PRIVATE -O2)
-    endif()
-endforeach()
+# targets so the link resolves — but only when WE built harfbuzz (standalone). When
+# a parent (Cleat) provides it, leave its build settings alone.
+if(_spry_built_harfbuzz)
+    foreach(_hb harfbuzz harfbuzz-subset)
+        if(TARGET ${_hb})
+            target_compile_options(${_hb} PRIVATE -O2)
+        endif()
+    endforeach()
+endif()
 
 add_library(spry STATIC
     src/geometry.cpp
