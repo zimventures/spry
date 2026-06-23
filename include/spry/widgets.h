@@ -38,6 +38,8 @@ public:
         Color col = colorOverride.value_or(th.color(role, {220, 224, 235}));
         r.text(rect.x, rect.y + (rect.h - textLineH(scale)) * 0.5f, scale, col, text.c_str());
     }
+    Role accessibleRole() const override { return Role::Label; }
+    std::string accessibleLabel() const override { return text; }
 };
 
 // Hoverable card — brightens/lifts on hover via its own spring. All colours come

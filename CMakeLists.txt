@@ -109,3 +109,25 @@ if(SPRY_BUILD_DEMO)
             ${CMAKE_CURRENT_SOURCE_DIR}/examples/themes
             $<TARGET_FILE_DIR:spry_gl_demo>/themes)
 endif()
+
+# Headless unit tests for the input/focus/keyboard logic (#216). Defaults on when
+# Spry is the top-level project; Cleat drives it via CLEAT_BUILD_TESTS so the same
+# ctest run covers Spry. Reuses a Catch2 target if the parent already fetched one.
+option(SPRY_BUILD_TESTS "Build Spry unit tests" ${PROJECT_IS_TOP_LEVEL})
+if(SPRY_BUILD_TESTS)
+    if(NOT TARGET Catch2::Catch2WithMain)
+        include(FetchContent)
+        FetchContent_Declare(Catch2
+            GIT_REPOSITORY https://github.com/catchorg/Catch2.git
+            GIT_TAG v3.7.1
+            GIT_SHALLOW TRUE)
+        FetchContent_MakeAvailable(Catch2)
+    endif()
+    enable_testing()
+    add_executable(spry_tests tests/test_input.cpp)
+    target_link_libraries(spry_tests PRIVATE spry Catch2::Catch2WithMain)
+    if(MINGW)
+        target_link_options(spry_tests PRIVATE -static -static-libgcc -static-libstdc++)
+    endif()
+    add_test(NAME spry_tests COMMAND spry_tests)
+endif()
