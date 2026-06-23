@@ -1,0 +1,335 @@
+#include "spry/gl_renderer.h"
+
+#include <SDL3/SDL.h>
+#include <SDL3/SDL_opengl.h>
+#include <SDL3/SDL_opengl_glext.h>
+
+#include <cmath>
+#include <cstdint>
+#include <cstring>
+#include <unordered_map>
+#include <vector>
+
+#include <ft2build.h>
+#include FT_FREETYPE_H
+#include <hb-ft.h>
+#include <hb.h>
+
+namespace spry {
+
+// ---- modern GL function pointers (1.1 is linked directly) ------------------
+#define SPRY_GL_FUNCS(X)                                                                                \
+    X(PFNGLCREATESHADERPROC, glCreateShader)                                                            \
+    X(PFNGLSHADERSOURCEPROC, glShaderSource)                                                            \
+    X(PFNGLCOMPILESHADERPROC, glCompileShader)                                                          \
+    X(PFNGLGETSHADERIVPROC, glGetShaderiv)                                                              \
+    X(PFNGLGETSHADERINFOLOGPROC, glGetShaderInfoLog)                                                    \
+    X(PFNGLDELETESHADERPROC, glDeleteShader)                                                            \
+    X(PFNGLCREATEPROGRAMPROC, glCreateProgram)                                                          \
+    X(PFNGLATTACHSHADERPROC, glAttachShader)                                                            \
+    X(PFNGLLINKPROGRAMPROC, glLinkProgram)                                                              \
+    X(PFNGLGETPROGRAMIVPROC, glGetProgramiv)                                                            \
+    X(PFNGLGETPROGRAMINFOLOGPROC, glGetProgramInfoLog)                                                  \
+    X(PFNGLUSEPROGRAMPROC, glUseProgram)                                                                \
+    X(PFNGLGETUNIFORMLOCATIONPROC, glGetUniformLocation)                                                \
+    X(PFNGLUNIFORM2FPROC, glUniform2f)                                                                  \
+    X(PFNGLUNIFORM1IPROC, glUniform1i)                                                                  \
+    X(PFNGLGENVERTEXARRAYSPROC, glGenVertexArrays)                                                      \
+    X(PFNGLBINDVERTEXARRAYPROC, glBindVertexArray)                                                      \
+    X(PFNGLGENBUFFERSPROC, glGenBuffers)                                                                \
+    X(PFNGLBINDBUFFERPROC, glBindBuffer)                                                                \
+    X(PFNGLBUFFERDATAPROC, glBufferData)                                                                \
+    X(PFNGLVERTEXATTRIBPOINTERPROC, glVertexAttribPointer)                                              \
+    X(PFNGLENABLEVERTEXATTRIBARRAYPROC, glEnableVertexAttribArray)                                      \
+    X(PFNGLACTIVETEXTUREPROC, glActiveTexture)
+
+#define SPRY_GL_DECL(type, name) static type name = nullptr;
+SPRY_GL_FUNCS(SPRY_GL_DECL)
+#undef SPRY_GL_DECL
+
+static bool loadGlFns() {
+#define SPRY_GL_LOAD(type, name)                                                                        \
+    name = (type)SDL_GL_GetProcAddress(#name);                                                          \
+    if (!name) return false;
+    SPRY_GL_FUNCS(SPRY_GL_LOAD)
+#undef SPRY_GL_LOAD
+    return true;
+}
+
+static const char* kVert = R"(#version 330 core
+layout(location=0) in vec2 aPos;
+layout(location=1) in vec4 aColor;
+layout(location=2) in vec2 aUV;
+uniform vec2 uViewport;
+out vec4 vColor; out vec2 vUV;
+void main(){
+    vColor = aColor; vUV = aUV;
+    float x = aPos.x / uViewport.x * 2.0 - 1.0;
+    float y = 1.0 - aPos.y / uViewport.y * 2.0; // screen y-down -> NDC y-up
+    gl_Position = vec4(x, y, 0.0, 1.0);
+})";
+
+static const char* kFrag = R"(#version 330 core
+in vec4 vColor; in vec2 vUV;
+uniform sampler2D uTex;
+out vec4 FragColor;
+void main(){
+    float a = texture(uTex, vUV).r; // coverage; white 1x1 tex => 1 for solid fills
+    FragColor = vec4(vColor.rgb, vColor.a * a);
+})";
+
+static GLuint compile(GLenum type, const char* src) {
+    GLuint s = glCreateShader(type);
+    glShaderSource(s, 1, &src, nullptr);
+    glCompileShader(s);
+    GLint ok = 0;
+    glGetShaderiv(s, GL_COMPILE_STATUS, &ok);
+    if (!ok) {
+        char log[1024];
+        glGetShaderInfoLog(s, sizeof(log), nullptr, log);
+        SDL_Log("spry GL shader compile failed: %s", log);
+    }
+    return s;
+}
+
+struct GlGlyph {
+    GLuint tex = 0;
+    int w = 0, h = 0, bx = 0, by = 0;
+};
+struct Shaped {
+    uint32_t gid = 0;
+    float xadv = 0, xoff = 0, yoff = 0;
+};
+
+struct GlRenderer::Impl {
+    int vpW = 1, vpH = 1;
+    GLuint prog = 0, vao = 0, vbo = 0, ebo = 0, white = 0;
+    GLint uViewport = -1, uTex = -1;
+
+    // font
+    FT_Library lib = nullptr;
+    FT_Face face = nullptr;
+    hb_font_t* hb = nullptr;
+    bool fontReady = false;
+    int curPx = 0;
+    std::unordered_map<uint64_t, GlGlyph> glyphs;
+
+    std::vector<float> vbuf; // scratch: 8 floats/vertex (pos2,color4,uv2)
+
+    void initGL() {
+        GLuint vs = compile(GL_VERTEX_SHADER, kVert);
+        GLuint fs = compile(GL_FRAGMENT_SHADER, kFrag);
+        prog = glCreateProgram();
+        glAttachShader(prog, vs);
+        glAttachShader(prog, fs);
+        glLinkProgram(prog);
+        glDeleteShader(vs);
+        glDeleteShader(fs);
+        uViewport = glGetUniformLocation(prog, "uViewport");
+        uTex = glGetUniformLocation(prog, "uTex");
+
+        glGenVertexArrays(1, &vao);
+        glBindVertexArray(vao);
+        glGenBuffers(1, &vbo);
+        glBindBuffer(GL_ARRAY_BUFFER, vbo);
+        glGenBuffers(1, &ebo);
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
+        const GLsizei stride = 8 * sizeof(float);
+        glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, stride, (void*)0);
+        glEnableVertexAttribArray(0);
+        glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, stride, (void*)(2 * sizeof(float)));
+        glEnableVertexAttribArray(1);
+        glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, stride, (void*)(6 * sizeof(float)));
+        glEnableVertexAttribArray(2);
+
+        // 1x1 white texture for solid fills
+        glGenTextures(1, &white);
+        glBindTexture(GL_TEXTURE_2D, white);
+        unsigned char w = 255;
+        glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_R8, 1, 1, 0, GL_RED, GL_UNSIGNED_BYTE, &w);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    }
+
+    void draw(const std::vector<float>& verts, const std::vector<int>& idx, GLuint tex) {
+        if (verts.empty() || idx.empty()) return;
+        glBindVertexArray(vao);
+        glBindBuffer(GL_ARRAY_BUFFER, vbo);
+        glBufferData(GL_ARRAY_BUFFER, verts.size() * sizeof(float), verts.data(), GL_STREAM_DRAW);
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
+        glBufferData(GL_ELEMENT_ARRAY_BUFFER, idx.size() * sizeof(int), idx.data(), GL_STREAM_DRAW);
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, tex);
+        glDrawElements(GL_TRIANGLES, (GLsizei)idx.size(), GL_UNSIGNED_INT, nullptr);
+    }
+
+    // ---- font ----
+    bool loadFont(const char* path) {
+        if (FT_Init_FreeType(&lib)) return false;
+        if (FT_New_Face(lib, path, 0, &face)) {
+            FT_Done_FreeType(lib);
+            lib = nullptr;
+            return false;
+        }
+        FT_Set_Pixel_Sizes(face, 0, 16);
+        curPx = 16;
+        hb = hb_ft_font_create_referenced(face);
+        fontReady = true;
+        return true;
+    }
+    void setPx(int px) {
+        if (px == curPx) return;
+        curPx = px;
+        FT_Set_Pixel_Sizes(face, 0, px);
+        hb_ft_font_changed(hb);
+    }
+    void shape(const char* s, int px, std::vector<Shaped>& out) {
+        setPx(px);
+        hb_buffer_t* buf = hb_buffer_create();
+        hb_buffer_add_utf8(buf, s, -1, 0, -1);
+        hb_buffer_guess_segment_properties(buf);
+        hb_shape(hb, buf, nullptr, 0);
+        unsigned n = 0;
+        hb_glyph_info_t* gi = hb_buffer_get_glyph_infos(buf, &n);
+        hb_glyph_position_t* gp = hb_buffer_get_glyph_positions(buf, &n);
+        out.clear();
+        out.reserve(n);
+        for (unsigned i = 0; i < n; ++i)
+            out.push_back({gi[i].codepoint, gp[i].x_advance / 64.0f, gp[i].x_offset / 64.0f,
+                           gp[i].y_offset / 64.0f});
+        hb_buffer_destroy(buf);
+    }
+    GlGlyph& glyph(uint32_t gid, int px) {
+        uint64_t key = ((uint64_t)px << 24) | gid;
+        if (auto it = glyphs.find(key); it != glyphs.end()) return it->second;
+        GlGlyph g{};
+        if (FT_Load_Glyph(face, gid, FT_LOAD_RENDER) == 0) {
+            FT_GlyphSlot sl = face->glyph;
+            int w = (int)sl->bitmap.width, h = (int)sl->bitmap.rows;
+            g.w = w;
+            g.h = h;
+            g.bx = sl->bitmap_left;
+            g.by = sl->bitmap_top;
+            if (w > 0 && h > 0) {
+                glGenTextures(1, &g.tex);
+                glBindTexture(GL_TEXTURE_2D, g.tex);
+                glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+                glTexImage2D(GL_TEXTURE_2D, 0, GL_R8, w, h, 0, GL_RED, GL_UNSIGNED_BYTE,
+                             sl->bitmap.buffer);
+                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+            }
+        }
+        return glyphs.emplace(key, g).first->second;
+    }
+};
+
+// ---- GlRenderer -----------------------------------------------------------
+GlRenderer::GlRenderer() : d_(new Impl()) {
+    loadGlFns();
+    d_->initGL();
+}
+GlRenderer::~GlRenderer() {
+    for (auto& [k, g] : d_->glyphs)
+        if (g.tex) glDeleteTextures(1, &g.tex);
+    if (d_->hb) hb_font_destroy(d_->hb);
+    if (d_->face) FT_Done_Face(d_->face);
+    if (d_->lib) FT_Done_FreeType(d_->lib);
+    delete d_;
+}
+
+bool GlRenderer::loadFont(const char* path) { return d_->loadFont(path); }
+void GlRenderer::setSize(int w, int h) {
+    d_->vpW = w > 0 ? w : 1;
+    d_->vpH = h > 0 ? h : 1;
+}
+void GlRenderer::outputSize(int& w, int& h) {
+    w = d_->vpW;
+    h = d_->vpH;
+}
+
+void GlRenderer::beginFrame(Color clear) {
+    glViewport(0, 0, d_->vpW, d_->vpH);
+    glClearColor(clear.r / 255.0f, clear.g / 255.0f, clear.b / 255.0f, clear.a / 255.0f);
+    glClear(GL_COLOR_BUFFER_BIT);
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    glDisable(GL_DEPTH_TEST);
+    glUseProgram(d_->prog);
+    glUniform2f(d_->uViewport, (float)d_->vpW, (float)d_->vpH);
+    glUniform1i(d_->uTex, 0);
+}
+void GlRenderer::endFrame() { /* host swaps the window */ }
+
+static void pushVert(std::vector<float>& v, float x, float y, Color c, float u, float w) {
+    v.insert(v.end(), {x, y, c.r / 255.0f, c.g / 255.0f, c.b / 255.0f, c.a / 255.0f, u, w});
+}
+
+void GlRenderer::fillMesh(const std::vector<Vertex>& vs, const std::vector<int>& idx) {
+    if (vs.size() < 3) return;
+    std::vector<float> v;
+    v.reserve(vs.size() * 8);
+    for (const auto& p : vs) pushVert(v, p.x, p.y, p.color, 0.0f, 0.0f);
+    d_->draw(v, idx, d_->white);
+}
+
+void GlRenderer::fillRoundedRect(float cx, float cy, float w, float h, float radius, Color top, Color bot) {
+    Mesh m = roundedBlob(cx, cy, w, h, radius, 0.0f, 0.0f, top, bot);
+    fillMesh(m.verts, m.indices);
+}
+
+void GlRenderer::fillRect(float x, float y, float w, float h, Color c) {
+    std::vector<float> v;
+    pushVert(v, x, y, c, 0, 0);
+    pushVert(v, x + w, y, c, 0, 0);
+    pushVert(v, x + w, y + h, c, 0, 0);
+    pushVert(v, x, y + h, c, 0, 0);
+    std::vector<int> idx{0, 1, 2, 0, 2, 3};
+    d_->draw(v, idx, d_->white);
+}
+
+void GlRenderer::text(float x, float y, float scale, Color c, const char* s) {
+    if (!d_->fontReady) return;
+    int px = (int)std::lround(kTextBasePx * scale);
+    if (px < 6) px = 6;
+    std::vector<Shaped> glyphs;
+    d_->shape(s, px, glyphs);
+    float ascent = (float)(d_->face->size->metrics.ascender >> 6);
+    float pen = x, baseline = y + ascent;
+    for (const auto& sg : glyphs) {
+        GlGlyph& g = d_->glyph(sg.gid, px);
+        if (g.tex) {
+            float gx = pen + sg.xoff + (float)g.bx;
+            float gy = baseline - sg.yoff - (float)g.by;
+            float gw = (float)g.w, gh = (float)g.h;
+            std::vector<float> v;
+            v.reserve(32);
+            pushVert(v, gx, gy, c, 0.0f, 0.0f);
+            pushVert(v, gx + gw, gy, c, 1.0f, 0.0f);
+            pushVert(v, gx + gw, gy + gh, c, 1.0f, 1.0f);
+            pushVert(v, gx, gy + gh, c, 0.0f, 1.0f);
+            std::vector<int> idx{0, 1, 2, 0, 2, 3};
+            d_->draw(v, idx, g.tex);
+        }
+        pen += sg.xadv;
+    }
+}
+
+Size GlRenderer::measureText(float scale, const char* s) {
+    float lineH = kTextBasePx * scale + 7.0f;
+    if (!d_->fontReady) return Size{(float)std::strlen(s) * 0.60f * kTextBasePx * scale, lineH};
+    int px = (int)std::lround(kTextBasePx * scale);
+    if (px < 6) px = 6;
+    std::vector<Shaped> glyphs;
+    d_->shape(s, px, glyphs);
+    float w = 0;
+    for (const auto& g : glyphs) w += g.xadv;
+    return Size{w, lineH};
+}
+
+} // namespace spry

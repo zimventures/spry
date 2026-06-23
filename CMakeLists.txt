@@ -12,6 +12,10 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 option(SPRY_BUILD_DEMO "Build the spry demo/gallery" ON)
 
+# The GL backend (#208) calls GL 1.1 directly; modern entry points are loaded at
+# runtime via SDL_GL_GetProcAddress.
+find_package(OpenGL REQUIRED)
+
 # SDL3: fetched when building standalone; reused when a parent already provides it.
 if(NOT TARGET SDL3::SDL3)
     include(FetchContent)
@@ -68,13 +72,14 @@ endforeach()
 add_library(spry STATIC
     src/geometry.cpp
     src/sdl_renderer.cpp
+    src/gl_renderer.cpp
     src/widget.cpp
     src/box.cpp
     src/theme.cpp)
 target_include_directories(spry PUBLIC include)
 # harfbuzz-subset: in a Debug build the core harfbuzz lib leaves undefined refs to
 # subset symbols that live in this companion lib, so link both.
-target_link_libraries(spry PUBLIC SDL3::SDL3 freetype harfbuzz harfbuzz-subset)
+target_link_libraries(spry PUBLIC SDL3::SDL3 freetype harfbuzz harfbuzz-subset OpenGL::GL)
 
 if(SPRY_BUILD_DEMO)
     add_executable(spry_demo examples/demo.cpp)
@@ -88,4 +93,15 @@ if(SPRY_BUILD_DEMO)
         COMMAND ${CMAKE_COMMAND} -E copy_directory
             ${CMAKE_CURRENT_SOURCE_DIR}/examples/themes
             $<TARGET_FILE_DIR:spry_demo>/themes)
+
+    # Same scene, rendered through the OpenGL backend (#208) — the path to Cleat.
+    add_executable(spry_gl_demo examples/gl_demo.cpp)
+    target_link_libraries(spry_gl_demo PRIVATE spry)
+    if(MINGW)
+        target_link_options(spry_gl_demo PRIVATE -static -static-libgcc -static-libstdc++)
+    endif()
+    add_custom_command(TARGET spry_gl_demo POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_directory
+            ${CMAKE_CURRENT_SOURCE_DIR}/examples/themes
+            $<TARGET_FILE_DIR:spry_gl_demo>/themes)
 endif()
