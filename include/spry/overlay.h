@@ -60,7 +60,7 @@ public:
     }
 
     void update(float dt) override {
-        appear_.target = (phase_ == Phase::Closing) ? 0.0f : 1.0f;
+        appear_.target = (phase_ == Phase::Closing || phase_ == Phase::Closed) ? 0.0f : 1.0f;
         appear_.step(dt);
         if (phase_ == Phase::Opening && appear_.value > 0.99f) phase_ = Phase::Open;
         if (autoClose > 0.0f && phase_ == Phase::Open) {

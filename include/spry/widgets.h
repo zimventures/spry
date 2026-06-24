@@ -267,9 +267,11 @@ private:
         setValue(minV + f * (maxV - minV));
     }
     void setValue(float v) {
+        if (step > 0) v = minV + std::round((v - minV) / step) * step;
+        // Clamp after snapping: a range that isn't a whole multiple of step could
+        // otherwise round just past an end.
         if (v < minV) v = minV;
         if (v > maxV) v = maxV;
-        if (step > 0) v = minV + std::round((v - minV) / step) * step;
         if (v == value) return;
         value = v;
         if (onChange) onChange(value);

@@ -82,7 +82,9 @@ protected:
     // Fold the active opacity into a colour's alpha (backends call this on every
     // colour they emit).
     Color tint(Color c) const {
-        c.a = (uint8_t)(c.a * opacity());
+        float o = opacity();
+        o = o < 0.0f ? 0.0f : (o > 1.0f ? 1.0f : o); // guard the uint8_t cast
+        c.a = (uint8_t)(c.a * o);
         return c;
     }
 
