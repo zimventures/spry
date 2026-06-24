@@ -290,9 +290,9 @@ void GlRenderer::setSize(int w, int h) {
 void GlRenderer::setContentScale(float s) { d_->contentScale = s > 0.0f ? s : 1.0f; }
 void GlRenderer::outputSize(int& w, int& h) {
     // Report logical size: widgets lay out in logical units and the shader scales
-    // them up to the device-pixel FBO.
-    w = (int)((float)d_->vpW / d_->contentScale);
-    h = (int)((float)d_->vpH / d_->contentScale);
+    // them up to the device-pixel FBO. Round (not truncate) to avoid a 1px drift.
+    w = (int)std::lround((float)d_->vpW / d_->contentScale);
+    h = (int)std::lround((float)d_->vpH / d_->contentScale);
 }
 unsigned int GlRenderer::targetTexture() const { return d_->fboTex; }
 

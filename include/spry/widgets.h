@@ -52,6 +52,7 @@ public:
     float scale = 1.4f;
     std::string role = "text";
     std::optional<Color> colorOverride;
+    bool preformatted = false; // true => verbatim lines (no word-wrap / whitespace collapse)
 
     explicit Paragraph(std::string t, float s = 1.4f) : text(std::move(t)), scale(s) {}
 
@@ -75,6 +76,24 @@ private:
     // Greedy word-wrap to `width`; calls emit(line) per line when set. Returns the
     // line count (used by measure with no emit).
     int wrap(Renderer& r, float width, const std::function<void(const std::string&)>& emit) const {
+        // Verbatim: split only on '\n', preserving all other whitespace (license
+        // text and other preformatted content rely on it). Long lines aren't
+        // wrapped — clip the container if needed.
+        if (preformatted) {
+            int count = 0;
+            std::string line;
+            for (char ch : text) {
+                if (ch == '\n') {
+                    if (emit) emit(line);
+                    line.clear();
+                    ++count;
+                } else {
+                    line += ch;
+                }
+            }
+            if (emit) emit(line);
+            return count + 1;
+        }
         int count = 0;
         std::string line, word;
         auto flush = [&] {

@@ -78,6 +78,18 @@ public:
     }
     bool hasInteractiveOverlay() const { return topInteractiveOverlay() != nullptr; }
     std::size_t overlayCount() const { return overlays_.size(); }
+    // Drop all overlays immediately (e.g. when a host view is hidden, so a modal
+    // doesn't linger in the Context and reappear on reopen). Clears any
+    // focus/press/hover/tooltip that pointed into them.
+    void clearOverlays() {
+        for (auto& o : overlays_) {
+            if (subtreeContains(o.get(), focused_)) setFocus(nullptr);
+            if (subtreeContains(o.get(), pressed_)) pressed_ = nullptr;
+            if (subtreeContains(o.get(), hovered_)) hovered_ = nullptr;
+            if (o.get() == tip_) tip_ = nullptr;
+        }
+        overlays_.clear();
+    }
 
     // Host feeds translated platform events here.
     void handleEvent(const InputEvent& e) {

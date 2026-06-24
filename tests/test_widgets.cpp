@@ -56,6 +56,14 @@ TEST_CASE("Paragraph wraps to width; height grows as it narrows") {
     REQUIRE(narrow.h > wide.h);         // wraps to several lines
 }
 
+TEST_CASE("Paragraph preformatted keeps verbatim lines (no wrap)") {
+    StubRenderer r;
+    Paragraph p("  indented one\nline two\nthree", 1.4f);
+    p.preformatted = true;
+    Size sz = p.measure(r, 20.0f, 0); // a tiny width must not add lines
+    REQUIRE(sz.h == 3.0f * textLineH(1.4f)); // exactly the 3 source lines
+}
+
 TEST_CASE("Toggle flips on click and reports the new state") {
     StubRenderer r;
     Context ctx;
