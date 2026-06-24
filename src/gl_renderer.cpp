@@ -300,7 +300,9 @@ void GlRenderer::beginFrame(Color clear) {
     glBindFramebuffer(GL_FRAMEBUFFER, d_->fbo); // render into our FBO, not the host's screen
     glViewport(0, 0, d_->vpW, d_->vpH);
     glClearColor(clear.r / 255.0f, clear.g / 255.0f, clear.b / 255.0f, clear.a / 255.0f);
+    glDisable(GL_SCISSOR_TEST); // clear the whole FBO, unclipped
     glClear(GL_COLOR_BUFFER_BIT);
+    resetClip();
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     glDisable(GL_DEPTH_TEST);
@@ -308,7 +310,25 @@ void GlRenderer::beginFrame(Color clear) {
     glUniform2f(d_->uViewport, (float)d_->vpW, (float)d_->vpH);
     glUniform1i(d_->uTex, 0);
 }
-void GlRenderer::endFrame() { glBindFramebuffer(GL_FRAMEBUFFER, 0); }
+void GlRenderer::endFrame() {
+    glDisable(GL_SCISSOR_TEST);
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+}
+
+void GlRenderer::applyClip(const Rect* r) {
+    if (!r) {
+        glDisable(GL_SCISSOR_TEST);
+        return;
+    }
+    glEnable(GL_SCISSOR_TEST);
+    int x = (int)std::lround(r->x), y = (int)std::lround(r->y);
+    int w = (int)std::lround(r->w), h = (int)std::lround(r->h);
+    if (w < 0) w = 0;
+    if (h < 0) h = 0;
+    // Our coordinate space is y-down from the top; GL scissor is y-up from the
+    // bottom of the FBO, so flip the origin.
+    glScissor(x, d_->vpH - (y + h), w, h);
+}
 
 static void pushVert(std::vector<float>& v, float x, float y, Color c, float u, float w) {
     v.insert(v.end(), {x, y, c.r / 255.0f, c.g / 255.0f, c.b / 255.0f, c.a / 255.0f, u, w});

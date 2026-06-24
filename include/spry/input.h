@@ -17,18 +17,29 @@ enum class Key {
     Up,
     Down,
     Home,
-    End
+    End,
+    // Letters carried for editing chords (select-all, clipboard, undo/redo). Only
+    // the ones bound to shortcuts are enumerated — printable text arrives as Text
+    // events, not keys.
+    A,
+    C,
+    V,
+    X,
+    Y,
+    Z
 };
 
 struct InputEvent {
-    enum Type { MouseMove, MouseDown, MouseUp, Wheel, KeyDown, Text };
+    // TextEditing carries IME pre-edit (composition) text that is not yet
+    // committed; Text carries committed UTF-8 the host has finalized.
+    enum Type { MouseMove, MouseDown, MouseUp, Wheel, KeyDown, Text, TextEditing };
     Type type = MouseMove;
     float x = 0, y = 0;         // mouse position in Spry coordinates
     int button = 0;             // 0 = left, 1 = right, 2 = middle
     float wheel = 0;
     Key key = Key::None;
     bool shift = false, ctrl = false, alt = false;
-    const char* text = nullptr; // UTF-8 (Text events)
+    const char* text = nullptr; // UTF-8 (Text / TextEditing events)
 };
 
 } // namespace spry

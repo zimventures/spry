@@ -129,8 +129,19 @@ static SDL_FColor toF(Color c) {
 }
 
 void SdlRenderer::beginFrame(Color clear) {
+    resetClip(); // drop any scissor left from the previous frame before clearing
     SDL_SetRenderDrawColor(r_, clear.r, clear.g, clear.b, clear.a);
     SDL_RenderClear(r_);
+}
+
+void SdlRenderer::applyClip(const Rect* r) {
+    if (!r) {
+        SDL_SetRenderClipRect(r_, nullptr);
+        return;
+    }
+    SDL_Rect c{(int)std::lround(r->x), (int)std::lround(r->y), (int)std::lround(r->w),
+               (int)std::lround(r->h)};
+    SDL_SetRenderClipRect(r_, &c);
 }
 
 void SdlRenderer::endFrame() { SDL_RenderPresent(r_); }

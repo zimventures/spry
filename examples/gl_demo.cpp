@@ -44,6 +44,21 @@ static std::unique_ptr<Widget> buildUI(std::function<void()> onMidnight, std::fu
     cl->role = "textDim";
     cbox->emplace<Label>("HarfBuzz shaping:  -> => != == >= <= |> <| :: www  (ligatures)", 1.6f);
 
+    // Editable fields (#213): click to place the caret, drag or shift-arrow to
+    // select, double-click a word, Ctrl/Cmd C/X/V for clipboard, Ctrl+Z/Y undo.
+    auto* tip = cbox->emplace<Label>("editable text below - select, clipboard, undo/redo, IME composition", 1.4f);
+    tip->role = "textDim";
+    auto* fields = cbox->emplace<Box>();
+    fields->axis = Axis::Row;
+    fields->spacing = 12;
+    fields->prefH = 40;
+    auto* host = fields->emplace<TextField>(std::string("user@example.com"));
+    host->grow = 2.0f;
+    auto* port = fields->emplace<TextField>(std::string("22"));
+    port->grow = 1.0f;
+    auto* empty = cbox->emplace<TextField>();
+    empty->placeholder = "type here - IME composition works (e.g. CJK input)";
+
     // Interactive row (#216): buttons swap the theme; a checkbox toggles.
     auto* irow = root->emplace<Box>();
     irow->axis = Axis::Row;
@@ -106,6 +121,13 @@ static Key toKey(SDL_Keycode k) {
         case SDLK_DOWN: return Key::Down;
         case SDLK_HOME: return Key::Home;
         case SDLK_END: return Key::End;
+        // Letters bound to editing chords (select-all, clipboard, undo/redo).
+        case SDLK_A: return Key::A;
+        case SDLK_C: return Key::C;
+        case SDLK_V: return Key::V;
+        case SDLK_X: return Key::X;
+        case SDLK_Y: return Key::Y;
+        case SDLK_Z: return Key::Z;
         default: return Key::None;
     }
 }
@@ -157,6 +179,32 @@ int main(int, char**) {
     ctx.setRoot(buildUI([&] { ctx.setTheme(midnight); }, [&] { ctx.setTheme(ember); }));
     ctx.setThemeImmediate(midnight);
 
+    // Wire platform clipboard + IME for the text fields (#213). The toolkit core
+    // stays SDL-free; the host installs these.
+    setClipboardHandlers(
+        [] {
+            char* t = SDL_GetClipboardText();
+            std::string s = t ? t : "";
+            SDL_free(t);
+            return s;
+        },
+        [](const std::string& s) { SDL_SetClipboardText(s.c_str()); });
+
+    ctx.setTextInputHandler([win](bool active, const Rect& caret) {
+        if (!active) {
+            if (SDL_TextInputActive(win)) SDL_StopTextInput(win);
+            return;
+        }
+        if (!SDL_TextInputActive(win)) SDL_StartTextInput(win);
+        // caret is in Spry (FBO pixel) space; convert to window points for SDL.
+        int wp = 0, hp = 0, ww = 0, hh = 0;
+        SDL_GetWindowSizeInPixels(win, &wp, &hp);
+        SDL_GetWindowSize(win, &ww, &hh);
+        float sx = wp > 0 ? (float)ww / wp : 1.0f, sy = hp > 0 ? (float)hh / hp : 1.0f;
+        SDL_Rect r{(int)(caret.x * sx), (int)(caret.y * sy), (int)(caret.w * sx), (int)(caret.h * sy)};
+        SDL_SetTextInputArea(win, &r, 0);
+    });
+
     App app{win, &ren, &ctx, SDL_GetTicks()};
     SDL_AddEventWatch(eventWatch, &app);
 
@@ -174,7 +222,8 @@ int main(int, char**) {
                     ev.type = InputEvent::KeyDown;
                     ev.key = toKey(e.key.key);
                     ev.shift = (e.key.mod & SDL_KMOD_SHIFT) != 0;
-                    ev.ctrl = (e.key.mod & SDL_KMOD_CTRL) != 0;
+                    // Treat Cmd (GUI) as Ctrl so the editing chords work on macOS.
+                    ev.ctrl = (e.key.mod & (SDL_KMOD_CTRL | SDL_KMOD_GUI)) != 0;
                     ev.alt = (e.key.mod & SDL_KMOD_ALT) != 0;
                     ctx.handleEvent(ev);
                     break;
@@ -186,12 +235,27 @@ int main(int, char**) {
                     ctx.handleEvent(ev);
                     break;
                 }
+                case SDL_EVENT_TEXT_EDITING: { // IME composition (pre-edit)
+                    InputEvent ev;
+                    ev.type = InputEvent::TextEditing;
+                    ev.text = e.edit.text;
+                    ctx.handleEvent(ev);
+                    break;
+                }
+                case SDL_EVENT_MOUSE_MOTION: {
+                    InputEvent ev;
+                    ev.type = InputEvent::MouseMove;
+                    mouseToSpry(win, e.motion.x, e.motion.y, ev.x, ev.y);
+                    ctx.handleEvent(ev);
+                    break;
+                }
                 case SDL_EVENT_MOUSE_BUTTON_DOWN:
                 case SDL_EVENT_MOUSE_BUTTON_UP: {
                     InputEvent ev;
                     ev.type = (e.type == SDL_EVENT_MOUSE_BUTTON_DOWN) ? InputEvent::MouseDown : InputEvent::MouseUp;
                     mouseToSpry(win, e.button.x, e.button.y, ev.x, ev.y);
                     ev.button = (int)e.button.button - 1; // SDL: 1 = left
+                    ev.shift = (SDL_GetModState() & SDL_KMOD_SHIFT) != 0;
                     ctx.handleEvent(ev);
                     break;
                 }

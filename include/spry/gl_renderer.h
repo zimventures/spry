@@ -30,6 +30,9 @@ public:
     void text(float x, float y, float scale, Color c, const char* s) override;
     Size measureText(float scale, const char* s) override;
 
+protected:
+    void applyClip(const Rect* r) override;
+
 private:
     struct Impl;
     Impl* d_ = nullptr;

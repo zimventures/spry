@@ -79,14 +79,25 @@ add_library(spry STATIC
     src/gl_renderer.cpp
     src/widget.cpp
     src/box.cpp
-    src/theme.cpp)
+    src/theme.cpp
+    src/clipboard.cpp
+    src/text_edit.cpp
+    src/textfield.cpp)
 target_include_directories(spry PUBLIC include)
 # harfbuzz-subset: in a Debug build the core harfbuzz lib leaves undefined refs to
 # subset symbols that live in this companion lib, so link both.
 target_link_libraries(spry PUBLIC SDL3::SDL3 freetype harfbuzz harfbuzz-subset OpenGL::GL)
 
 if(SPRY_BUILD_DEMO)
-    add_executable(spry_demo examples/demo.cpp)
+    # When consumed as a subproject (Cleat), the demos are configured but kept out
+    # of the default `all` build via EXCLUDE_FROM_ALL — an IDE still lists/runs
+    # them, and `cmake --build ... --target spry_gl_demo` builds them on demand.
+    set(_spry_demo_excl "")
+    if(SPRY_DEMO_EXCLUDE_FROM_ALL)
+        set(_spry_demo_excl EXCLUDE_FROM_ALL)
+    endif()
+
+    add_executable(spry_demo ${_spry_demo_excl} examples/demo.cpp)
     target_link_libraries(spry_demo PRIVATE spry)
     if(MINGW)
         # Self-contained exe (see #204 — avoids system libstdc++-6.dll mismatch).
@@ -99,7 +110,7 @@ if(SPRY_BUILD_DEMO)
             $<TARGET_FILE_DIR:spry_demo>/themes)
 
     # Same scene, rendered through the OpenGL backend (#208) — the path to Cleat.
-    add_executable(spry_gl_demo examples/gl_demo.cpp)
+    add_executable(spry_gl_demo ${_spry_demo_excl} examples/gl_demo.cpp)
     target_link_libraries(spry_gl_demo PRIVATE spry)
     if(MINGW)
         target_link_options(spry_gl_demo PRIVATE -static -static-libgcc -static-libstdc++)
@@ -124,7 +135,7 @@ if(SPRY_BUILD_TESTS)
         FetchContent_MakeAvailable(Catch2)
     endif()
     enable_testing()
-    add_executable(spry_tests tests/test_input.cpp)
+    add_executable(spry_tests tests/test_input.cpp tests/test_text_edit.cpp)
     target_link_libraries(spry_tests PRIVATE spry Catch2::Catch2WithMain)
     if(MINGW)
         target_link_options(spry_tests PRIVATE -static -static-libgcc -static-libstdc++)

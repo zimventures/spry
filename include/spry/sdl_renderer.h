@@ -26,6 +26,9 @@ public:
     void text(float x, float y, float scale, Color c, const char* s) override;
     Size measureText(float scale, const char* s) override;
 
+protected:
+    void applyClip(const Rect* r) override;
+
 private:
     SDL_Renderer* r_;
     struct Text; // FreeType font + glyph-texture cache (pimpl)

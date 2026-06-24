@@ -58,12 +58,25 @@ public:
             focused_->onFocusChanged(true);
         }
     }
+    // Host installs platform text input here (#213). Called with active=true and
+    // the caret rect when a text-editing widget is focused (each frame, so the IME
+    // candidate window tracks the caret), and active=false when focus leaves it.
+    // Wire it to SDL_StartTextInput / SDL_SetTextInputArea / SDL_StopTextInput.
+    void setTextInputHandler(std::function<void(bool active, const Rect& caret)> fn) {
+        textInput_ = std::move(fn);
+    }
+
     // Host feeds translated platform events here.
     void handleEvent(const InputEvent& e) {
         if (!root_) return;
         switch (e.type) {
             case InputEvent::MouseMove:
-                updateHover(root_->hitTest(e.x, e.y));
+                // While a widget holds the press, route moves to it as a drag
+                // (selection); otherwise it's just hover tracking.
+                if (pressed_)
+                    pressed_->onMouseDrag(e.x, e.y);
+                else
+                    updateHover(root_->hitTest(e.x, e.y));
                 break;
             case InputEvent::MouseDown: {
                 Widget* hit = root_->hitTest(e.x, e.y);
@@ -71,7 +84,7 @@ public:
                 setFocus(hit && hit->focusable ? hit : nullptr);
                 if (hit) {
                     hit->pressed = true;
-                    hit->onMouseDown(e.x, e.y, e.button);
+                    hit->onMouseDown(e.x, e.y, e.button, e.shift);
                 }
                 break;
             }
@@ -94,6 +107,9 @@ public:
             case InputEvent::Text:
                 if (focused_ && e.text) focused_->onText(e.text);
                 break;
+            case InputEvent::TextEditing:
+                if (focused_) focused_->onTextEditing(e.text ? e.text : "");
+                break;
             case InputEvent::Wheel:
                 break;
         }
@@ -113,10 +129,24 @@ public:
         r.outputSize(w, h);
         root_->arrange(r, Rect{0, 0, (float)w, (float)h});
 
-        updateHover(root_->hitTest(mouseX, mouseY));
+        if (pressed_)
+            pressed_->onMouseDrag(mouseX, mouseY); // sustain drag-select without per-move events
+        else
+            updateHover(root_->hitTest(mouseX, mouseY));
 
         root_->update(dt);
         root_->draw(r, displayed_);
+
+        // Drive platform text input from focus: caret rects are valid only after
+        // draw (they depend on shaped-text measurement), so push the IME area here.
+        if (textInput_) {
+            bool active = focused_ && focused_->wantsTextInput();
+            if (active)
+                textInput_(true, focused_->caretRect());
+            else if (textActive_)
+                textInput_(false, Rect{});
+            textActive_ = active;
+        }
     }
 
 private:
@@ -152,6 +182,9 @@ private:
     Widget* focused_ = nullptr;
     Theme from_, to_, displayed_;
     float trans_ = 1.0f;
+
+    std::function<void(bool, const Rect&)> textInput_;
+    bool textActive_ = false;
 };
 
 } // namespace spry

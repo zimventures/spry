@@ -63,12 +63,22 @@ public:
     void collectFocusable(std::vector<Widget*>& out); // tree-order, for Tab nav
 
     // Input hooks (#216). Return true to consume the event.
-    virtual bool onMouseDown(float /*x*/, float /*y*/, int /*button*/) { return false; }
+    virtual bool onMouseDown(float /*x*/, float /*y*/, int /*button*/, bool /*shift*/ = false) { return false; }
     virtual bool onMouseUp(float /*x*/, float /*y*/, int /*button*/) { return false; }
+    // Mouse moved while this widget holds the press capture (drag select, #213).
+    virtual void onMouseDrag(float /*x*/, float /*y*/) {}
     virtual void onClick() {}
     virtual bool onKey(Key /*key*/, bool /*shift*/, bool /*ctrl*/, bool /*alt*/) { return false; }
     virtual void onText(const char* /*utf8*/) {}
+    // IME pre-edit (composition) text, not yet committed (#213).
+    virtual void onTextEditing(const char* /*utf8*/) {}
     virtual void onFocusChanged(bool /*focused*/) {}
+
+    // Text-input / IME hooks (#213). A widget that edits text returns true so the
+    // host can start platform text input and place the IME candidate window at the
+    // caret; caretRect() reports that caret in Spry coordinates.
+    virtual bool wantsTextInput() const { return false; }
+    virtual Rect caretRect() const { return rect; }
 
     // Accessibility hooks (#216): expose roles + labels for an a11y tree.
     virtual Role accessibleRole() const { return Role::None; }
