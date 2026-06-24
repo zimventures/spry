@@ -353,6 +353,23 @@ public:
         for (auto& r : roots) flatten(r.get(), 0);
     }
 
+    // Right expands the highlighted branch, Left collapses it (when it has
+    // children); Up/Down fall through to the base list navigation.
+    bool onKey(Key key, bool shift, bool ctrl, bool alt) override {
+        if ((key == Key::Right || key == Key::Left) && selected >= 0 && selected < (int)flat_.size()) {
+            TreeNode* n = flat_[selected].node;
+            if (!n->children.empty()) {
+                bool open = key == Key::Right;
+                if (n->expanded != open) {
+                    n->expanded = open;
+                    rebuild();
+                }
+                return true;
+            }
+        }
+        return VirtualList::onKey(key, shift, ctrl, alt);
+    }
+
 protected:
     int rowCount() const override {
         if (flat_.empty() && !roots.empty()) const_cast<TreeView*>(this)->rebuild();

@@ -137,6 +137,35 @@ TEST_CASE("TreeView expands/collapses and selects") {
     REQUIRE(t->selected == 1);
 }
 
+TEST_CASE("TreeView expands/collapses the selected node with Left/Right") {
+    StubRenderer r;
+    Context ctx;
+    auto tv = std::make_unique<TreeView>();
+    TreeView* t = tv.get();
+    TreeNode& a = t->addRoot("A");
+    a.add("a1");
+    a.add("a2");
+    t->addRoot("B"); // leaf root
+    ctx.setRoot(std::move(tv));
+    ctx.frame(r, 0.016f, -1, -1);
+
+    REQUIRE(t->numRows() == 2);
+    ctx.setFocus(t);
+    t->selected = 0; // highlight "A"
+
+    key(ctx, Key::Right); // expand A
+    REQUIRE(t->numRows() == 4);
+    key(ctx, Key::Right); // already open: no-op
+    REQUIRE(t->numRows() == 4);
+    key(ctx, Key::Left); // collapse A
+    REQUIRE(t->numRows() == 2);
+
+    // On a leaf, Left/Right don't change the row count.
+    t->selected = 1; // "B"
+    key(ctx, Key::Right);
+    REQUIRE(t->numRows() == 2);
+}
+
 TEST_CASE("TabBar switches the active tab on click") {
     StubRenderer r;
     Context ctx;
