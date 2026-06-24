@@ -7,6 +7,7 @@
 #include "context.h"
 #include "input.h"
 #include "layout.h"
+#include "overlay.h"
 #include "renderer.h"
 #include "text_edit.h"
 #include "textfield.h"

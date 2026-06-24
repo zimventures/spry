@@ -64,10 +64,27 @@ public:
         applyClip(nullptr);
     }
 
+    // Opacity stack (#214). Overlays push a multiplier to fade a whole subtree in
+    // or out; backends multiply opacity() into every emitted colour's alpha.
+    // Pushes compound (a 0.5 inside a 0.5 yields 0.25).
+    void pushOpacity(float o) { opacityStack_.push_back(opacity() * o); }
+    void popOpacity() {
+        if (!opacityStack_.empty()) opacityStack_.pop_back();
+    }
+    float opacity() const { return opacityStack_.empty() ? 1.0f : opacityStack_.back(); }
+    void resetOpacity() { opacityStack_.clear(); }
+
 protected:
     // Apply the active clip (nullptr => disable). Default no-op suits headless
     // renderers; SDL/GL backends set a scissor.
     virtual void applyClip(const Rect* /*r*/) {}
+
+    // Fold the active opacity into a colour's alpha (backends call this on every
+    // colour they emit).
+    Color tint(Color c) const {
+        c.a = (uint8_t)(c.a * opacity());
+        return c;
+    }
 
     static Rect intersectRect(const Rect& a, const Rect& b) {
         float x0 = std::max(a.x, b.x), y0 = std::max(a.y, b.y);
@@ -76,6 +93,7 @@ protected:
     }
 
     std::vector<Rect> clipStack_;
+    std::vector<float> opacityStack_;
 };
 
 // Shared geometry usable by any backend or widget: a rounded rect as a triangle

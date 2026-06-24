@@ -7,6 +7,7 @@
 
 #include "anim.h"
 #include "input.h"
+#include "overlay.h"
 #include "renderer.h"
 #include "theme.h"
 #include "widget.h"
@@ -66,9 +67,22 @@ public:
         textInput_ = std::move(fn);
     }
 
+    // ---- overlays (#214) ----
+    // Push a transient layer (modal/menu/tooltip/toast). It draws above the root,
+    // and — if interactive — captures input until dismissed. Context removes it
+    // once its close animation finishes.
+    Overlay* addOverlay(std::unique_ptr<Overlay> o) {
+        Overlay* p = o.get();
+        overlays_.push_back(std::move(o));
+        return p;
+    }
+    bool hasInteractiveOverlay() const { return topInteractiveOverlay() != nullptr; }
+
     // Host feeds translated platform events here.
     void handleEvent(const InputEvent& e) {
         if (!root_) return;
+        Overlay* ov = topInteractiveOverlay();
+        Widget* ir = ov ? static_cast<Widget*>(ov) : root_.get();
         switch (e.type) {
             case InputEvent::MouseMove:
                 // While a widget holds the press, route moves to it as a drag
@@ -76,10 +90,16 @@ public:
                 if (pressed_)
                     pressed_->onMouseDrag(e.x, e.y);
                 else
-                    updateHover(root_->hitTest(e.x, e.y));
+                    updateHover(ir->hitTest(e.x, e.y));
                 break;
             case InputEvent::MouseDown: {
-                Widget* hit = root_->hitTest(e.x, e.y);
+                // A click outside the active overlay's content dismisses it and is
+                // swallowed (doesn't reach widgets beneath).
+                if (ov && !ov->contentRect().contains(e.x, e.y)) {
+                    if (ov->dismissOnOutsideClick) ov->requestClose();
+                    break;
+                }
+                Widget* hit = ir->hitTest(e.x, e.y);
                 pressed_ = hit;
                 setFocus(hit && hit->focusable ? hit : nullptr);
                 if (hit) {
@@ -92,12 +112,14 @@ public:
                 if (pressed_) {
                     pressed_->pressed = false;
                     pressed_->onMouseUp(e.x, e.y, e.button);
-                    if (root_->hitTest(e.x, e.y) == pressed_) pressed_->onClick();
+                    if (ir->hitTest(e.x, e.y) == pressed_) pressed_->onClick();
                     pressed_ = nullptr;
                 }
                 break;
             case InputEvent::KeyDown:
-                if (e.key == Key::Tab) {
+                if (ov && e.key == Key::Escape && ov->dismissOnEscape) {
+                    ov->requestClose();
+                } else if (e.key == Key::Tab) {
                     moveFocus(e.shift ? -1 : 1);
                 } else if (focused_) {
                     bool consumed = focused_->onKey(e.key, e.shift, e.ctrl, e.alt);
@@ -127,15 +149,22 @@ public:
 
         int w = 0, h = 0;
         r.outputSize(w, h);
-        root_->arrange(r, Rect{0, 0, (float)w, (float)h});
+        Rect full{0, 0, (float)w, (float)h};
+        root_->arrange(r, full);
+        for (auto& o : overlays_) o->arrange(r, full); // overlays fill the window
 
+        Widget* ir = inputRoot();
         if (pressed_)
             pressed_->onMouseDrag(mouseX, mouseY); // sustain drag-select without per-move events
         else
-            updateHover(root_->hitTest(mouseX, mouseY));
+            updateHover(ir->hitTest(mouseX, mouseY));
 
         root_->update(dt);
+        for (auto& o : overlays_) o->update(dt);
+
         root_->draw(r, displayed_);
+        for (auto& o : overlays_) o->draw(r, displayed_); // drawn on top, in push order
+        pruneOverlays();
 
         // Drive platform text input from focus: caret rects are valid only after
         // draw (they depend on shaped-text measurement), so push the IME area here.
@@ -156,9 +185,38 @@ private:
         hovered_ = hv;
         if (hovered_) hovered_->hovered = true;
     }
+    Overlay* topInteractiveOverlay() const {
+        for (auto it = overlays_.rbegin(); it != overlays_.rend(); ++it)
+            if ((*it)->interactive && !(*it)->closed()) return it->get();
+        return nullptr;
+    }
+    Widget* inputRoot() const {
+        Overlay* o = topInteractiveOverlay();
+        return o ? static_cast<Widget*>(o) : root_.get();
+    }
+    static bool subtreeContains(Widget* root, Widget* w) {
+        if (!root || !w) return false;
+        if (root == w) return true;
+        for (auto& c : root->children())
+            if (subtreeContains(c.get(), w)) return true;
+        return false;
+    }
+    void pruneOverlays() {
+        for (auto it = overlays_.begin(); it != overlays_.end();) {
+            if ((*it)->closed()) {
+                // Drop focus/press/hover if they pointed into the removed overlay.
+                if (subtreeContains(it->get(), focused_)) setFocus(nullptr);
+                if (subtreeContains(it->get(), pressed_)) pressed_ = nullptr;
+                if (subtreeContains(it->get(), hovered_)) hovered_ = nullptr;
+                it = overlays_.erase(it);
+            } else {
+                ++it;
+            }
+        }
+    }
     void moveFocus(int dir) {
         std::vector<Widget*> f;
-        root_->collectFocusable(f);
+        inputRoot()->collectFocusable(f);
         if (f.empty()) return;
         int n = (int)f.size(), idx = -1;
         for (int i = 0; i < n; ++i)
@@ -177,6 +235,7 @@ private:
     }
 
     std::unique_ptr<Widget> root_;
+    std::vector<std::unique_ptr<Overlay>> overlays_;
     Widget* hovered_ = nullptr;
     Widget* pressed_ = nullptr;
     Widget* focused_ = nullptr;

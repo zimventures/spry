@@ -14,7 +14,48 @@
 
 using namespace spry;
 
-static std::unique_ptr<Widget> buildUI(std::function<void()> onMidnight, std::function<void()> onEmber) {
+// Overlay spawners (#214). Each builds a layer and hands it to the Context, which
+// animates it in, routes input to it, and prunes it when it closes.
+static void showModal(Context& ctx) {
+    auto modal = std::make_unique<Modal>();
+    Modal* mp = modal.get();
+    auto body = std::make_unique<Box>();
+    body->axis = Axis::Column;
+    body->padding = Edges(24);
+    body->spacing = 14;
+    body->emplace<Label>("Disconnect session?", 1.8f);
+    auto* msg = body->emplace<Label>("This closes the SSH connection.", 1.3f);
+    msg->role = "textDim";
+    auto* btns = body->emplace<Box>();
+    btns->axis = Axis::Row;
+    btns->spacing = 10;
+    btns->emplace<Button>("Cancel", [mp] { mp->requestClose(); });
+    btns->emplace<Button>("Disconnect", [mp] { mp->requestClose(); });
+    modal->setContent(std::move(body));
+    ctx.addOverlay(std::move(modal));
+}
+
+static void showMenu(Context& ctx, Widget* anchor) {
+    auto menu = std::make_unique<Menu>();
+    menu->anchorX = anchor->rect.x;
+    menu->anchorY = anchor->rect.y + anchor->rect.h + 4.0f;
+    menu->addItem("Rename", [] {});
+    menu->addItem("Duplicate", [] {});
+    menu->addItem("Delete", [] {});
+    ctx.addOverlay(std::move(menu));
+}
+
+static void showTooltip(Context& ctx, Widget* anchor) {
+    auto tip = std::make_unique<Tooltip>("springs + opacity = fades");
+    tip->anchorX = anchor->rect.x;
+    tip->anchorY = anchor->rect.y;
+    ctx.addOverlay(std::move(tip));
+}
+
+static void showToast(Context& ctx) { ctx.addOverlay(std::make_unique<Toast>("Saved to ~/.cleat/config")); }
+
+static std::unique_ptr<Widget> buildUI(Context& ctx, std::function<void()> onMidnight,
+                                       std::function<void()> onEmber) {
     auto root = std::make_unique<Box>();
     root->axis = Axis::Column;
     root->padding = Edges(24);
@@ -59,14 +100,35 @@ static std::unique_ptr<Widget> buildUI(std::function<void()> onMidnight, std::fu
     auto* empty = cbox->emplace<TextField>();
     empty->placeholder = "type here - IME composition works (e.g. CJK input)";
 
-    // Interactive row (#216): buttons swap the theme; a checkbox toggles.
+    // Core controls (#214): a slider + a switch beside the checkbox.
+    auto* ctrls = cbox->emplace<Box>();
+    ctrls->axis = Axis::Row;
+    ctrls->spacing = 18;
+    ctrls->prefH = 30;
+    ctrls->emplace<Slider>(0.0f, 100.0f, 35.0f)->grow = 1.0f;
+    ctrls->emplace<Toggle>("wrap", true);
+    ctrls->emplace<Checkbox>("a toggle", true);
+
+    // Overlays (#214): each button spawns a layer that fades/animates in.
+    auto* orow = root->emplace<Box>();
+    orow->axis = Axis::Row;
+    orow->spacing = 12;
+    orow->prefH = 44;
+    orow->emplace<Button>("Modal", [&ctx] { showModal(ctx); });
+    Button* menuBtn = orow->emplace<Button>("Menu");
+    menuBtn->onClickCb = [&ctx, menuBtn] { showMenu(ctx, menuBtn); };
+    Button* tipBtn = orow->emplace<Button>("Tooltip");
+    tipBtn->onClickCb = [&ctx, tipBtn] { showTooltip(ctx, tipBtn); };
+    orow->emplace<Button>("Toast", [&ctx] { showToast(ctx); });
+    orow->emplace<Widget>()->grow = 1.0f;
+
+    // Theme row (#211): animated crossfade between two token sets.
     auto* irow = root->emplace<Box>();
     irow->axis = Axis::Row;
     irow->spacing = 12;
     irow->prefH = 46;
     irow->emplace<Button>("Midnight theme", std::move(onMidnight));
     irow->emplace<Button>("Ember theme", std::move(onEmber));
-    irow->emplace<Checkbox>("a toggle", true);
     irow->emplace<Widget>()->grow = 1.0f;
 
     return root;
@@ -176,7 +238,7 @@ int main(int, char**) {
     Theme ember = Theme::builtinDark();
     Theme::loadFromFile(dir + "ember.theme", ember);
 
-    ctx.setRoot(buildUI([&] { ctx.setTheme(midnight); }, [&] { ctx.setTheme(ember); }));
+    ctx.setRoot(buildUI(ctx, [&] { ctx.setTheme(midnight); }, [&] { ctx.setTheme(ember); }));
     ctx.setThemeImmediate(midnight);
 
     // Wire platform clipboard + IME for the text fields (#213). The toolkit core

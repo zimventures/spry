@@ -303,6 +303,7 @@ void GlRenderer::beginFrame(Color clear) {
     glDisable(GL_SCISSOR_TEST); // clear the whole FBO, unclipped
     glClear(GL_COLOR_BUFFER_BIT);
     resetClip();
+    resetOpacity();
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     glDisable(GL_DEPTH_TEST);
@@ -338,7 +339,7 @@ void GlRenderer::fillMesh(const std::vector<Vertex>& vs, const std::vector<int>&
     if (vs.size() < 3) return;
     std::vector<float> v;
     v.reserve(vs.size() * 8);
-    for (const auto& p : vs) pushVert(v, p.x, p.y, p.color, 0.0f, 0.0f);
+    for (const auto& p : vs) pushVert(v, p.x, p.y, tint(p.color), 0.0f, 0.0f);
     d_->draw(v, idx, d_->white);
 }
 
@@ -348,6 +349,7 @@ void GlRenderer::fillRoundedRect(float cx, float cy, float w, float h, float rad
 }
 
 void GlRenderer::fillRect(float x, float y, float w, float h, Color c) {
+    c = tint(c);
     std::vector<float> v;
     pushVert(v, x, y, c, 0, 0);
     pushVert(v, x + w, y, c, 0, 0);
@@ -359,6 +361,7 @@ void GlRenderer::fillRect(float x, float y, float w, float h, Color c) {
 
 void GlRenderer::text(float x, float y, float scale, Color c, const char* s) {
     if (!d_->fontReady) return;
+    c = tint(c);
     int px = (int)std::lround(kTextBasePx * scale);
     if (px < 6) px = 6;
     std::vector<Shaped> glyphs;

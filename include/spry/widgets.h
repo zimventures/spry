@@ -147,4 +147,133 @@ public:
     }
 };
 
+// A focusable on/off switch (#214). Click or Enter/Space to toggle; the knob
+// slides between ends via its own spring, and the track colour crossfades.
+class Toggle : public Widget {
+public:
+    std::string label;
+    bool on = false;
+    std::function<void(bool)> onChange;
+    float scale = 1.4f;
+    Spring knob; // 0 (off) .. 1 (on)
+
+    explicit Toggle(std::string l = {}, bool v = false) : label(std::move(l)), on(v) {
+        focusable = true;
+        knob.value = knob.target = v ? 1.0f : 0.0f;
+    }
+    Size measure(Renderer& r, float, float) override {
+        float track = textLineH(scale) * 1.7f;
+        float lw = label.empty() ? 0.0f : 10.0f + r.measureText(scale, label.c_str()).w;
+        return Size{track + lw, textLineH(scale) + 6.0f};
+    }
+    void onClick() override {
+        on = !on;
+        if (onChange) onChange(on);
+    }
+    Role accessibleRole() const override { return Role::Checkbox; }
+    std::string accessibleLabel() const override { return label; }
+    void update(float dt) override {
+        knob.target = on ? 1.0f : 0.0f;
+        knob.step(dt);
+        Widget::update(dt);
+    }
+    void paint(Renderer& r, const Theme& th) override {
+        float h = textLineH(scale) * 0.9f;
+        float w = h * 1.9f;
+        float k = knob.value < 0 ? 0 : (knob.value > 1 ? 1 : knob.value);
+        float cx = rect.x + w * 0.5f, cy = rect.y + rect.h * 0.5f;
+        Color off = th.color("surface", {40, 43, 62});
+        Color acc = th.color("accent", {96, 126, 205});
+        Color track = lerp(off, acc, k);
+        if (focused) {
+            Color ring{acc.r, acc.g, acc.b, 110};
+            r.fillRoundedRect(cx, cy, w + 6, h + 6, (h + 6) * 0.5f, ring, ring);
+        }
+        r.fillRoundedRect(cx, cy, w, h, h * 0.5f, track, lerp(track, Color{0, 0, 0, 255}, 0.18f));
+        float knobR = h - 6.0f;
+        float kx = rect.x + 3.0f + knobR * 0.5f + k * (w - knobR - 6.0f);
+        Color knobCol = (hovered || focused) ? Color{255, 255, 255, 255} : Color{232, 235, 244, 255};
+        r.fillRoundedRect(kx, cy, knobR, knobR, knobR * 0.5f, knobCol, lerp(knobCol, Color{200, 204, 214, 255}, 0.6f));
+        if (!label.empty())
+            r.text(rect.x + w + 10.0f, rect.y + (rect.h - textLineH(scale)) * 0.5f, scale,
+                   th.color("text", {226, 229, 242}), label.c_str());
+    }
+};
+
+// A focusable horizontal slider (#214). Click/drag the track to set the value;
+// arrow keys nudge, Home/End jump to the ends. The thumb eases via a spring.
+class Slider : public Widget {
+public:
+    float minV = 0.0f, maxV = 1.0f, value = 0.0f;
+    float step = 0.0f; // 0 => continuous; otherwise snap to multiples of step
+    std::function<void(float)> onChange;
+    Spring thumb; // 0..1 fraction
+
+    Slider() { focusable = true; }
+    Slider(float lo, float hi, float v) : minV(lo), maxV(hi), value(v) {
+        focusable = true;
+        thumb.value = thumb.target = fraction();
+    }
+
+    Size measure(Renderer&, float, float) override {
+        float h = 22.0f;
+        return Size{prefW >= 0 ? prefW : 180.0f, h};
+    }
+    Role accessibleRole() const override { return Role::None; }
+
+    bool onMouseDown(float x, float, int, bool) override {
+        setFromX(x);
+        return true;
+    }
+    void onMouseDrag(float x, float) override { setFromX(x); }
+    bool onKey(Key key, bool, bool, bool) override {
+        float s = step > 0 ? step : (maxV - minV) / 20.0f;
+        switch (key) {
+            case Key::Left: setValue(value - s); return true;
+            case Key::Right: setValue(value + s); return true;
+            case Key::Home: setValue(minV); return true;
+            case Key::End: setValue(maxV); return true;
+            default: return false;
+        }
+    }
+    void update(float dt) override {
+        thumb.target = fraction();
+        thumb.step(dt);
+        Widget::update(dt);
+    }
+    void paint(Renderer& r, const Theme& th) override {
+        float cy = rect.y + rect.h * 0.5f;
+        float tx = rect.x + kThumbR, tw = rect.w - 2 * kThumbR;
+        Color acc = th.color("accent", {96, 126, 205});
+        Color trackBg = th.color("surface", {40, 43, 62});
+        float f = thumb.value < 0 ? 0 : (thumb.value > 1 ? 1 : thumb.value);
+        r.fillRoundedRect(tx + tw * 0.5f, cy, tw, 5.0f, 2.5f, trackBg, trackBg);                 // track
+        r.fillRoundedRect(tx + (tw * f) * 0.5f, cy, tw * f, 5.0f, 2.5f, acc, acc);                // filled
+        float kx = tx + tw * f;
+        if (focused) {
+            Color ring{acc.r, acc.g, acc.b, 110};
+            r.fillRoundedRect(kx, cy, kThumbR * 2 + 6, kThumbR * 2 + 6, kThumbR + 3, ring, ring);
+        }
+        Color knob = (hovered || focused) ? Color{255, 255, 255, 255} : Color{232, 235, 244, 255};
+        r.fillRoundedRect(kx, cy, kThumbR * 2, kThumbR * 2, kThumbR, knob, lerp(knob, acc, 0.25f));
+    }
+
+private:
+    static constexpr float kThumbR = 9.0f;
+    float fraction() const { return maxV > minV ? (value - minV) / (maxV - minV) : 0.0f; }
+    void setFromX(float x) {
+        float tx = rect.x + kThumbR, tw = rect.w - 2 * kThumbR;
+        float f = tw > 0 ? (x - tx) / tw : 0.0f;
+        setValue(minV + f * (maxV - minV));
+    }
+    void setValue(float v) {
+        if (v < minV) v = minV;
+        if (v > maxV) v = maxV;
+        if (step > 0) v = minV + std::round((v - minV) / step) * step;
+        if (v == value) return;
+        value = v;
+        if (onChange) onChange(value);
+    }
+};
+
 } // namespace spry

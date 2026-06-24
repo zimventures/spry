@@ -130,6 +130,7 @@ static SDL_FColor toF(Color c) {
 
 void SdlRenderer::beginFrame(Color clear) {
     resetClip(); // drop any scissor left from the previous frame before clearing
+    resetOpacity();
     SDL_SetRenderDrawColor(r_, clear.r, clear.g, clear.b, clear.a);
     SDL_RenderClear(r_);
 }
@@ -155,7 +156,7 @@ void SdlRenderer::fillMesh(const std::vector<Vertex>& vs, const std::vector<int>
     for (const auto& v : vs) {
         SDL_Vertex s{};
         s.position = SDL_FPoint{v.x, v.y};
-        s.color = toF(v.color);
+        s.color = toF(tint(v.color));
         sv.push_back(s);
     }
     SDL_RenderGeometry(r_, nullptr, sv.data(), (int)sv.size(), idx.data(), (int)idx.size());
@@ -167,12 +168,14 @@ void SdlRenderer::fillRoundedRect(float cx, float cy, float w, float h, float ra
 }
 
 void SdlRenderer::fillRect(float x, float y, float w, float h, Color c) {
+    c = tint(c);
     SDL_SetRenderDrawColor(r_, c.r, c.g, c.b, c.a);
     SDL_FRect rr{x, y, w, h};
     SDL_RenderFillRect(r_, &rr);
 }
 
 void SdlRenderer::text(float x, float y, float scale, Color c, const char* s) {
+    c = tint(c);
     if (!text_ || !text_->ready) {
         SDL_SetRenderDrawColor(r_, c.r, c.g, c.b, c.a);
         SDL_SetRenderScale(r_, scale, scale);
