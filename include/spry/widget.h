@@ -69,6 +69,9 @@ public:
     // Mouse moved while this widget holds the press capture (drag select, #213).
     virtual void onMouseDrag(float /*x*/, float /*y*/) {}
     virtual void onClick() {}
+    // Scroll wheel over this widget; dy is in notches (+ = up). Return true to
+    // consume — Context bubbles up the parent chain until something does (#215).
+    virtual bool onWheel(float /*dx*/, float /*dy*/) { return false; }
     virtual bool onKey(Key /*key*/, bool /*shift*/, bool /*ctrl*/, bool /*alt*/) { return false; }
     virtual void onText(const char* /*utf8*/) {}
     // IME pre-edit (composition) text, not yet committed (#213).

@@ -134,6 +134,10 @@ public:
                 if (focused_) focused_->onTextEditing(e.text ? e.text : "");
                 break;
             case InputEvent::Wheel:
+                // Bubble from the widget under the pointer up the parent chain
+                // until a scroll container consumes it.
+                for (Widget* w = ir->hitTest(e.x, e.y); w; w = w->parent())
+                    if (w->onWheel(0.0f, e.wheel)) break;
                 break;
         }
     }

@@ -76,41 +76,73 @@ static std::unique_ptr<Widget> buildUI(Context& ctx, std::function<void()> onMid
         c->tooltip = std::string("Open the ") + n + " view"; // hover to see it (#214)
     }
 
-    auto* content = root->emplace<Panel>();
-    content->grow = 1.0f;
-    auto* cbox = content->emplace<Box>();
-    cbox->axis = Axis::Column;
-    cbox->padding = Edges(18);
-    cbox->spacing = 12;
-    auto* cl = cbox->emplace<Label>("the buttons below are real focusable controls (spry::Button/Checkbox)", 1.5f);
-    cl->role = "textDim";
-    cbox->emplace<Label>("HarfBuzz shaping:  -> => != == >= <= |> <| :: www  (ligatures)", 1.6f);
+    // Data widgets (#215): a tab bar switches between a sortable table, a tree, a
+    // list, and the input controls. The table/tree/list virtualize their rows and
+    // scroll with proper clipping; click a header to sort, a row to select.
+    auto* tabs = root->emplace<TabBar>();
+    tabs->tabs = {"Table", "Tree", "List", "Controls"};
 
-    // Editable fields (#213): click to place the caret, drag or shift-arrow to
-    // select, double-click a word, Ctrl/Cmd C/X/V for clipboard, Ctrl+Z/Y undo.
-    auto* tip = cbox->emplace<Label>("editable text below - select, clipboard, undo/redo, IME composition", 1.4f);
-    tip->role = "textDim";
-    auto* fields = cbox->emplace<Box>();
+    auto* stack = root->emplace<Box>(); // a column where only the active tab is visible
+    stack->grow = 1.0f;
+
+    auto* table = stack->emplace<Table>();
+    table->grow = 1.0f;
+    table->columns = {{"Name", 2.0f}, {"Type", 1.0f}, {"Size", 1.0f}, {"Modified", 1.5f}};
+    const char* kinds[] = {"dir", "file", "link"};
+    for (int i = 0; i < 240; ++i)
+        table->rows.push_back({"item_" + std::to_string(i), kinds[i % 3], std::to_string((i * 37) % 9000),
+                               "2026-06-" + std::to_string(10 + i % 20)});
+
+    auto* tree = stack->emplace<TreeView>();
+    tree->grow = 1.0f;
+    tree->visible = false;
+    for (const char* host : {"prod-web-01", "prod-db-01", "staging"}) {
+        TreeNode& h = tree->addRoot(host);
+        h.expanded = true;
+        TreeNode& etc = h.add("etc");
+        etc.add("nginx.conf");
+        etc.add("hosts");
+        TreeNode& var = h.add("var");
+        var.add("log");
+        var.add("www");
+    }
+    tree->rebuild();
+
+    auto* list = stack->emplace<ListView>();
+    list->grow = 1.0f;
+    list->visible = false;
+    for (int i = 0; i < 80; ++i) list->items.push_back("connection " + std::to_string(i));
+
+    // The "Controls" tab carries the editable fields + slider/toggle (#213/#214).
+    auto* controls = stack->emplace<Box>();
+    controls->axis = Axis::Column;
+    controls->spacing = 12;
+    controls->visible = false;
+    auto* tipL = controls->emplace<Label>("editable text - select, clipboard, undo/redo, IME", 1.4f);
+    tipL->role = "textDim";
+    auto* fields = controls->emplace<Box>();
     fields->axis = Axis::Row;
     fields->spacing = 12;
     fields->prefH = 40;
-    auto* host = fields->emplace<TextField>(std::string("user@example.com"));
-    host->grow = 2.0f;
-    auto* port = fields->emplace<TextField>(std::string("22"));
-    port->grow = 1.0f;
-    auto* empty = cbox->emplace<TextField>();
-    empty->placeholder = "type here - IME composition works (e.g. CJK input)";
-
-    // Core controls (#214): a slider + a switch beside the checkbox.
-    auto* ctrls = cbox->emplace<Box>();
-    ctrls->axis = Axis::Row;
-    ctrls->spacing = 18;
-    ctrls->prefH = 30;
-    auto* vol = ctrls->emplace<Slider>(0.0f, 100.0f, 35.0f);
+    fields->emplace<TextField>(std::string("user@example.com"))->grow = 2.0f;
+    fields->emplace<TextField>(std::string("22"))->grow = 1.0f;
+    controls->emplace<TextField>()->placeholder = "type here - IME composition works (e.g. CJK input)";
+    auto* crow = controls->emplace<Box>();
+    crow->axis = Axis::Row;
+    crow->spacing = 18;
+    crow->prefH = 30;
+    auto* vol = crow->emplace<Slider>(0.0f, 100.0f, 35.0f);
     vol->grow = 1.0f;
     vol->tooltip = "drag, or focus + arrow keys";
-    ctrls->emplace<Toggle>("wrap", true)->tooltip = "toggle line wrapping";
-    ctrls->emplace<Checkbox>("a toggle", true);
+    crow->emplace<Toggle>("wrap", true)->tooltip = "toggle line wrapping";
+    crow->emplace<Checkbox>("a toggle", true);
+
+    tabs->onChange = [table, tree, list, controls](int i) {
+        table->visible = i == 0;
+        tree->visible = i == 1;
+        list->visible = i == 2;
+        controls->visible = i == 3;
+    };
 
     // Overlays (#214): each button spawns a layer that fades/animates in.
     auto* orow = root->emplace<Box>();
@@ -311,6 +343,16 @@ int main(int, char**) {
                     InputEvent ev;
                     ev.type = InputEvent::MouseMove;
                     mouseToSpry(win, e.motion.x, e.motion.y, ev.x, ev.y);
+                    ctx.handleEvent(ev);
+                    break;
+                }
+                case SDL_EVENT_MOUSE_WHEEL: {
+                    InputEvent ev;
+                    ev.type = InputEvent::Wheel;
+                    ev.wheel = e.wheel.y;
+                    float px = 0, py = 0;
+                    SDL_GetMouseState(&px, &py); // wheel events carry no position; use the cursor
+                    mouseToSpry(win, px, py, ev.x, ev.y);
                     ctx.handleEvent(ev);
                     break;
                 }

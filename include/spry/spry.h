@@ -5,6 +5,7 @@
 #include "clipboard.h"
 #include "color.h"
 #include "context.h"
+#include "data.h"
 #include "input.h"
 #include "layout.h"
 #include "overlay.h"
