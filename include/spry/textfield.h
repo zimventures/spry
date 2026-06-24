@@ -60,6 +60,11 @@ private:
     float lastClickT_ = -1.0f; // clock_ at the previous mouse-down
     float lastClickX_ = 0.0f;  // x of the previous mouse-down (spot check)
     int clickCount_ = 0;
+    // Drag granularity from the initiating click: a word/line selection must keep
+    // its granularity as the drag extends (and survive Context's per-frame drag).
+    enum class SelMode { Char, Word, Line };
+    SelMode selMode_ = SelMode::Char;
+    std::size_t wordLo_ = 0, wordHi_ = 0; // anchor word bounds, for word-granular drag
     Renderer* r_ = nullptr; // last renderer seen (events need it to measure)
     static constexpr float kPad = 10.0f;
 };

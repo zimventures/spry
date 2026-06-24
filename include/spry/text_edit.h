@@ -38,6 +38,10 @@ public:
     void setCaret(std::size_t byte, bool extend); // clamped to a UTF-8 boundary
     void selectAll();
     void selectWordAt(std::size_t byte);
+    void setSelection(std::size_t anchor, std::size_t caret); // both snapped to UTF-8 boundaries
+    // Byte range of the word at `byte` (its char-class run), without moving the
+    // selection — used to drive word-granular drag selection.
+    void wordBoundsAt(std::size_t byte, std::size_t& lo, std::size_t& hi) const;
 
     void undo();
     void redo();

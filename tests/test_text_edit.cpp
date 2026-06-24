@@ -130,6 +130,18 @@ TEST_CASE("EditBuffer: double-click word selection") {
     REQUIRE(b.selectedText() == "alpha");
 }
 
+TEST_CASE("EditBuffer: wordBoundsAt + setSelection") {
+    EditBuffer b;
+    b.setText("alpha beta gamma");
+    std::size_t lo = 0, hi = 0;
+    b.wordBoundsAt(8, lo, hi); // inside "beta"
+    REQUIRE(lo == 6);
+    REQUIRE(hi == 10);
+    b.setSelection(6, 10);
+    REQUIRE(b.selectedText() == "beta");
+    REQUIRE(b.caret() == 10); // caret lands on the second argument
+}
+
 TEST_CASE("EditBuffer: UTF-8 caret moves by codepoint") {
     EditBuffer b;
     b.setText("a\xC3\xA9z"); // bytes: 'a', U+00E9 (e-acute, 2 bytes), 'z'
@@ -207,4 +219,55 @@ TEST_CASE("TextField: click places caret, drag extends selection") {
     // Typing replaces the whole (selected) contents.
     typeText(ctx, "Z");
     REQUIRE(tf->text() == "Z");
+}
+
+TEST_CASE("TextField: double-click selects a whole word and the drag keeps it") {
+    StubRenderer r;
+    Context ctx;
+    auto root = std::make_unique<Box>();
+    TextField* tf = root->emplace<TextField>(std::string("alpha beta gamma"));
+    ctx.setRoot(std::move(root));
+    ctx.frame(r, 0.016f, -1, -1);
+
+    float cy = tf->rect.y + tf->rect.h * 0.5f;
+    float betaX = tf->rect.x + 10.0f + 8.0f * (7.0f * 1.4f); // ~byte 8, inside "beta"
+    auto down = [&](float x) {
+        InputEvent d;
+        d.type = InputEvent::MouseDown;
+        d.x = x;
+        d.y = cy;
+        ctx.handleEvent(d);
+    };
+
+    down(betaX);
+    down(betaX);                       // double-click -> "beta"
+    ctx.frame(r, 0.016f, betaX, cy);   // Context sustains the drag for a frame (the old bug)
+    InputEvent u;
+    u.type = InputEvent::MouseUp;
+    u.x = betaX;
+    u.y = cy;
+    ctx.handleEvent(u);
+    typeText(ctx, "Z");
+    REQUIRE(tf->text() == "alpha Z gamma"); // the whole word was replaced, not a fragment
+}
+
+TEST_CASE("TextField: triple-click selects the whole line") {
+    StubRenderer r;
+    Context ctx;
+    auto root = std::make_unique<Box>();
+    TextField* tf = root->emplace<TextField>(std::string("alpha beta gamma"));
+    ctx.setRoot(std::move(root));
+    ctx.frame(r, 0.016f, -1, -1);
+
+    float cy = tf->rect.y + tf->rect.h * 0.5f;
+    float x = tf->rect.x + 10.0f + 8.0f * (7.0f * 1.4f);
+    for (int i = 0; i < 3; ++i) { // three quick clicks at the same spot
+        InputEvent d;
+        d.type = InputEvent::MouseDown;
+        d.x = x;
+        d.y = cy;
+        ctx.handleEvent(d);
+    }
+    typeText(ctx, "Q");
+    REQUIRE(tf->text() == "Q"); // everything was selected
 }

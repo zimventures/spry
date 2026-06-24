@@ -1,5 +1,6 @@
 #include "spry/textfield.h"
 
+#include <algorithm>
 #include <cmath>
 
 namespace spry {
@@ -160,7 +161,7 @@ void TextField::paint(Renderer& r, const Theme& th) {
 
 // ---- input -----------------------------------------------------------------
 bool TextField::onMouseDown(float x, float y, int /*button*/, bool shift, bool /*ctrl*/) {
-    // Double-click (within the time + roughly the same spot) selects a word.
+    // Successive quick clicks at ~the same spot escalate: 1=caret, 2=word, 3=line.
     bool quick = (lastClickT_ >= 0.0f) && (clock_ - lastClickT_ < 0.45f) &&
                  (std::abs(x - lastClickX_) < 6.0f);
     clickCount_ = quick ? clickCount_ + 1 : 1;
@@ -169,16 +170,39 @@ bool TextField::onMouseDown(float x, float y, int /*button*/, bool shift, bool /
     blink_ = 0.0f;
 
     std::size_t b = byteAtX(x);
-    if (clickCount_ >= 2)
+    if (clickCount_ >= 3) {
+        selMode_ = SelMode::Line; // single-line field: the line is the whole text
+        edit_.selectAll();
+    } else if (clickCount_ == 2) {
+        selMode_ = SelMode::Word;
         edit_.selectWordAt(b);
-    else
+        wordLo_ = edit_.selStart();
+        wordHi_ = edit_.selEnd();
+    } else {
+        selMode_ = SelMode::Char;
         edit_.setCaret(b, shift);
+    }
     (void)y;
     return true;
 }
 
 void TextField::onMouseDrag(float x, float y) {
-    edit_.setCaret(byteAtX(x), /*extend=*/true);
+    // Extend at the granularity the drag began with — Context drives this every
+    // frame while the button is held, so a word/line selection must persist.
+    if (selMode_ == SelMode::Line) {
+        edit_.selectAll();
+    } else if (selMode_ == SelMode::Word) {
+        std::size_t lo, hi;
+        edit_.wordBoundsAt(byteAtX(x), lo, hi);
+        std::size_t selLo = std::min(wordLo_, lo), selHi = std::max(wordHi_, hi);
+        // Put the caret on the end the pointer is dragging toward.
+        if (lo >= wordHi_)
+            edit_.setSelection(selLo, selHi);
+        else
+            edit_.setSelection(selHi, selLo);
+    } else {
+        edit_.setCaret(byteAtX(x), /*extend=*/true);
+    }
     blink_ = 0.0f;
     (void)y;
 }

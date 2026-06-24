@@ -216,21 +216,34 @@ void EditBuffer::selectAll() {
     typing_ = false;
 }
 
-void EditBuffer::selectWordAt(std::size_t byte) {
+void EditBuffer::setSelection(std::size_t anchor, std::size_t caret) {
+    anchor_ = u8Snap(text_, anchor);
+    caret_ = u8Snap(text_, caret);
+    typing_ = false;
+}
+
+void EditBuffer::wordBoundsAt(std::size_t byte, std::size_t& lo, std::size_t& hi) const {
     byte = u8Snap(text_, byte);
     if (text_.empty()) {
-        caret_ = anchor_ = 0;
+        lo = hi = 0;
         return;
     }
-    // Pick the class of the char under (or just before) the click, then expand
+    // Pick the class of the char under (or just before) the position, then expand
     // over the matching run in both directions.
     std::size_t probe = byte < text_.size() ? byte : u8Prev(text_, byte);
     bool word = isWordByte((unsigned char)text_[probe]);
     std::size_t a = byte, b = byte;
     while (a > 0 && isWordByte((unsigned char)text_[u8Prev(text_, a)]) == word) a = u8Prev(text_, a);
     while (b < text_.size() && isWordByte((unsigned char)text_[b]) == word) b = u8Next(text_, b);
-    anchor_ = a;
-    caret_ = b;
+    lo = a;
+    hi = b;
+}
+
+void EditBuffer::selectWordAt(std::size_t byte) {
+    std::size_t lo, hi;
+    wordBoundsAt(byte, lo, hi);
+    anchor_ = lo;
+    caret_ = hi;
     typing_ = false;
 }
 
