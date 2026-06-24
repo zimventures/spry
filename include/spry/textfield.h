@@ -31,7 +31,7 @@ public:
     void update(float dt) override;
     void paint(Renderer& r, const Theme& th) override;
 
-    bool onMouseDown(float x, float y, int button, bool shift) override;
+    bool onMouseDown(float x, float y, int button, bool shift, bool ctrl) override;
     void onMouseDrag(float x, float y) override;
     bool onKey(Key key, bool shift, bool ctrl, bool alt) override;
     void onText(const char* utf8) override;

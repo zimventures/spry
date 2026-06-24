@@ -29,11 +29,13 @@ struct StubRenderer : Renderer {
     }
 };
 
-void clickAt(Context& ctx, float x, float y) {
+void clickAt(Context& ctx, float x, float y, bool shift = false, bool ctrl = false) {
     InputEvent d;
     d.type = InputEvent::MouseDown;
     d.x = x;
     d.y = y;
+    d.shift = shift;
+    d.ctrl = ctrl;
     ctx.handleEvent(d);
     InputEvent u = d;
     u.type = InputEvent::MouseUp;
@@ -49,10 +51,12 @@ void wheelAt(Context& ctx, float x, float y, float notches) {
     ctx.handleEvent(w);
 }
 
-void key(Context& ctx, Key k) {
+void key(Context& ctx, Key k, bool shift = false, bool ctrl = false) {
     InputEvent e;
     e.type = InputEvent::KeyDown;
     e.key = k;
+    e.shift = shift;
+    e.ctrl = ctrl;
     ctx.handleEvent(e);
 }
 
@@ -91,6 +95,74 @@ TEST_CASE("ListView wheel scrolls the virtualized rows") {
     wheelAt(ctx, x, y, -3.0f); // scroll down
     clickAt(ctx, x, y);        // same screen position now lands on a later row
     REQUIRE(l->selected > 0);
+}
+
+TEST_CASE("ListView multi-select: ctrl toggles, shift ranges, ctrl+A all") {
+    StubRenderer r;
+    Context ctx;
+    auto lv = std::make_unique<ListView>();
+    ListView* l = lv.get();
+    l->rowHeight = 20.0f;
+    l->multiSelect = true;
+    for (int i = 0; i < 50; ++i) l->items.push_back("item " + std::to_string(i));
+    ctx.setRoot(std::move(lv));
+    ctx.frame(r, 0.016f, -1, -1);
+
+    auto rowY = [&](int i) { return l->rect.y + i * l->rowHeight + 10.0f; };
+    float x = l->rect.x + 20.0f;
+
+    clickAt(ctx, x, rowY(1));                       // select row 1
+    REQUIRE(l->selection() == std::vector<int>{1});
+    clickAt(ctx, x, rowY(3), false, true);          // ctrl-click row 3 -> {1,3}
+    REQUIRE(l->selection() == std::vector<int>{1, 3});
+    clickAt(ctx, x, rowY(3), false, true);          // ctrl-click row 3 again -> deselect
+    REQUIRE(l->selection() == std::vector<int>{1});
+
+    clickAt(ctx, x, rowY(2));                        // plain click resets to {2}
+    clickAt(ctx, x, rowY(5), true, false);          // shift-click row 5 -> 2..5
+    REQUIRE(l->selection() == std::vector<int>{2, 3, 4, 5});
+
+    ctx.setFocus(l);
+    key(ctx, Key::A, false, true); // ctrl+A selects all
+    REQUIRE((int)l->selection().size() == 50);
+}
+
+TEST_CASE("ListView shift+arrow extends the selection") {
+    StubRenderer r;
+    Context ctx;
+    auto lv = std::make_unique<ListView>();
+    ListView* l = lv.get();
+    l->rowHeight = 20.0f;
+    l->multiSelect = true;
+    for (int i = 0; i < 50; ++i) l->items.push_back("item " + std::to_string(i));
+    ctx.setRoot(std::move(lv));
+    ctx.frame(r, 0.016f, -1, -1);
+
+    clickAt(ctx, l->rect.x + 20.0f, l->rect.y + 10.0f); // anchor at row 0
+    ctx.setFocus(l);
+    key(ctx, Key::Down, true);
+    key(ctx, Key::Down, true);
+    REQUIRE(l->selection() == std::vector<int>{0, 1, 2});
+    REQUIRE(l->selected == 2);
+    key(ctx, Key::Down); // plain Down collapses back to a single selection
+    REQUIRE(l->selection() == std::vector<int>{3});
+}
+
+TEST_CASE("Single-select (default) keeps just one row") {
+    StubRenderer r;
+    Context ctx;
+    auto lv = std::make_unique<ListView>();
+    ListView* l = lv.get();
+    l->rowHeight = 20.0f; // multiSelect stays false
+    for (int i = 0; i < 50; ++i) l->items.push_back("item " + std::to_string(i));
+    ctx.setRoot(std::move(lv));
+    ctx.frame(r, 0.016f, -1, -1);
+
+    float x = l->rect.x + 20.0f;
+    clickAt(ctx, x, l->rect.y + 1 * l->rowHeight + 10.0f);
+    clickAt(ctx, x, l->rect.y + 3 * l->rowHeight + 10.0f, false, true); // ctrl ignored
+    REQUIRE(l->selection() == std::vector<int>{3});
+    REQUIRE(l->selected == 3);
 }
 
 TEST_CASE("Table sorts by a clicked column, numerically, toggling direction") {

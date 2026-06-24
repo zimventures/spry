@@ -221,7 +221,7 @@ public:
     }
     Role accessibleRole() const override { return Role::None; }
 
-    bool onMouseDown(float x, float, int, bool) override {
+    bool onMouseDown(float x, float, int, bool, bool) override {
         setFromX(x);
         return true;
     }

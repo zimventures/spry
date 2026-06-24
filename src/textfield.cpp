@@ -159,7 +159,7 @@ void TextField::paint(Renderer& r, const Theme& th) {
 }
 
 // ---- input -----------------------------------------------------------------
-bool TextField::onMouseDown(float x, float y, int /*button*/, bool shift) {
+bool TextField::onMouseDown(float x, float y, int /*button*/, bool shift, bool /*ctrl*/) {
     // Double-click (within the time + roughly the same spot) selects a word.
     bool quick = (lastClickT_ >= 0.0f) && (clock_ - lastClickT_ < 0.45f) &&
                  (std::abs(x - lastClickX_) < 6.0f);

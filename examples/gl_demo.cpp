@@ -87,6 +87,7 @@ static std::unique_ptr<Widget> buildUI(Context& ctx, std::function<void()> onMid
 
     auto* table = stack->emplace<Table>();
     table->grow = 1.0f;
+    table->multiSelect = true; // shift-range, ctrl/cmd-toggle, ctrl/cmd+A
     table->columns = {{"Name", 2.0f}, {"Type", 1.0f}, {"Size", 1.0f}, {"Modified", 1.5f}};
     const char* kinds[] = {"dir", "file", "link"};
     for (int i = 0; i < 240; ++i)
@@ -110,6 +111,7 @@ static std::unique_ptr<Widget> buildUI(Context& ctx, std::function<void()> onMid
 
     auto* list = stack->emplace<ListView>();
     list->grow = 1.0f;
+    list->multiSelect = true;
     list->visible = false;
     for (int i = 0; i < 80; ++i) list->items.push_back("connection " + std::to_string(i));
 
@@ -362,7 +364,9 @@ int main(int, char**) {
                     ev.type = (e.type == SDL_EVENT_MOUSE_BUTTON_DOWN) ? InputEvent::MouseDown : InputEvent::MouseUp;
                     mouseToSpry(win, e.button.x, e.button.y, ev.x, ev.y);
                     ev.button = (int)e.button.button - 1; // SDL: 1 = left
-                    ev.shift = (SDL_GetModState() & SDL_KMOD_SHIFT) != 0;
+                    SDL_Keymod mod = SDL_GetModState();
+                    ev.shift = (mod & SDL_KMOD_SHIFT) != 0;
+                    ev.ctrl = (mod & (SDL_KMOD_CTRL | SDL_KMOD_GUI)) != 0; // Cmd = Ctrl on macOS
                     ctx.handleEvent(ev);
                     break;
                 }

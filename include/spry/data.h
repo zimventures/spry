@@ -3,6 +3,7 @@
 #include <cstdlib>
 #include <functional>
 #include <memory>
+#include <set>
 #include <string>
 #include <vector>
 
@@ -26,18 +27,29 @@ namespace spry {
 class VirtualList : public Widget {
 public:
     float rowHeight = 26.0f;
-    int selected = -1;
-    std::function<void(int)> onSelect;
+    int selected = -1;              // the lead / active row (also the single selection)
+    bool multiSelect = false;       // enable shift-range + ctrl-toggle selection
+    std::function<void(int)> onSelect; // fired with the lead row whenever selection changes
 
     VirtualList() { focusable = true; }
 
     int numRows() const { return rowCount(); } // public view of the row count
 
+    // Multi-selection (#215). With multiSelect off, only the lead row is ever in
+    // the set, so isSelected(selected) and selection() == {selected}.
+    bool isSelected(int i) const { return sel_.count(i) > 0; }
+    std::vector<int> selection() const { return std::vector<int>(sel_.begin(), sel_.end()); }
+    void clearSelection() {
+        sel_.clear();
+        selected = -1;
+        anchor_ = -1;
+    }
+
     bool onWheel(float, float dy) override {
         scrollBy(-dy * rowHeight * 3.0f); // ~3 rows per notch
         return true;
     }
-    bool onMouseDown(float x, float y, int, bool shift) override {
+    bool onMouseDown(float x, float y, int, bool shift, bool ctrl) override {
         if (scrollbarVisible() && x >= rect.x + rect.w - kScrollW) {
             sbDrag_ = true;
             scrollToThumb(y);
@@ -50,8 +62,12 @@ public:
         int row = rowAtY(y);
         if (row >= 0 && row < rowCount()) {
             if (!rowMouseDown(row, x - bodyViewport().x, shift)) {
-                selected = row;
-                if (onSelect) onSelect(row);
+                if (multiSelect && shift)
+                    selectTo(row); // contiguous range from the anchor
+                else if (multiSelect && ctrl)
+                    toggleSelect(row); // add/remove this row
+                else
+                    selectSingle(row);
             }
         }
         return true;
@@ -63,13 +79,17 @@ public:
     void onMouseDrag(float, float y) override {
         if (sbDrag_) scrollToThumb(y);
     }
-    bool onKey(Key key, bool, bool, bool) override {
+    bool onKey(Key key, bool shift, bool ctrl, bool) override {
         if (key == Key::Up) {
-            moveSel(-1);
+            moveSel(-1, shift);
             return true;
         }
         if (key == Key::Down) {
-            moveSel(1);
+            moveSel(1, shift);
+            return true;
+        }
+        if (multiSelect && ctrl && key == Key::A) {
+            selectAll();
             return true;
         }
         return false;
@@ -90,7 +110,12 @@ public:
         int last = std::min(n, (int)((scrollY_ + vp.h) / rowHeight) + 1);
         for (int i = first; i < last; ++i) {
             Rect rr{vp.x, vp.y + (float)i * rowHeight - scrollY_, vp.w, rowHeight};
-            drawRow(r, th, i, rr, i == selected, false);
+            drawRow(r, th, i, rr, isSelected(i), false);
+            if (multiSelect && i == selected) { // a thin ring marks the keyboard lead row
+                Color a = th.color("accent", {96, 126, 205});
+                r.fillRect(rr.x, rr.y, rr.w, 1.0f, a);
+                r.fillRect(rr.x, rr.y + rr.h - 1.0f, rr.w, 1.0f, a);
+            }
         }
         r.popClip();
         paintScrollbar(r, th, vp);
@@ -129,13 +154,48 @@ private:
         float maxS = std::max(0.0f, contentHeight() - vp.h);
         scrollY_ = std::max(0.0f, std::min(scrollY_, maxS));
     }
-    void moveSel(int d) {
+    void moveSel(int d, bool extend) {
         int n = rowCount();
         if (n == 0) return;
-        selected = selected < 0 ? (d > 0 ? 0 : n - 1) : selected + d;
-        selected = std::max(0, std::min(selected, n - 1));
-        if (onSelect) onSelect(selected);
-        ensureVisible(selected);
+        int lead = selected < 0 ? (d > 0 ? 0 : n - 1) : selected + d;
+        lead = std::max(0, std::min(lead, n - 1));
+        if (extend && multiSelect)
+            selectTo(lead);
+        else
+            selectSingle(lead);
+        ensureVisible(lead);
+    }
+    void selectSingle(int row) {
+        sel_.clear();
+        sel_.insert(row);
+        selected = row;
+        anchor_ = row;
+        if (onSelect) onSelect(row);
+    }
+    void toggleSelect(int row) {
+        if (sel_.count(row))
+            sel_.erase(row);
+        else
+            sel_.insert(row);
+        selected = row;
+        anchor_ = row;
+        if (onSelect) onSelect(row);
+    }
+    void selectTo(int row) { // contiguous range [anchor_, row], replacing the set
+        if (anchor_ < 0) anchor_ = row;
+        sel_.clear();
+        for (int i = std::min(anchor_, row); i <= std::max(anchor_, row); ++i) sel_.insert(i);
+        selected = row;
+        if (onSelect) onSelect(row);
+    }
+    void selectAll() {
+        sel_.clear();
+        int n = rowCount();
+        for (int i = 0; i < n; ++i) sel_.insert(i);
+        if (n > 0) {
+            selected = n - 1;
+            if (onSelect) onSelect(selected);
+        }
     }
     void ensureVisible(int row) {
         Rect vp = bodyViewport();
@@ -167,6 +227,8 @@ private:
     static constexpr float kMinThumb = 28.0f;
     float scrollY_ = 0.0f;
     bool sbDrag_ = false;
+    std::set<int> sel_; // selected rows (lead row mirrored in `selected`)
+    int anchor_ = -1;   // range anchor for shift-select
 };
 
 // ---- ListView --------------------------------------------------------------
@@ -442,7 +504,7 @@ public:
         clamp();
         return true;
     }
-    bool onMouseDown(float x, float y, int, bool) override {
+    bool onMouseDown(float x, float y, int, bool, bool) override {
         if (scrollbarVisible() && x >= rect.x + rect.w - kScrollW) {
             sbDrag_ = true;
             scrollToThumb(y);
@@ -520,7 +582,7 @@ public:
         for (auto& t : tabs) w += tabWidth(r, t);
         return Size{w, textLineH(scale) + 18.0f};
     }
-    bool onMouseDown(float x, float, int, bool) override {
+    bool onMouseDown(float x, float, int, bool, bool) override {
         Renderer* rr = lastR_;
         if (!rr) return true;
         float tx = rect.x;

@@ -105,7 +105,7 @@ public:
                 setFocus(hit && hit->focusable ? hit : nullptr);
                 if (hit) {
                     hit->pressed = true;
-                    hit->onMouseDown(e.x, e.y, e.button, e.shift);
+                    hit->onMouseDown(e.x, e.y, e.button, e.shift, e.ctrl);
                 }
                 break;
             }
