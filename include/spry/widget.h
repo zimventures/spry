@@ -26,6 +26,7 @@ public:
     float grow = 0.0f;                  // flex weight along the parent's main axis
     Edges margin;
     bool visible = true;
+    std::string tooltip; // hover tooltip text (empty = none); shown by Context (#214)
 
     // Computed by layout each frame.
     Rect rect{};

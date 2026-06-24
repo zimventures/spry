@@ -77,6 +77,7 @@ public:
         return p;
     }
     bool hasInteractiveOverlay() const { return topInteractiveOverlay() != nullptr; }
+    std::size_t overlayCount() const { return overlays_.size(); }
 
     // Host feeds translated platform events here.
     void handleEvent(const InputEvent& e) {
@@ -150,6 +151,7 @@ public:
         int w = 0, h = 0;
         r.outputSize(w, h);
         Rect full{0, 0, (float)w, (float)h};
+        assignStackSlots();
         root_->arrange(r, full);
         for (auto& o : overlays_) o->arrange(r, full); // overlays fill the window
 
@@ -158,6 +160,7 @@ public:
             pressed_->onMouseDrag(mouseX, mouseY); // sustain drag-select without per-move events
         else
             updateHover(ir->hitTest(mouseX, mouseY));
+        updateTooltip(dt);
 
         root_->update(dt);
         for (auto& o : overlays_) o->update(dt);
@@ -190,6 +193,45 @@ private:
             if ((*it)->interactive && !(*it)->closed()) return it->get();
         return nullptr;
     }
+    // Number the stacked() overlays (toasts) so the newest sits at slot 0 (bottom)
+    // and older ones tile upward.
+    void assignStackSlots() {
+        int total = 0;
+        for (auto& o : overlays_)
+            if (o->stacked() && !o->closed()) total++;
+        int k = 0;
+        for (auto& o : overlays_)
+            if (o->stacked() && !o->closed()) o->stackIndex = total - 1 - k++;
+    }
+    // Show a tooltip after the pointer rests on a widget that has one; dismiss it
+    // when the pointer moves off (or onto a different target).
+    void updateTooltip(float dt) {
+        Widget* h = hovered_;
+        if (h != tipTarget_) {
+            tipTarget_ = h;
+            tipTimer_ = 0.0f;
+            if (tip_) {
+                tip_->requestClose();
+                tip_ = nullptr;
+            }
+        }
+        if (!h || h->tooltip.empty()) {
+            if (tip_) {
+                tip_->requestClose();
+                tip_ = nullptr;
+            }
+            return;
+        }
+        if (tip_) return; // already shown for this target
+        tipTimer_ += dt;
+        if (tipTimer_ >= kTooltipDelay) {
+            auto t = std::make_unique<Tooltip>(h->tooltip, 0.0f); // no auto-close; closes on leave
+            t->anchorX = h->rect.x;
+            t->anchorY = h->rect.y;
+            tip_ = t.get();
+            addOverlay(std::move(t));
+        }
+    }
     Widget* inputRoot() const {
         Overlay* o = topInteractiveOverlay();
         return o ? static_cast<Widget*>(o) : root_.get();
@@ -204,10 +246,11 @@ private:
     void pruneOverlays() {
         for (auto it = overlays_.begin(); it != overlays_.end();) {
             if ((*it)->closed()) {
-                // Drop focus/press/hover if they pointed into the removed overlay.
+                // Drop focus/press/hover/tooltip if they pointed into the removed overlay.
                 if (subtreeContains(it->get(), focused_)) setFocus(nullptr);
                 if (subtreeContains(it->get(), pressed_)) pressed_ = nullptr;
                 if (subtreeContains(it->get(), hovered_)) hovered_ = nullptr;
+                if (it->get() == tip_) tip_ = nullptr;
                 it = overlays_.erase(it);
             } else {
                 ++it;
@@ -244,6 +287,12 @@ private:
 
     std::function<void(bool, const Rect&)> textInput_;
     bool textActive_ = false;
+
+    // Hover-tooltip state (#214).
+    static constexpr float kTooltipDelay = 0.5f; // seconds of hover before showing
+    Widget* tipTarget_ = nullptr;                // widget the hover timer is tracking
+    float tipTimer_ = 0.0f;
+    Overlay* tip_ = nullptr; // the live hover tooltip, if any
 };
 
 } // namespace spry

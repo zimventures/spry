@@ -27,8 +27,13 @@ public:
     bool dismissOnEscape = true;
     float autoClose = 0.0f;           // seconds visible before self-closing (0 = never)
     std::function<void()> onClosed;   // fired once, when fully closed
+    int stackIndex = 0;               // slot among stacked() overlays, assigned by Context
 
     Overlay() = default;
+
+    // Stacked overlays (toasts) tile in a corner instead of overlapping; Context
+    // assigns each a stackIndex per frame and the subclass offsets by it.
+    virtual bool stacked() const { return false; }
 
     // Start the close animation; Context removes the overlay once closed().
     void requestClose() {
@@ -236,10 +241,18 @@ public:
         setContent(std::move(box));
     }
 
+    bool stacked() const override { return true; }
+    void update(float dt) override {
+        slot_.target = (float)stackIndex * kSlotH; // ease toward this toast's slot
+        slot_.step(dt);
+        Overlay::update(dt);
+    }
+
 protected:
     Rect placeContent(Rect full, Size cs) override {
-        float slide = (1.0f - presence()) * 30.0f; // rise from below as it appears
-        return Rect{full.x + (full.w - cs.w) * 0.5f, full.y + full.h - cs.h - 40.0f + slide, cs.w, cs.h};
+        float slide = (1.0f - presence()) * 30.0f;        // rise from below as it appears
+        float y = full.y + full.h - cs.h - 40.0f - slot_.value + slide; // stack upward
+        return Rect{full.x + (full.w - cs.w) * 0.5f, y, cs.w, cs.h};
     }
     void paintSurface(Renderer& r, const Theme& th) override {
         Rect c = contentRect_;
@@ -249,6 +262,10 @@ protected:
         r.fillRoundedRect(c.x + c.w * 0.5f, c.y + c.h * 0.5f, c.w, c.h, 10.0f, lerp(th.color("surface", {46, 49, 68}), acc, 0.25f),
                           th.color("surface", {40, 43, 62}));
     }
+
+private:
+    static constexpr float kSlotH = 52.0f; // vertical spacing between stacked toasts
+    Spring slot_;                          // eases toward stackIndex * kSlotH
 };
 
 } // namespace spry

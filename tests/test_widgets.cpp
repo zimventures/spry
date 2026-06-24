@@ -192,6 +192,40 @@ TEST_CASE("Menu: a click outside the content dismisses it") {
     REQUIRE_FALSE(ctx.hasInteractiveOverlay());
 }
 
+TEST_CASE("Tooltip appears after hovering a widget and dismisses on leave") {
+    StubRenderer r;
+    Context ctx;
+    auto root = std::make_unique<Box>();
+    root->padding = Edges(10);
+    Label* l = root->emplace<Label>("hover me", 1.4f);
+    l->tooltip = "an explanation";
+    ctx.setRoot(std::move(root));
+    ctx.frame(r, 0.016f, -1, -1); // lay out with the pointer off-screen
+
+    float mx = l->rect.x + l->rect.w * 0.5f, my = l->rect.y + l->rect.h * 0.5f;
+    REQUIRE(ctx.overlayCount() == 0);
+    for (int i = 0; i < 20; ++i) ctx.frame(r, 0.1f, mx, my); // rest on it past the delay
+    REQUIRE(ctx.overlayCount() == 1);
+
+    for (int i = 0; i < 80; ++i) ctx.frame(r, 0.1f, -1, -1); // move away -> dismiss + prune
+    REQUIRE(ctx.overlayCount() == 0);
+}
+
+TEST_CASE("Toasts stack instead of overlapping") {
+    StubRenderer r;
+    Context ctx;
+    ctx.setRoot(std::make_unique<Box>());
+    auto a = std::make_unique<Toast>("first", 999.0f);
+    Toast* ta = a.get();
+    ctx.addOverlay(std::move(a));
+    auto b = std::make_unique<Toast>("second", 999.0f);
+    Toast* tb = b.get();
+    ctx.addOverlay(std::move(b));
+
+    for (int i = 0; i < 60; ++i) ctx.frame(r, 0.05f, -1, -1); // let the slot springs settle
+    REQUIRE(std::abs(ta->contentRect().y - tb->contentRect().y) > 30.0f);
+}
+
 TEST_CASE("Toast self-closes after its lifetime") {
     StubRenderer r;
     Context ctx;

@@ -73,6 +73,7 @@ static std::unique_ptr<Widget> buildUI(Context& ctx, std::function<void()> onMid
     for (auto n : names) {
         auto* c = row->emplace<Card>(n);
         c->grow = 1.0f;
+        c->tooltip = std::string("Open the ") + n + " view"; // hover to see it (#214)
     }
 
     auto* content = root->emplace<Panel>();
@@ -105,8 +106,10 @@ static std::unique_ptr<Widget> buildUI(Context& ctx, std::function<void()> onMid
     ctrls->axis = Axis::Row;
     ctrls->spacing = 18;
     ctrls->prefH = 30;
-    ctrls->emplace<Slider>(0.0f, 100.0f, 35.0f)->grow = 1.0f;
-    ctrls->emplace<Toggle>("wrap", true);
+    auto* vol = ctrls->emplace<Slider>(0.0f, 100.0f, 35.0f);
+    vol->grow = 1.0f;
+    vol->tooltip = "drag, or focus + arrow keys";
+    ctrls->emplace<Toggle>("wrap", true)->tooltip = "toggle line wrapping";
     ctrls->emplace<Checkbox>("a toggle", true);
 
     // Overlays (#214): each button spawns a layer that fades/animates in.
