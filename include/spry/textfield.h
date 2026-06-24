@@ -58,6 +58,7 @@ private:
     Rect caretRect_{};         // caret in Spry coords (for the IME area)
     float clock_ = 0.0f;       // monotonic-ish time for double-click timing
     float lastClickT_ = -1.0f; // clock_ at the previous mouse-down
+    float lastClickX_ = 0.0f;  // x of the previous mouse-down (spot check)
     int clickCount_ = 0;
     Renderer* r_ = nullptr; // last renderer seen (events need it to measure)
     static constexpr float kPad = 10.0f;

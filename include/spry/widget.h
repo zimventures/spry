@@ -63,7 +63,7 @@ public:
     void collectFocusable(std::vector<Widget*>& out); // tree-order, for Tab nav
 
     // Input hooks (#216). Return true to consume the event.
-    virtual bool onMouseDown(float /*x*/, float /*y*/, int /*button*/, bool /*shift*/ = false) { return false; }
+    virtual bool onMouseDown(float /*x*/, float /*y*/, int /*button*/, bool /*shift*/) { return false; }
     virtual bool onMouseUp(float /*x*/, float /*y*/, int /*button*/) { return false; }
     // Mouse moved while this widget holds the press capture (drag select, #213).
     virtual void onMouseDrag(float /*x*/, float /*y*/) {}

@@ -19,24 +19,35 @@ float TextField::xForByte(std::size_t byte) const {
 std::size_t TextField::byteAtX(float x) const {
     const std::string& s = edit_.text();
     float localX = x - (rect.x + kPad) + scrollX_; // distance from the text start
-    std::size_t best = 0;
-    float bestDist = std::abs(0.0f - localX);
-    std::size_t i = 0;
-    for (;;) {
-        if (i > 0) {
-            float w = xForByte(i);
-            float d = std::abs(w - localX);
-            if (d < bestDist) {
-                bestDist = d;
-                best = i;
-            }
-        }
+    if (localX <= 0.0f) return 0;
+
+    // Codepoint-boundary byte indices (0 .. size). Caret x is non-decreasing with
+    // the index, so binary-search the boundaries by measured prefix width rather
+    // than measuring every one — keeps clicks/drags off the O(n^2) shaping path.
+    std::vector<std::size_t> bounds;
+    bounds.reserve(s.size() + 1);
+    for (std::size_t i = 0;; ) {
+        bounds.push_back(i);
         if (i >= s.size()) break;
         std::size_t j = i + 1; // advance one UTF-8 codepoint
         while (j < s.size() && ((unsigned char)s[j] & 0xC0) == 0x80) ++j;
         i = j;
     }
-    return best;
+    // Largest boundary whose caret x is <= localX.
+    std::size_t lo = 0, hi = bounds.size() - 1;
+    while (lo < hi) {
+        std::size_t mid = (lo + hi + 1) / 2;
+        if (xForByte(bounds[mid]) <= localX)
+            lo = mid;
+        else
+            hi = mid - 1;
+    }
+    // Snap to whichever of the bracketing boundaries is nearer the click.
+    if (lo + 1 < bounds.size()) {
+        float xl = xForByte(bounds[lo]), xr = xForByte(bounds[lo + 1]);
+        if (std::abs(xr - localX) < std::abs(localX - xl)) return bounds[lo + 1];
+    }
+    return bounds[lo];
 }
 
 void TextField::ensureCaretVisible() {
@@ -150,9 +161,11 @@ void TextField::paint(Renderer& r, const Theme& th) {
 // ---- input -----------------------------------------------------------------
 bool TextField::onMouseDown(float x, float y, int /*button*/, bool shift) {
     // Double-click (within the time + roughly the same spot) selects a word.
-    bool quick = (lastClickT_ >= 0.0f) && (clock_ - lastClickT_ < 0.45f);
+    bool quick = (lastClickT_ >= 0.0f) && (clock_ - lastClickT_ < 0.45f) &&
+                 (std::abs(x - lastClickX_) < 6.0f);
     clickCount_ = quick ? clickCount_ + 1 : 1;
     lastClickT_ = clock_;
+    lastClickX_ = x;
     blink_ = 0.0f;
 
     std::size_t b = byteAtX(x);

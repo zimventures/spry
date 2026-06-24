@@ -132,7 +132,7 @@ TEST_CASE("EditBuffer: double-click word selection") {
 
 TEST_CASE("EditBuffer: UTF-8 caret moves by codepoint") {
     EditBuffer b;
-    b.setText("a\xC3\xA9z"); // "aez" with e-acute (2 bytes)
+    b.setText("a\xC3\xA9z"); // bytes: 'a', U+00E9 (e-acute, 2 bytes), 'z'
     b.moveHome(false);
     b.moveRight(false, false);
     REQUIRE(b.caret() == 1);
