@@ -408,8 +408,10 @@ public:
 
     TreeNode& addRoot(std::string label) {
         roots.push_back(std::make_unique<TreeNode>(std::move(label)));
+        flat_.clear(); // invalidate the flattened cache (rebuilt lazily or via rebuild())
         return *roots.back();
     }
+    // Re-flatten after changing node structure (adding children, toggling expand).
     void rebuild() {
         flat_.clear();
         for (auto& r : roots) flatten(r.get(), 0);
@@ -639,8 +641,9 @@ public:
                 indW_.value = activeW;
             }
         }
-        r.fillRoundedRect(indX_.value + indW_.value * 0.5f, rect.y + rect.h - 3.0f, indW_.value - 20.0f, 3.0f,
-                          1.5f, acc, acc);
+        float iw = indW_.value - 20.0f; // inset the underline from the tab edges
+        if (!tabs.empty() && iw > 0.0f)
+            r.fillRoundedRect(indX_.value + indW_.value * 0.5f, rect.y + rect.h - 3.0f, iw, 3.0f, 1.5f, acc, acc);
     }
 
 private:

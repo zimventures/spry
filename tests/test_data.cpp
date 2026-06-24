@@ -209,6 +209,20 @@ TEST_CASE("TreeView expands/collapses and selects") {
     REQUIRE(t->selected == 1);
 }
 
+TEST_CASE("TreeView addRoot after build invalidates the flattened cache") {
+    StubRenderer r;
+    Context ctx;
+    auto tv = std::make_unique<TreeView>();
+    TreeView* t = tv.get();
+    t->addRoot("A");
+    ctx.setRoot(std::move(tv));
+    ctx.frame(r, 0.016f, -1, -1); // builds flat_ once
+    REQUIRE(t->numRows() == 1);
+
+    t->addRoot("B"); // added after the first build; no explicit rebuild()
+    REQUIRE(t->numRows() == 2);
+}
+
 TEST_CASE("TreeView expands/collapses the selected node with Left/Right") {
     StubRenderer r;
     Context ctx;
