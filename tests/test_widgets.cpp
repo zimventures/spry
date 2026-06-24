@@ -47,6 +47,15 @@ void pump(Context& ctx, Renderer& r, int frames, float dt = 0.05f) {
 
 } // namespace
 
+TEST_CASE("Paragraph wraps to width; height grows as it narrows") {
+    StubRenderer r;
+    Paragraph p("alpha beta gamma delta epsilon zeta eta theta", 1.4f);
+    Size wide = p.measure(r, 100000.0f, 0);
+    Size narrow = p.measure(r, 60.0f, 0);
+    REQUIRE(wide.h == textLineH(1.4f)); // everything fits on one line
+    REQUIRE(narrow.h > wide.h);         // wraps to several lines
+}
+
 TEST_CASE("Toggle flips on click and reports the new state") {
     StubRenderer r;
     Context ctx;

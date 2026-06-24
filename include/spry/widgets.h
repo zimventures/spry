@@ -42,6 +42,73 @@ public:
     std::string accessibleLabel() const override { return text; }
 };
 
+// Multi-line, word-wrapped text (#220). Wraps to the width it's arranged into;
+// its measured height grows with the wrapped line count. Honors explicit '\n' as
+// hard line breaks. (Word-based wrapping — a single word longer than the width
+// isn't broken, so clip the container if that's possible.)
+class Paragraph : public Widget {
+public:
+    std::string text;
+    float scale = 1.4f;
+    std::string role = "text";
+    std::optional<Color> colorOverride;
+
+    explicit Paragraph(std::string t, float s = 1.4f) : text(std::move(t)), scale(s) {}
+
+    Size measure(Renderer& r, float availW, float) override {
+        float w = availW > 0 ? availW : (prefW >= 0 ? prefW : 200.0f);
+        int lines = wrap(r, w, nullptr);
+        return Size{w, (float)lines * textLineH(scale)};
+    }
+    void paint(Renderer& r, const Theme& th) override {
+        Color c = colorOverride.value_or(th.color(role, {220, 224, 235}));
+        float y = rect.y;
+        wrap(r, rect.w, [&](const std::string& line) {
+            r.text(rect.x, y, scale, c, line.c_str());
+            y += textLineH(scale);
+        });
+    }
+    Role accessibleRole() const override { return Role::Label; }
+    std::string accessibleLabel() const override { return text; }
+
+private:
+    // Greedy word-wrap to `width`; calls emit(line) per line when set. Returns the
+    // line count (used by measure with no emit).
+    int wrap(Renderer& r, float width, const std::function<void(const std::string&)>& emit) const {
+        int count = 0;
+        std::string line, word;
+        auto flush = [&] {
+            if (emit) emit(line);
+            line.clear();
+            ++count;
+        };
+        auto pushWord = [&] {
+            if (word.empty()) return;
+            std::string cand = line.empty() ? word : line + " " + word;
+            if (r.measureText(scale, cand.c_str()).w > width && !line.empty()) {
+                flush();
+                line = word;
+            } else {
+                line = cand;
+            }
+            word.clear();
+        };
+        for (char ch : text) {
+            if (ch == '\n') {
+                pushWord();
+                flush();
+            } else if (ch == ' ' || ch == '\t') {
+                pushWord();
+            } else {
+                word += ch;
+            }
+        }
+        pushWord();
+        flush();
+        return count;
+    }
+};
+
 // Hoverable card — brightens/lifts on hover via its own spring. All colours come
 // from the theme, so it recolours live when the theme swaps.
 class Card : public Widget {
