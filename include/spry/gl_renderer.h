@@ -15,6 +15,10 @@ public:
 
     bool loadFont(const char* path);
     void setSize(int w, int h); // drawable size in pixels; call on resize
+    // Content scale (HiDPI): widgets lay out in logical units and the renderer
+    // scales them to the device-pixel FBO, rasterizing text at device px for
+    // crispness. Default 1 (no scaling). Set to the framebuffer/DPI scale.
+    void setContentScale(float s);
 
     // Spry renders to an offscreen FBO so it composes with a host that owns the
     // default framebuffer (e.g. Cleat's ImGui frame, which clears late).

@@ -34,6 +34,7 @@ namespace spry {
     X(PFNGLUSEPROGRAMPROC, glUseProgram)                                                                \
     X(PFNGLGETUNIFORMLOCATIONPROC, glGetUniformLocation)                                                \
     X(PFNGLUNIFORM2FPROC, glUniform2f)                                                                  \
+    X(PFNGLUNIFORM1FPROC, glUniform1f)                                                                  \
     X(PFNGLUNIFORM1IPROC, glUniform1i)                                                                  \
     X(PFNGLGENVERTEXARRAYSPROC, glGenVertexArrays)                                                      \
     X(PFNGLBINDVERTEXARRAYPROC, glBindVertexArray)                                                      \
@@ -70,11 +71,12 @@ in vec2 aPos;
 in vec4 aColor;
 in vec2 aUV;
 uniform vec2 uViewport;
+uniform float uScale; // logical units -> device px (HiDPI content scale)
 out vec4 vColor; out vec2 vUV;
 void main(){
     vColor = aColor; vUV = aUV;
-    float x = aPos.x / uViewport.x * 2.0 - 1.0;
-    float y = 1.0 - aPos.y / uViewport.y * 2.0; // screen y-down -> NDC y-up
+    float x = (aPos.x * uScale) / uViewport.x * 2.0 - 1.0;
+    float y = 1.0 - (aPos.y * uScale) / uViewport.y * 2.0; // screen y-down -> NDC y-up
     gl_Position = vec4(x, y, 0.0, 1.0);
 })";
 
@@ -116,7 +118,8 @@ struct GlRenderer::Impl {
     GLuint prog = 0, vao = 0, vbo = 0, ebo = 0, white = 0;
     GLuint fbo = 0, fboTex = 0;
     int fboW = 0, fboH = 0;
-    GLint uViewport = -1, uTex = -1;
+    GLint uViewport = -1, uTex = -1, uScale = -1;
+    float contentScale = 1.0f; // logical -> device px (HiDPI)
 
     FT_Library lib = nullptr;
     FT_Face face = nullptr;
@@ -145,6 +148,7 @@ struct GlRenderer::Impl {
         glDeleteShader(fs);
         uViewport = glGetUniformLocation(prog, "uViewport");
         uTex = glGetUniformLocation(prog, "uTex");
+        uScale = glGetUniformLocation(prog, "uScale");
 
         glGenVertexArrays(1, &vao);
         glBindVertexArray(vao);
@@ -283,9 +287,12 @@ void GlRenderer::setSize(int w, int h) {
     d_->vpH = h > 0 ? h : 1;
     d_->resizeFbo(d_->vpW, d_->vpH);
 }
+void GlRenderer::setContentScale(float s) { d_->contentScale = s > 0.0f ? s : 1.0f; }
 void GlRenderer::outputSize(int& w, int& h) {
-    w = d_->vpW;
-    h = d_->vpH;
+    // Report logical size: widgets lay out in logical units and the shader scales
+    // them up to the device-pixel FBO.
+    w = (int)((float)d_->vpW / d_->contentScale);
+    h = (int)((float)d_->vpH / d_->contentScale);
 }
 unsigned int GlRenderer::targetTexture() const { return d_->fboTex; }
 
@@ -309,6 +316,7 @@ void GlRenderer::beginFrame(Color clear) {
     glDisable(GL_DEPTH_TEST);
     glUseProgram(d_->prog);
     glUniform2f(d_->uViewport, (float)d_->vpW, (float)d_->vpH);
+    glUniform1f(d_->uScale, d_->contentScale);
     glUniform1i(d_->uTex, 0);
 }
 void GlRenderer::endFrame() {
@@ -322,8 +330,10 @@ void GlRenderer::applyClip(const Rect* r) {
         return;
     }
     glEnable(GL_SCISSOR_TEST);
-    int x = (int)std::lround(r->x), y = (int)std::lround(r->y);
-    int w = (int)std::lround(r->w), h = (int)std::lround(r->h);
+    // Clip rects are in logical units; scale to device px for the scissor box.
+    float cs = d_->contentScale;
+    int x = (int)std::lround(r->x * cs), y = (int)std::lround(r->y * cs);
+    int w = (int)std::lround(r->w * cs), h = (int)std::lround(r->h * cs);
     if (w < 0) w = 0;
     if (h < 0) h = 0;
     // Our coordinate space is y-down from the top; GL scissor is y-up from the
@@ -362,18 +372,22 @@ void GlRenderer::fillRect(float x, float y, float w, float h, Color c) {
 void GlRenderer::text(float x, float y, float scale, Color c, const char* s) {
     if (!d_->fontReady) return;
     c = tint(c);
-    int px = (int)std::lround(kTextBasePx * scale);
+    // Rasterize at device px for crisp HiDPI text, but lay out in logical units
+    // (glyph metrics / advances are at the device size, so divide by the scale).
+    float cs = d_->contentScale;
+    float inv = 1.0f / cs;
+    int px = (int)std::lround(kTextBasePx * scale * cs);
     if (px < 6) px = 6;
     std::vector<Shaped> glyphs;
     d_->shape(s, px, glyphs);
-    float ascent = (float)(d_->face->size->metrics.ascender >> 6);
+    float ascent = (float)(d_->face->size->metrics.ascender >> 6) * inv;
     float pen = x, baseline = y + ascent;
     for (const auto& sg : glyphs) {
         GlGlyph& g = d_->glyph(sg.gid, px);
         if (g.tex) {
-            float gx = pen + sg.xoff + (float)g.bx;
-            float gy = baseline - sg.yoff - (float)g.by;
-            float gw = (float)g.w, gh = (float)g.h;
+            float gx = pen + (sg.xoff + (float)g.bx) * inv;
+            float gy = baseline - (sg.yoff + (float)g.by) * inv;
+            float gw = (float)g.w * inv, gh = (float)g.h * inv;
             std::vector<float> v;
             v.reserve(32);
             pushVert(v, gx, gy, c, 0.0f, 0.0f);
@@ -383,20 +397,21 @@ void GlRenderer::text(float x, float y, float scale, Color c, const char* s) {
             std::vector<int> idx{0, 1, 2, 0, 2, 3};
             d_->draw(v, idx, g.tex);
         }
-        pen += sg.xadv;
+        pen += sg.xadv * inv;
     }
 }
 
 Size GlRenderer::measureText(float scale, const char* s) {
     float lineH = kTextBasePx * scale + 7.0f;
     if (!d_->fontReady) return Size{(float)std::strlen(s) * 0.60f * kTextBasePx * scale, lineH};
-    int px = (int)std::lround(kTextBasePx * scale);
+    float cs = d_->contentScale;
+    int px = (int)std::lround(kTextBasePx * scale * cs);
     if (px < 6) px = 6;
     std::vector<Shaped> glyphs;
     d_->shape(s, px, glyphs);
     float w = 0;
     for (const auto& g : glyphs) w += g.xadv;
-    return Size{w, lineH};
+    return Size{w / cs, lineH}; // device advances -> logical width
 }
 
 } // namespace spry
