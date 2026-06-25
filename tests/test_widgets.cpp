@@ -216,6 +216,25 @@ TEST_CASE("Combo: clicking opens a menu; choosing an item commits + closes") {
     REQUIRE_FALSE(ctx.hasInteractiveOverlay()); // menu closed after choosing
 }
 
+TEST_CASE("setRoot clears overlays tied to the old tree") {
+    StubRenderer r;
+    Context ctx;
+    auto root = std::make_unique<Box>();
+    Combo* c = root->emplace<Combo>(std::vector<std::string>{"A", "B"}, 0);
+    ctx.setRoot(std::move(root));
+    ctx.frame(r, 0.016f, -1, -1);
+
+    clickAt(ctx, c->rect.x + 5, c->rect.y + c->rect.h * 0.5f); // open the dropdown
+    pump(ctx, r, 3);
+    REQUIRE(ctx.hasInteractiveOverlay());
+
+    // Swapping the root must drop the menu (whose item actions captured the now-gone
+    // Combo) so a later click can't reach a dangling widget.
+    ctx.setRoot(std::make_unique<Box>());
+    REQUIRE(ctx.overlayCount() == 0);
+    REQUIRE(ctx.focused() == nullptr);
+}
+
 TEST_CASE("Menu: clicking an item runs its action and closes") {
     StubRenderer r;
     Context ctx;

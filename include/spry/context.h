@@ -25,8 +25,15 @@ public:
     }
 
     void setRoot(std::unique_ptr<Widget> root) {
+        // Overlays (and the menu actions / tooltips they hold) belong to the current
+        // tree — a menu can capture a widget by pointer. Drop them before the old
+        // tree is freed, or choosing a menu item later could touch a dangling widget.
+        clearOverlays(); // also clears focus/press/hover/tip that pointed into overlays
         root_ = std::move(root);
-        hovered_ = nullptr;
+        // The old tree is gone; null any interaction pointer that referenced it
+        // (don't deref — those widgets are destroyed).
+        hovered_ = pressed_ = focused_ = nullptr;
+        tipTarget_ = nullptr;
     }
     Widget* root() const { return root_.get(); }
 
@@ -77,8 +84,9 @@ public:
         return p;
     }
     bool hasInteractiveOverlay() const { return topInteractiveOverlay() != nullptr; }
-    // Topmost interactive (non-closing) overlay, or null — for hosts that need to
-    // know a menu/modal is up, and for inspecting overlay content.
+    // Topmost interactive overlay that isn't fully closed yet (one mid-close
+    // animation still counts), or null — for hosts that need to know a menu/modal
+    // is up, and for inspecting overlay content.
     Overlay* topOverlay() const { return topInteractiveOverlay(); }
     std::size_t overlayCount() const { return overlays_.size(); }
     // Drop all overlays immediately (e.g. when a host view is hidden, so a modal

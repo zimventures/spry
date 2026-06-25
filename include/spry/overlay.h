@@ -183,6 +183,7 @@ protected:
     Rect placeContent(Rect full, Size cs) override {
         float rise = (1.0f - presence()) * 8.0f;
         float w = cs.w < minWidth ? minWidth : cs.w;
+        if (w > full.w) w = full.w; // never wider than the window (clampToWindow only repositions)
         return clampToWindow(full, Rect{anchorX, anchorY + rise, w, cs.h});
     }
     void paintSurface(Renderer& r, const Theme& th) override {

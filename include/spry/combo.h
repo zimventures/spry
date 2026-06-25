@@ -66,7 +66,10 @@ public:
     }
 
     Role accessibleRole() const override { return Role::Button; }
-    std::string accessibleLabel() const override { return value(); }
+    std::string accessibleLabel() const override {
+        const std::string& v = value();
+        return v.empty() ? placeholder : v; // never expose an unlabeled control
+    }
 
     void paint(Renderer& r, const Theme& th) override {
         float rad = th.metric("radius", 8.0f);
