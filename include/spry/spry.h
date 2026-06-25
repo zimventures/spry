@@ -4,6 +4,7 @@
 #include "box.h"
 #include "clipboard.h"
 #include "color.h"
+#include "combo.h"
 #include "context.h"
 #include "data.h"
 #include "input.h"

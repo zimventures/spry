@@ -162,6 +162,60 @@ TEST_CASE("Modal: Escape dismisses and Context prunes it") {
     REQUIRE_FALSE(ctx.hasInteractiveOverlay());
 }
 
+TEST_CASE("Combo: arrow keys cycle the selection and clamp") {
+    StubRenderer r;
+    Context ctx;
+    auto root = std::make_unique<Box>();
+    Combo* c = root->emplace<Combo>(std::vector<std::string>{"Low", "Medium", "High"}, 0);
+    int changes = 0;
+    std::string last;
+    c->onChange = [&](int, const std::string& v) {
+        ++changes;
+        last = v;
+    };
+    ctx.setRoot(std::move(root));
+    ctx.frame(r, 0.016f, -1, -1);
+    ctx.setFocus(c);
+
+    InputEvent e;
+    e.type = InputEvent::KeyDown;
+    e.key = Key::Down;
+    ctx.handleEvent(e); // -> Medium
+    REQUIRE(c->selected == 1);
+    REQUIRE(last == "Medium");
+    e.key = Key::Down;
+    ctx.handleEvent(e); // -> High
+    ctx.handleEvent(e); // clamp at High
+    REQUIRE(c->selected == 2);
+    REQUIRE(changes == 2); // the clamped repeat didn't fire onChange
+}
+
+TEST_CASE("Combo: clicking opens a menu; choosing an item commits + closes") {
+    StubRenderer r;
+    Context ctx;
+    auto root = std::make_unique<Box>();
+    Combo* c = root->emplace<Combo>(std::vector<std::string>{"Red", "Green", "Blue"}, 0);
+    std::string last;
+    c->onChange = [&](int, const std::string& v) { last = v; };
+    ctx.setRoot(std::move(root));
+    ctx.frame(r, 0.016f, -1, -1);
+
+    // Click the combo -> opens the dropdown overlay.
+    clickAt(ctx, c->rect.x + 5, c->rect.y + c->rect.h * 0.5f);
+    pump(ctx, r, 3);
+    REQUIRE(ctx.hasInteractiveOverlay());
+
+    // Pick the third item ("Blue") from the menu's list.
+    Widget* list = ctx.topOverlay()->content();
+    REQUIRE(list->children().size() == 3);
+    Widget* blue = list->children()[2].get();
+    clickAt(ctx, blue->rect.x + blue->rect.w * 0.5f, blue->rect.y + blue->rect.h * 0.5f);
+    pump(ctx, r, 80);
+    REQUIRE(last == "Blue");
+    REQUIRE(c->selected == 2);
+    REQUIRE_FALSE(ctx.hasInteractiveOverlay()); // menu closed after choosing
+}
+
 TEST_CASE("Menu: clicking an item runs its action and closes") {
     StubRenderer r;
     Context ctx;

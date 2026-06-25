@@ -77,6 +77,9 @@ public:
         return p;
     }
     bool hasInteractiveOverlay() const { return topInteractiveOverlay() != nullptr; }
+    // Topmost interactive (non-closing) overlay, or null — for hosts that need to
+    // know a menu/modal is up, and for inspecting overlay content.
+    Overlay* topOverlay() const { return topInteractiveOverlay(); }
     std::size_t overlayCount() const { return overlays_.size(); }
     // Drop all overlays immediately (e.g. when a host view is hidden, so a modal
     // doesn't linger in the Context and reappear on reopen). Clears any
@@ -91,9 +94,22 @@ public:
         overlays_.clear();
     }
 
+    // The context currently dispatching an event, so a widget's onClick/onKey can
+    // spawn an overlay (e.g. a Combo opening its dropdown) via current()->addOverlay.
+    // Valid only during handleEvent(); null otherwise. Overlays are spawned at
+    // event time (clicks), never mid-frame, so this can't mutate overlays_ while
+    // frame() iterates them.
+    static Context* current() { return current_(); }
+
     // Host feeds translated platform events here.
     void handleEvent(const InputEvent& e) {
         if (!root_) return;
+        Context* prev = current_();
+        current_() = this;
+        struct Guard {
+            Context* p;
+            ~Guard() { current_() = p; }
+        } guard{prev};
         Overlay* ov = topInteractiveOverlay();
         Widget* ir = ov ? static_cast<Widget*>(ov) : root_.get();
         switch (e.type) {
@@ -198,6 +214,10 @@ public:
     }
 
 private:
+    static Context*& current_() {
+        static thread_local Context* c = nullptr;
+        return c;
+    }
     void updateHover(Widget* hv) {
         if (hv == hovered_) return;
         if (hovered_) hovered_->hovered = false;

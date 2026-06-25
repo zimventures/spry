@@ -159,6 +159,7 @@ public:
 class Menu : public Overlay {
 public:
     float anchorX = 0.0f, anchorY = 0.0f;
+    float minWidth = 0.0f; // floor for the menu width (e.g. match a combo's box)
 
     Menu() {
         dimBackground = false;
@@ -181,7 +182,8 @@ public:
 protected:
     Rect placeContent(Rect full, Size cs) override {
         float rise = (1.0f - presence()) * 8.0f;
-        return clampToWindow(full, Rect{anchorX, anchorY + rise, cs.w, cs.h});
+        float w = cs.w < minWidth ? minWidth : cs.w;
+        return clampToWindow(full, Rect{anchorX, anchorY + rise, w, cs.h});
     }
     void paintSurface(Renderer& r, const Theme& th) override {
         Rect c = contentRect_;
