@@ -49,6 +49,10 @@ public:
     }
     const std::vector<std::unique_ptr<Widget>>& children() const { return children_; }
     Widget* parent() const { return parent_; }
+    // Remove all children (e.g. to repopulate a dynamic list). Callers that route
+    // input must first clear any focus/press/hover pointing into the removed
+    // subtree — see Context::dropInteractionWithin().
+    void clearChildren() { children_.clear(); }
 
     // Layout: measure desired content size, then arrange into a final rect. The
     // renderer is threaded through so widgets can measure shaped text (#212).

@@ -92,6 +92,23 @@ public:
     // Drop all overlays immediately (e.g. when a host view is hidden, so a modal
     // doesn't linger in the Context and reappear on reopen). Clears any
     // focus/press/hover/tooltip that pointed into them.
+    // Null any focus/press/hover/tooltip target that lives inside `subtree`, before
+    // the caller destroys it (e.g. clearChildren() to repopulate a dynamic list).
+    // Without this those pointers would dangle and the next setFocus() etc. would
+    // touch freed widgets. The subtree itself isn't modified.
+    void dropInteractionWithin(Widget* subtree) {
+        if (subtreeContains(subtree, focused_)) setFocus(nullptr);
+        if (subtreeContains(subtree, pressed_)) pressed_ = nullptr;
+        if (subtreeContains(subtree, hovered_)) hovered_ = nullptr;
+        if (subtree && tipTarget_ && subtreeContains(subtree, tipTarget_)) {
+            tipTarget_ = nullptr;
+            if (tip_) {
+                tip_->requestClose();
+                tip_ = nullptr;
+            }
+        }
+    }
+
     void clearOverlays() {
         for (auto& o : overlays_) {
             if (subtreeContains(o.get(), focused_)) setFocus(nullptr);
