@@ -282,6 +282,28 @@ TEST_CASE("ColorPickerPad: dragging the SV square and hue strip edits the colour
     REQUIRE(s > 0.9f);  // still fully saturated
 }
 
+TEST_CASE("ColorPickerPad: a degenerate (zero-size) rect doesn't produce NaNs") {
+    StubRenderer r;
+    Context ctx;
+    auto root = std::make_unique<Box>();
+    auto* pad = root->emplace<ColorPickerPad>(Color{200, 100, 50});
+    pad->prefW = 0; // collapse it
+    pad->prefH = 0;
+    bool fired = false;
+    pad->onChange = [&](Color) { fired = true; };
+    ctx.setRoot(std::move(root));
+    ctx.frame(r, 0.016f, -1, -1);
+
+    InputEvent d;
+    d.type = InputEvent::MouseDown;
+    d.x = pad->rect.x;
+    d.y = pad->rect.y;
+    ctx.handleEvent(d); // must not divide by zero / fire a NaN colour
+    REQUIRE_FALSE(fired);
+    Color c = pad->color();
+    REQUIRE(c.r == c.r); // not NaN-derived (uint8 always equals itself, but the guard kept it sane)
+}
+
 TEST_CASE("setRoot clears overlays tied to the old tree") {
     StubRenderer r;
     Context ctx;

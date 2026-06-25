@@ -27,7 +27,7 @@ public:
     Color color() const { return hsv(h_, s_, v_); }
 
     Size measure(Renderer&, float, float) override {
-        return Size{prefW > 0 ? prefW : 220.0f, prefH > 0 ? prefH : 174.0f};
+        return Size{prefW >= 0 ? prefW : 220.0f, prefH >= 0 ? prefH : 174.0f};
     }
 
     bool onMouseDown(float x, float y, int, bool, bool) override {
@@ -103,12 +103,14 @@ private:
     static float clamp01(float t) { return t < 0 ? 0 : (t > 1 ? 1 : t); }
     void applySV(float x, float y) {
         Regions g = regions();
+        if (g.sv.w <= 0.0f || g.sv.h <= 0.0f) return; // degenerate rect -> no NaNs
         s_ = clamp01((x - g.sv.x) / g.sv.w);
         v_ = 1.0f - clamp01((y - g.sv.y) / g.sv.h);
         fire();
     }
     void applyHue(float x) {
         Regions g = regions();
+        if (g.hue.w <= 0.0f) return;
         h_ = clamp01((x - g.hue.x) / g.hue.w);
         fire();
     }
@@ -163,14 +165,14 @@ public:
 
     std::string hex() const {
         char buf[8];
-        std::snprintf(buf, sizeof(buf), "#%02X%02X%02X", value.r, value.g, value.b);
+        std::snprintf(buf, sizeof(buf), "#%02X%02X%02X", (unsigned)value.r, (unsigned)value.g, (unsigned)value.b);
         return buf;
     }
 
     Size measure(Renderer& r, float, float) override {
         float h = textLineH(scale) + 14.0f;
         float w = h + (showHex ? 8.0f + r.measureText(scale, "#FFFFFF").w + 6.0f : 8.0f);
-        return Size{prefW > 0 ? prefW : w, h};
+        return Size{prefW >= 0 ? prefW : w, h};
     }
 
     void onClick() override {
