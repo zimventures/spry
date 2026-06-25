@@ -216,6 +216,72 @@ TEST_CASE("Combo: clicking opens a menu; choosing an item commits + closes") {
     REQUIRE_FALSE(ctx.hasInteractiveOverlay()); // menu closed after choosing
 }
 
+TEST_CASE("hsv/toHsv roundtrip and known colours") {
+    REQUIRE(hsv(0.0f, 1.0f, 1.0f).r == 255); // red
+    REQUIRE(hsv(0.0f, 1.0f, 1.0f).g == 0);
+    Color green = hsv(1.0f / 3.0f, 1.0f, 1.0f);
+    REQUIRE(green.g == 255);
+    REQUIRE(green.r == 0);
+    // Roundtrip a few colours through HSV.
+    for (Color c : {Color{200, 60, 30}, Color{12, 240, 130}, Color{80, 90, 255}}) {
+        float h, s, v;
+        toHsv(c, h, s, v);
+        Color back = hsv(h, s, v);
+        REQUIRE(std::abs((int)back.r - (int)c.r) <= 1);
+        REQUIRE(std::abs((int)back.g - (int)c.g) <= 1);
+        REQUIRE(std::abs((int)back.b - (int)c.b) <= 1);
+    }
+}
+
+TEST_CASE("ColorPickerPad: dragging the SV square and hue strip edits the colour") {
+    StubRenderer r;
+    Context ctx;
+    auto root = std::make_unique<Box>();
+    auto* pad = root->emplace<ColorPickerPad>(Color{255, 0, 0}); // red: h=0,s=1,v=1
+    pad->prefW = 220;
+    pad->prefH = 174;
+    Color last{};
+    pad->onChange = [&](Color c) { last = c; };
+    ctx.setRoot(std::move(root));
+    ctx.frame(r, 0.016f, -1, -1);
+
+    auto down = [&](float x, float y) {
+        InputEvent d;
+        d.type = InputEvent::MouseDown;
+        d.x = x;
+        d.y = y;
+        ctx.handleEvent(d);
+        InputEvent u;
+        u.type = InputEvent::MouseUp;
+        u.x = x;
+        u.y = y;
+        ctx.handleEvent(u);
+    };
+    float left = pad->rect.x + 10.0f, top = pad->rect.y + 10.0f;
+    float sqW = pad->rect.w - 20.0f, sqH = pad->rect.h - 20.0f - 10.0f - 14.0f;
+
+    // Top-left of the SV square => saturation 0, value 1 => white.
+    down(left + 1.0f, top + 1.0f);
+    REQUIRE(last.r > 240);
+    REQUIRE(last.g > 240);
+    REQUIRE(last.b > 240);
+
+    // Top-right of the SV square => saturation 1, value 1 => the pure hue (red).
+    down(left + sqW - 1.0f, top + 1.0f);
+    REQUIRE(last.r > 240);
+    REQUIRE(last.g < 15);
+    REQUIRE(last.b < 15);
+
+    // Click ~1/3 across the hue strip => green-ish, keeping S=V=1.
+    float hueY = top + sqH + 10.0f + 7.0f;
+    down(left + sqW * (1.0f / 3.0f), hueY);
+    float h, s, v;
+    toHsv(last, h, s, v);
+    REQUIRE(h > 0.28f);
+    REQUIRE(h < 0.40f); // around green's hue
+    REQUIRE(s > 0.9f);  // still fully saturated
+}
+
 TEST_CASE("setRoot clears overlays tied to the old tree") {
     StubRenderer r;
     Context ctx;
