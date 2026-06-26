@@ -59,6 +59,11 @@ TEST_CASE("ScrollView in a grown Row inside a Column gets a bounded height") {
     // (which would mean it can't scroll and rows spill past the modal).
     REQUIRE(scroll->rect.h > 100.0f);
     REQUIRE(scroll->rect.h < 600.0f);
+    // Width: it must take the leftover beside the 170px sidebar, NOT the whole row
+    // (which would push it — and its scrollbar — off the right edge).
+    REQUIRE(scroll->rect.w > 500.0f);
+    REQUIRE(scroll->rect.w < 650.0f);
+    REQUIRE(scroll->rect.x >= sidebar->rect.x + sidebar->rect.w - 1.0f);
 }
 
 void clickAt(Context& ctx, float x, float y, bool shift = false, bool ctrl = false) {

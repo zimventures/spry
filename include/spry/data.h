@@ -501,13 +501,19 @@ public:
         return add(std::move(c));
     }
 
-    // A scroll view is a fixed viewport over tall content — it must NOT report the
-    // child's (possibly huge) height, or a flex parent would expand it to fit
-    // instead of letting it scroll. Report prefH (or 0, so grow gives it the
-    // leftover space).
-    Size measure(Renderer&, float availW, float) override {
-        return Size{prefW >= 0 ? prefW : availW, prefH >= 0 ? prefH : 0.0f};
+    // A scroll view is a fixed viewport over its content — it must NOT report the
+    // content's (possibly huge) size on either axis, or a flex parent would expand
+    // it to fit instead of letting `grow` size it. Report prefW/prefH, else 0, so a
+    // grown parent gives it exactly the leftover space along the main axis (and
+    // cross-axis stretch fills the other). Reporting availW here would, inside a
+    // Row, consume the whole row width and starve a sibling sidebar.
+    Size measure(Renderer&, float, float) override {
+        return Size{prefW >= 0 ? prefW : 0.0f, prefH >= 0 ? prefH : 0.0f};
     }
+
+    // Inspection (host diagnostics / layout assertions).
+    float viewportHeight() const { return rect.h; }
+    float contentHeight() const { return contentH_; }
 
     bool onWheel(float, float dy) override {
         scrollY_ -= dy * 48.0f;
