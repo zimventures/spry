@@ -28,7 +28,7 @@ public:
     Edges padding;
 
     Size measure(Renderer& r, float availW, float availH) override {
-        float inner = (availW > 0 ? availW : 1e9f) - padding.l - padding.r;
+        float inner = std::max(0.0f, (availW > 0 ? availW : 1e9f) - padding.l - padding.r);
         float x = 0, lineH = 0, totalH = 0;
         bool atStart = true;
         for (auto& c : children_) {
@@ -55,7 +55,7 @@ public:
     void arrange(Renderer& r, Rect rc) override {
         rect = rc;
         float startX = rc.x + padding.l;
-        float inner = rc.w - padding.l - padding.r;
+        float inner = std::max(0.0f, rc.w - padding.l - padding.r);
         float x = startX, y = rc.y + padding.t, lineH = 0;
         bool atStart = true;
         for (auto& c : children_) {
