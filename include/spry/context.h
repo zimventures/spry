@@ -54,6 +54,9 @@ public:
 
     // ---- input, focus & keyboard (#216) ----
     Widget* focused() const { return focused_; }
+    // True while a widget holds the pointer (e.g. mid drag on a slider). Lets a host
+    // defer a tree rebuild until the interaction finishes.
+    bool hasActivePress() const { return pressed_ != nullptr; }
     void setFocus(Widget* w) {
         if (w == focused_) return;
         if (focused_) {
