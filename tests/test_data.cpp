@@ -29,6 +29,38 @@ struct StubRenderer : Renderer {
     }
 };
 
+TEST_CASE("ScrollView in a grown Row inside a Column gets a bounded height") {
+    StubRenderer r; // 800x600 window
+    Context ctx;
+    auto root = std::make_unique<Box>();
+    root->axis = Axis::Column;
+    root->emplace<Label>("title", 1.4f); // fixed-height header
+    auto* body = root->emplace<Box>();
+    body->axis = Axis::Row;
+    body->grow = 1.0f; // takes the leftover vertical space
+    auto* sidebar = body->emplace<Box>();
+    sidebar->axis = Axis::Column;
+    sidebar->prefW = 170;
+    for (int i = 0; i < 4; ++i)
+        sidebar->emplace<Label>("cat", 1.4f);
+    auto* scroll = body->emplace<ScrollView>();
+    scroll->grow = 1.0f;
+    auto tall = std::make_unique<Box>();
+    tall->axis = Axis::Column;
+    for (int i = 0; i < 200; ++i)
+        tall->emplace<Label>("row", 1.4f); // ~200 * lineH => way taller than the window
+    scroll->setContent(std::move(tall));
+    auto* footer = root->emplace<Box>();
+    footer->prefH = 40;
+    ctx.setRoot(std::move(root));
+    ctx.frame(r, 0.016f, -1, -1);
+
+    // The scroll viewport must be bounded by the window, not inflated to content
+    // (which would mean it can't scroll and rows spill past the modal).
+    REQUIRE(scroll->rect.h > 100.0f);
+    REQUIRE(scroll->rect.h < 600.0f);
+}
+
 void clickAt(Context& ctx, float x, float y, bool shift = false, bool ctrl = false) {
     InputEvent d;
     d.type = InputEvent::MouseDown;
