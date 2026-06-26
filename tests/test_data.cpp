@@ -29,6 +29,28 @@ struct StubRenderer : Renderer {
     }
 };
 
+TEST_CASE("WrapBox wraps children to new lines as the width shrinks") {
+    StubRenderer r; // measureText: ~7px/char at scale 1
+    Context ctx;
+    auto root = std::make_unique<WrapBox>();
+    WrapBox* wrap = root.get();
+    for (int i = 0; i < 4; ++i)
+        wrap->emplace<Button>("Button"); // each ~ 6*7 + 28 = 70px wide
+    ctx.setRoot(std::move(root));
+
+    Size wide = wrap->measure(r, 1000.0f, 0); // all on one line
+    Size narrow = wrap->measure(r, 160.0f, 0); // ~2 per line => taller
+    REQUIRE(narrow.h > wide.h);
+
+    // Lay out narrow: later buttons must drop below the first.
+    ctx.frame(r, 0.016f, -1, -1);
+    wrap->arrange(r, Rect{0, 0, 160, narrow.h});
+    REQUIRE(wrap->children().size() == 4);
+    float firstY = wrap->children()[0]->rect.y;
+    float lastY = wrap->children()[3]->rect.y;
+    REQUIRE(lastY > firstY);
+}
+
 TEST_CASE("ScrollView in a grown Row inside a Column gets a bounded height") {
     StubRenderer r; // 800x600 window
     Context ctx;
