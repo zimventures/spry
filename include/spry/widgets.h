@@ -162,6 +162,7 @@ public:
     std::function<void()> onClickCb;
     float scale = 1.4f;
     bool selected = false; // persistent active state (e.g. the current sidebar tab)
+    bool enabled = true;   // false dims the button and ignores clicks
     Spring press;
 
     explicit Button(std::string l, std::function<void()> cb = {})
@@ -172,7 +173,7 @@ public:
         return Size{r.measureText(scale, label.c_str()).w + 28.0f, textLineH(scale) + 14.0f};
     }
     void onClick() override {
-        if (onClickCb) onClickCb();
+        if (enabled && onClickCb) onClickCb();
     }
     Role accessibleRole() const override { return Role::Button; }
     std::string accessibleLabel() const override { return label; }
@@ -186,7 +187,7 @@ public:
         // The selected state reads as a brighter (accent-tinted) base; hover then
         // brightens further so it's still responsive when already selected.
         Color base = selected ? lerp(th.color("surface", {46, 49, 68}), acc, 0.30f) : th.color("surface", {46, 49, 68});
-        Color c = hovered ? lerp(base, acc, 0.40f) : base;
+        Color c = (hovered && enabled) ? lerp(base, acc, 0.40f) : base;
         c = lerp(c, lerp(acc, Color{0, 0, 0, 255}, 0.35f), press.value * 0.5f);
         float rad = th.metric("radius", 10.0f);
         float yo = press.value * 1.5f;
@@ -197,8 +198,9 @@ public:
         }
         r.fillRoundedRect(cx, cy + yo, rect.w, rect.h, rad, c, lerp(c, Color{0, 0, 0, 255}, 0.18f));
         float tw = r.measureText(scale, label.c_str()).w;
-        r.text(rect.x + (rect.w - tw) * 0.5f, rect.y + (rect.h - textLineH(scale)) * 0.5f + yo, scale,
-               th.color("text", {226, 229, 242}), label.c_str());
+        Color text = enabled ? th.color("text", {226, 229, 242}) : th.color("textDim", {110, 114, 128});
+        r.text(rect.x + (rect.w - tw) * 0.5f, rect.y + (rect.h - textLineH(scale)) * 0.5f + yo, scale, text,
+               label.c_str());
     }
 };
 
