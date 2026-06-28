@@ -134,11 +134,15 @@ class MenuItem : public Widget {
 public:
     std::string label;
     std::function<void()> chosen; // action + close, wired by Menu
+    // Optional leading icon, drawn centered at (cx, cy) in the given colour. The
+    // consumer supplies the glyph so the toolkit stays icon-agnostic.
+    std::function<void(Renderer&, float cx, float cy, Color)> icon;
     float scale = 1.4f;
 
     explicit MenuItem(std::string l) : label(std::move(l)) { focusable = true; }
     Size measure(Renderer& r, float, float) override {
-        return Size{r.measureText(scale, label.c_str()).w + 28.0f, textLineH(scale) + 12.0f};
+        float iconW = icon ? 24.0f : 0.0f;
+        return Size{r.measureText(scale, label.c_str()).w + 28.0f + iconW, textLineH(scale) + 12.0f};
     }
     void onClick() override {
         if (chosen) chosen();
@@ -149,8 +153,13 @@ public:
             r.fillRoundedRect(rect.x + rect.w * 0.5f, rect.y + rect.h * 0.5f, rect.w - 6, rect.h - 2, 6.0f,
                               Color{acc.r, acc.g, acc.b, 60}, Color{acc.r, acc.g, acc.b, 60});
         }
-        r.text(rect.x + 12.0f, rect.y + (rect.h - textLineH(scale)) * 0.5f, scale,
-               th.color("text", {226, 229, 242}), label.c_str());
+        Color textC = th.color("text", {226, 229, 242});
+        float labelX = rect.x + 12.0f;
+        if (icon) {
+            icon(r, rect.x + 16.0f, rect.y + rect.h * 0.5f, textC);
+            labelX = rect.x + 34.0f;
+        }
+        r.text(labelX, rect.y + (rect.h - textLineH(scale)) * 0.5f, scale, textC, label.c_str());
     }
 };
 
@@ -171,8 +180,10 @@ public:
         list_->spacing = 2;
         setContent(std::move(list));
     }
-    void addItem(std::string label, std::function<void()> action) {
+    void addItem(std::string label, std::function<void()> action,
+                 std::function<void(Renderer&, float, float, Color)> icon = nullptr) {
         auto* it = list_->emplace<MenuItem>(std::move(label));
+        it->icon = std::move(icon);
         it->chosen = [this, action = std::move(action)] {
             if (action) action();
             requestClose();
