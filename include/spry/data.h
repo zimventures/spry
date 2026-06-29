@@ -515,6 +515,12 @@ public:
     float viewportHeight() const { return rect.h; }
     float contentHeight() const { return contentH_; }
 
+    // Scroll position, so a view that rebuilds its scene can carry the offset across
+    // the rebuild instead of snapping to the top. Set before arrange; the next
+    // arrange clamps it to the new content height.
+    float scrollOffset() const { return scrollY_; }
+    void setScrollOffset(float y) { scrollY_ = y; }
+
     bool onWheel(float, float dy) override {
         scrollY_ -= dy * 48.0f;
         clamp();
