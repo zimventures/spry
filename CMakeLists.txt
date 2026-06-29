@@ -82,7 +82,8 @@ add_library(spry STATIC
     src/theme.cpp
     src/clipboard.cpp
     src/text_edit.cpp
-    src/textfield.cpp)
+    src/textfield.cpp
+    src/textarea.cpp)
 target_include_directories(spry PUBLIC include)
 # harfbuzz-subset: in a Debug build the core harfbuzz lib leaves undefined refs to
 # subset symbols that live in this companion lib, so link both.

@@ -13,6 +13,7 @@
 #include "overlay.h"
 #include "renderer.h"
 #include "text_edit.h"
+#include "textarea.h"
 #include "textfield.h"
 #include "theme.h"
 #include "widget.h"

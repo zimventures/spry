@@ -448,3 +448,23 @@ TEST_CASE("TextField masking hides the value and exposes bullets") {
         REQUIRE(tf.accessibleLabel() == bullets(4));
     }
 }
+
+TEST_CASE("TextArea is multi-line: Enter inserts newlines") {
+    TextArea ta;
+    ta.onText("a");
+    ta.onKey(Key::Enter, false, false, false); // newline, not submit
+    ta.onText("b");
+    REQUIRE(ta.text() == "a\nb");
+
+    SECTION("onChange fires with the current text") {
+        std::string seen;
+        ta.onChange = [&](const std::string& v) { seen = v; };
+        ta.onText("c");
+        REQUIRE(seen == "a\nbc");
+    }
+
+    SECTION("multi-line content round-trips through setText/text") {
+        ta.setText("line1\nline2\nline3");
+        REQUIRE(ta.text() == "line1\nline2\nline3");
+    }
+}
