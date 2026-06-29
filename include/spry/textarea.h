@@ -79,6 +79,7 @@ private:
     float lastClickX_ = 0.0f, lastClickY_ = 0.0f;
     int clickCount_ = 0;
     bool draggingBar_ = false;  // dragging the scrollbar thumb
+    bool scrollToCaret_ = false; // a caret move requested re-centering on next paint
     Renderer* r_ = nullptr;     // last renderer seen (events need it to measure)
     static constexpr float kPad = 8.0f;
     static constexpr float kScrollW = 12.0f;  // scrollbar gutter width

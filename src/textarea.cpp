@@ -175,7 +175,14 @@ void TextArea::paint(Renderer& r, const Theme& th) {
         r.fillRoundedRect(cx, cy, rect.w - 2, rect.h - 2, rad - 1, surface, surface);
     }
 
-    ensureCaretVisible();
+    // Keep scrollY_ valid (content may have shrunk), but only re-center on the caret
+    // when a caret move asked for it — otherwise this would fight wheel/thumb scrolling.
+    float maxScroll = std::max(0.0f, contentHeight() - viewportHeight());
+    scrollY_ = std::clamp(scrollY_, 0.0f, maxScroll);
+    if (scrollToCaret_) {
+        ensureCaretVisible();
+        scrollToCaret_ = false;
+    }
 
     Color textCol = th.color("text", {226, 229, 242});
     Color dimCol = th.color("textDim", {140, 144, 160});
@@ -256,6 +263,7 @@ bool TextArea::onMouseDown(float x, float y, int /*button*/, bool shift, bool /*
     lastClickY_ = y;
     blink_ = 0.0f;
     desiredX_ = -1.0f;
+    scrollToCaret_ = true;
 
     std::size_t b = byteAt(x, y);
     if (clickCount_ >= 3) { // select the visual row
@@ -277,6 +285,7 @@ void TextArea::onMouseDrag(float x, float y) {
     edit_.setCaret(byteAt(x, y), /*extend=*/true);
     desiredX_ = -1.0f;
     blink_ = 0.0f;
+    scrollToCaret_ = true;
 }
 
 bool TextArea::onMouseUp(float /*x*/, float /*y*/, int /*button*/) {
@@ -295,6 +304,7 @@ bool TextArea::onWheel(float /*dx*/, float dy) {
 bool TextArea::onKey(Key key, bool shift, bool ctrl, bool alt) {
     bool word = ctrl || alt;
     blink_ = 0.0f;
+    scrollToCaret_ = true; // a key edit/move should bring the caret into view
     bool vertical = (key == Key::Up || key == Key::Down);
     if (!vertical) desiredX_ = -1.0f; // any horizontal move resets the sticky column
 
@@ -344,6 +354,7 @@ void TextArea::onText(const char* utf8) {
     edit_.insert(utf8);
     desiredX_ = -1.0f;
     blink_ = 0.0f;
+    scrollToCaret_ = true;
     changed();
 }
 
