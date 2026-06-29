@@ -15,7 +15,7 @@
 namespace spry {
 
 // Accessibility role (#216) — exposed via the a11y tree; no platform backend yet.
-enum class Role { None, Group, Label, Button, Checkbox, TextField, Panel };
+enum class Role { None, Group, Label, Button, Checkbox, Radio, TextField, Panel };
 
 class Widget {
 public:

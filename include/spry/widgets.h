@@ -204,6 +204,43 @@ public:
     }
 };
 
+// A focusable radio button. The group is managed by the caller: set `selected` per
+// button and re-point the group's value in onSelect (selecting fires onSelect only
+// when it wasn't already selected).
+class RadioButton : public Widget {
+public:
+    std::string label;
+    bool selected = false;
+    std::function<void()> onSelect;
+    float scale = 1.4f;
+
+    explicit RadioButton(std::string l, bool sel = false) : label(std::move(l)), selected(sel) { focusable = true; }
+    Size measure(Renderer& r, float, float) override {
+        return Size{textLineH(scale) + 8.0f + r.measureText(scale, label.c_str()).w, textLineH(scale) + 6.0f};
+    }
+    void onClick() override {
+        if (!selected) {
+            selected = true;
+            if (onSelect) onSelect();
+        }
+    }
+    Role accessibleRole() const override { return Role::Radio; }
+    std::string accessibleLabel() const override { return label; }
+    void paint(Renderer& r, const Theme& th) override {
+        float d = textLineH(scale) * 0.8f;
+        float bx = rect.x + d * 0.5f, by = rect.y + rect.h * 0.5f;
+        Color acc = th.color("accent", {96, 126, 205});
+        Color border = (hovered || focused) ? acc : th.color("textDim", {140, 144, 160});
+        r.fillRoundedRect(bx, by, d, d, d * 0.5f, border, border);
+        Color fill = th.color("surface", {40, 43, 62});
+        r.fillRoundedRect(bx, by, d - 3.0f, d - 3.0f, (d - 3.0f) * 0.5f, fill, lerp(fill, Color{0, 0, 0, 255}, 0.15f));
+        if (selected)
+            r.fillRoundedRect(bx, by, d - 7.0f, d - 7.0f, (d - 7.0f) * 0.5f, acc, acc);
+        r.text(rect.x + d + 8.0f, rect.y + (rect.h - textLineH(scale)) * 0.5f, scale, th.color("text", {226, 229, 242}),
+               label.c_str());
+    }
+};
+
 // A focusable checkbox (#216).
 class Checkbox : public Widget {
 public:
