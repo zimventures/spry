@@ -216,15 +216,32 @@ void TextArea::paint(Renderer& r, const Theme& th) {
             }
         }
 
-        if (row.end > row.start)
-            r.text(originX, ry, scale, textCol, s.substr(row.start, row.end - row.start).c_str());
-
-        // Caret on this row.
-        bool caretOn = focused && std::fmod(blink_, 1.0f) < 0.5f;
-        if (i == caretRow && caretOn) {
-            float cxp = originX + xForByteInRow(row, caret);
-            r.fillRect(cxp, ry + 1.0f, 1.5f, lineH() - 2.0f, textCol);
+        if ((i == caretRow) && !preedit_.empty()) {
+            // IME composition on the caret row: left | preedit (underlined) | right,
+            // with the caret after the preedit (steady while composing).
+            std::string left = s.substr(row.start, caret - row.start);
+            std::string right = s.substr(caret, row.end - caret);
+            float wLeft = xForByteInRow(row, caret);
+            float wPre = r.measureText(scale, preedit_.c_str()).w;
+            if (!left.empty()) r.text(originX, ry, scale, textCol, left.c_str());
+            r.text(originX + wLeft, ry, scale, textCol, preedit_.c_str());
+            r.fillRect(originX + wLeft, ry + lineH() - 2.0f, wPre, 1.5f, acc); // composition underline
+            if (!right.empty()) r.text(originX + wLeft + wPre, ry, scale, textCol, right.c_str());
+            float cxp = originX + wLeft + wPre;
             caretRect_ = Rect{cxp, ry, 2.0f, lineH()};
+            if (focused) r.fillRect(cxp, ry + 1.0f, 1.5f, lineH() - 2.0f, textCol);
+        } else {
+            if (row.end > row.start)
+                r.text(originX, ry, scale, textCol, s.substr(row.start, row.end - row.start).c_str());
+            // Always refresh caretRect_ on the caret's row (so the IME candidate window
+            // tracks caret moves even while the blink is off); draw the bar only on the
+            // blink's visible half.
+            if (i == caretRow) {
+                float cxp = originX + xForByteInRow(row, caret);
+                caretRect_ = Rect{cxp, ry, 2.0f, lineH()};
+                if (focused && std::fmod(blink_, 1.0f) < 0.5f)
+                    r.fillRect(cxp, ry + 1.0f, 1.5f, lineH() - 2.0f, textCol);
+            }
         }
     }
 
