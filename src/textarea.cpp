@@ -16,8 +16,19 @@ std::size_t nextCp(const std::string& s, std::size_t i) {
 } // namespace
 
 // ---- geometry --------------------------------------------------------------
-float TextArea::innerWidth() const { return rect.w - 2.0f * kPad; }
+// Reserve the scrollbar gutter permanently (like ScrollView) so wrapping is stable
+// — adding/removing the thumb never reflows the text.
+float TextArea::innerWidth() const { return rect.w - 2.0f * kPad - kScrollW; }
 float TextArea::lineH() const { return textLineH(scale); }
+float TextArea::contentHeight() const { return static_cast<float>(rows_.size()) * lineH(); }
+
+void TextArea::scrollbarDragTo(float y) {
+    float vh = viewportHeight();
+    float ch = contentHeight();
+    float thumbH = std::max(kMinThumb, vh * vh / std::max(ch, 1.0f));
+    float f = (vh - thumbH) > 0 ? (y - (rect.y + kPad) - thumbH * 0.5f) / (vh - thumbH) : 0.0f;
+    scrollY_ = std::clamp(f * std::max(0.0f, ch - vh), 0.0f, std::max(0.0f, ch - vh));
+}
 
 void TextArea::layout(Renderer& r) {
     r_ = &r;
@@ -211,10 +222,32 @@ void TextArea::paint(Renderer& r, const Theme& th) {
     }
 
     r.popClip();
+
+    // Vertical scrollbar — only when the content overflows the visible rows.
+    if (scrollbarVisible()) {
+        float vh = viewportHeight();
+        float ch = contentHeight();
+        float thumbH = std::max(kMinThumb, vh * vh / ch);
+        float maxS = ch - vh;
+        float t = maxS > 0 ? scrollY_ / maxS : 0.0f;
+        float ty = rect.y + kPad + t * (vh - thumbH);
+        float sx = rect.x + rect.w - kScrollW * 0.5f - 2.0f;
+        float tw = kScrollW - 6.0f;
+        Color trackC{dimCol.r, dimCol.g, dimCol.b, 40};
+        r.fillRoundedRect(sx, rect.y + kPad + vh * 0.5f, tw, vh, tw * 0.5f, trackC, trackC);
+        Color thumbC = (draggingBar_ || hovered) ? acc : dimCol;
+        r.fillRoundedRect(sx, ty + thumbH * 0.5f, tw, thumbH, tw * 0.5f, thumbC, thumbC);
+    }
 }
 
 // ---- input -----------------------------------------------------------------
 bool TextArea::onMouseDown(float x, float y, int /*button*/, bool shift, bool /*ctrl*/) {
+    // A press in the scrollbar gutter drags the thumb instead of placing the caret.
+    if (scrollbarVisible() && x >= rect.x + rect.w - kScrollW) {
+        draggingBar_ = true;
+        scrollbarDragTo(y);
+        return true;
+    }
     bool quick = (lastClickT_ >= 0.0f) && (clock_ - lastClickT_ < 0.45f) && (std::abs(x - lastClickX_) < 6.0f) &&
                  (std::abs(y - lastClickY_) < 6.0f);
     clickCount_ = quick ? clickCount_ + 1 : 1;
@@ -237,9 +270,18 @@ bool TextArea::onMouseDown(float x, float y, int /*button*/, bool shift, bool /*
 }
 
 void TextArea::onMouseDrag(float x, float y) {
+    if (draggingBar_) {
+        scrollbarDragTo(y);
+        return;
+    }
     edit_.setCaret(byteAt(x, y), /*extend=*/true);
     desiredX_ = -1.0f;
     blink_ = 0.0f;
+}
+
+bool TextArea::onMouseUp(float /*x*/, float /*y*/, int /*button*/) {
+    draggingBar_ = false;
+    return false;
 }
 
 bool TextArea::onWheel(float /*dx*/, float dy) {

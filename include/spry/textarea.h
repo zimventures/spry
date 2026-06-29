@@ -35,6 +35,7 @@ public:
 
     bool onMouseDown(float x, float y, int button, bool shift, bool ctrl) override;
     void onMouseDrag(float x, float y) override;
+    bool onMouseUp(float x, float y, int button) override;
     bool onWheel(float dx, float dy) override;
     bool onKey(Key key, bool shift, bool ctrl, bool alt) override;
     void onText(const char* utf8) override;
@@ -53,6 +54,10 @@ private:
 
     float innerWidth() const;
     float lineH() const;
+    float viewportHeight() const { return rect.h - 2.0f * kPad; }
+    float contentHeight() const; // total height of all rows
+    bool scrollbarVisible() const { return contentHeight() > viewportHeight() + 0.5f; }
+    void scrollbarDragTo(float y); // map a pointer y to a scroll offset
     void layout(Renderer& r);                                    // (re)build rows_ for rect width
     std::size_t rowOfByte(std::size_t b) const;                  // visual row containing the caret byte
     float xForByteInRow(const VRow& row, std::size_t b) const;   // x within the row (text space)
@@ -73,8 +78,11 @@ private:
     float lastClickT_ = -1.0f;  // clock_ at the previous mouse-down
     float lastClickX_ = 0.0f, lastClickY_ = 0.0f;
     int clickCount_ = 0;
+    bool draggingBar_ = false;  // dragging the scrollbar thumb
     Renderer* r_ = nullptr;     // last renderer seen (events need it to measure)
     static constexpr float kPad = 8.0f;
+    static constexpr float kScrollW = 12.0f;  // scrollbar gutter width
+    static constexpr float kMinThumb = 24.0f; // minimum thumb height
 };
 
 } // namespace spry
