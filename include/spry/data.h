@@ -219,7 +219,7 @@ private:
         float maxS = ch - vp.h;
         float t = maxS > 0 ? scrollY_ / maxS : 0.0f;
         float ty = vp.y + t * (vp.h - thumbH);
-        float sx = rect.x + rect.w - kScrollW * 0.5f - 2.0f;
+        float sx = rect.x + rect.w - kScrollW * 0.5f; // thumb centered within the kScrollW gutter
         Color c = th.color("textDim", {140, 144, 160});
         r.fillRoundedRect(sx, ty + thumbH * 0.5f, kScrollW - 6.0f, thumbH, (kScrollW - 6.0f) * 0.5f, c, c);
     }

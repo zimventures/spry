@@ -255,7 +255,7 @@ void TextArea::paint(Renderer& r, const Theme& th) {
         float maxS = ch - vh;
         float t = maxS > 0 ? scrollY_ / maxS : 0.0f;
         float ty = rect.y + kPad + t * (vh - thumbH);
-        float sx = rect.x + rect.w - kScrollW * 0.5f - 2.0f;
+        float sx = rect.x + rect.w - kScrollW * 0.5f; // centered within the gutter
         float tw = kScrollW - 6.0f;
         Color trackC{dimCol.r, dimCol.g, dimCol.b, 40};
         r.fillRoundedRect(sx, rect.y + kPad + vh * 0.5f, tw, vh, tw * 0.5f, trackC, trackC);
