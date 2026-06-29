@@ -17,6 +17,7 @@ class TextField : public Widget {
 public:
     std::string placeholder;
     float scale = 1.4f;
+    bool masked = false; // render each character as a bullet (password fields)
     std::function<void(const std::string&)> onChange; // fired after any edit
     std::function<void()> onSubmit;                    // Enter pressed
 
@@ -46,6 +47,7 @@ public:
 private:
     float textOriginX() const; // left edge of the text content (inside padding)
     float innerWidth() const;
+    std::string maskOf(const std::string& s) const; // s, or one bullet per codepoint when masked
     std::size_t byteAtX(float x) const; // window x -> nearest caret byte index
     float xForByte(std::size_t byte) const;
     void ensureCaretVisible();

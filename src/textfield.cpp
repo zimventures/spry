@@ -9,12 +9,21 @@ namespace spry {
 float TextField::textOriginX() const { return rect.x + kPad - scrollX_; }
 float TextField::innerWidth() const { return rect.w - 2.0f * kPad; }
 
+std::string TextField::maskOf(const std::string& s) const {
+    if (!masked) return s;
+    std::string out;
+    for (char ch : s)
+        if (((unsigned char)ch & 0xC0) != 0x80) // one bullet per UTF-8 codepoint start
+            out += "\xe2\x80\xa2";              // U+2022 BULLET
+    return out;
+}
+
 float TextField::xForByte(std::size_t byte) const {
     const std::string& s = edit_.text();
     if (byte == 0) return 0.0f;
     if (byte > s.size()) byte = s.size();
     if (!r_) return (float)byte * textCellW(scale); // fallback before first paint
-    return r_->measureText(scale, s.substr(0, byte).c_str()).w;
+    return r_->measureText(scale, maskOf(s.substr(0, byte)).c_str()).w;
 }
 
 std::size_t TextField::byteAtX(float x) const {
@@ -133,12 +142,12 @@ void TextField::paint(Renderer& r, const Theme& th) {
             Color sel{acc.r, acc.g, acc.b, (uint8_t)(focused ? 110 : 70)};
             r.fillRect(originX + x0, textY, x1 - x0, lineH, sel);
         }
-        if (!s.empty()) r.text(originX, textY, scale, textCol, s.c_str());
+        if (!s.empty()) r.text(originX, textY, scale, textCol, maskOf(s).c_str());
         caretX = xForByte(edit_.caret());
     } else {
         // IME composition: left | preedit (underlined) | right; caret after preedit.
-        std::string left = s.substr(0, edit_.caret());
-        std::string right = s.substr(edit_.caret());
+        std::string left = maskOf(s.substr(0, edit_.caret()));
+        std::string right = maskOf(s.substr(edit_.caret()));
         float wLeft = xForByte(edit_.caret());
         float wPre = r.measureText(scale, preedit_.c_str()).w;
         if (!left.empty()) r.text(originX, textY, scale, textCol, left.c_str());
