@@ -42,7 +42,8 @@ public:
     bool wantsTextInput() const override { return true; }
     Rect caretRect() const override { return caretRect_; }
     Role accessibleRole() const override { return Role::TextField; }
-    std::string accessibleLabel() const override { return edit_.text(); }
+    // Masked fields expose bullets, never the secret, to the a11y tree.
+    std::string accessibleLabel() const override { return masked ? maskOf(edit_.text()) : edit_.text(); }
 
 private:
     float textOriginX() const; // left edge of the text content (inside padding)

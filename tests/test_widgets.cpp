@@ -419,3 +419,32 @@ TEST_CASE("Toast self-closes after its lifetime") {
     pump(ctx, r, 120);     // past lifetime + close animation
     REQUIRE(closed);
 }
+
+TEST_CASE("TextField masking hides the value and exposes bullets") {
+    const std::string bullet = "\xe2\x80\xa2"; // U+2022
+    auto bullets = [&](int n) {
+        std::string s;
+        for (int i = 0; i < n; ++i)
+            s += bullet;
+        return s;
+    };
+
+    TextField tf;
+    tf.setText("hunter2");
+
+    SECTION("unmasked exposes the raw text to a11y") {
+        REQUIRE(tf.accessibleLabel() == "hunter2");
+    }
+
+    SECTION("masked exposes one bullet per character, never the secret") {
+        tf.masked = true;
+        REQUIRE(tf.accessibleLabel() == bullets(7));
+        REQUIRE(tf.text() == "hunter2"); // the real value is still readable for save/onChange
+    }
+
+    SECTION("masking counts UTF-8 codepoints, not bytes") {
+        tf.setText("caf\xc3\xa9"); // "café": 4 codepoints, 5 bytes
+        tf.masked = true;
+        REQUIRE(tf.accessibleLabel() == bullets(4));
+    }
+}
