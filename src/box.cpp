@@ -7,12 +7,17 @@ namespace spry {
 
 Size Box::measure(Renderer& r, float availW, float availH) {
     bool col = axis == Axis::Column;
+    // A fixed-width column constrains its children's measuring width to its own inner
+    // width, so wrapping children (Paragraph) report their true (wrapped) height —
+    // otherwise the box under-sizes and the last child overflows its bottom padding.
+    float childW = (col && prefW >= 0) ? std::max(0.0f, prefW - padding.l - padding.r) : availW;
     float mainSum = 0, crossMax = 0;
     int n = 0;
     for (auto& c : children_) {
         if (!c->visible) continue;
         ++n;
-        Size cs = c->measure(r, availW, availH);
+        float cw = col ? std::max(0.0f, childW - c->margin.l - c->margin.r) : availW;
+        Size cs = c->measure(r, cw, availH);
         float cm = col ? cs.h : cs.w;
         float cc = col ? cs.w : cs.h;
         float pm = col ? c->prefH : c->prefW;

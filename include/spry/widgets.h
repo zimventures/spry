@@ -167,6 +167,7 @@ public:
     float scale = 1.4f;
     bool selected = false; // persistent active state (e.g. the current sidebar tab)
     bool enabled = true;   // false dims the button and ignores clicks
+    bool danger = false;   // destructive action — red palette
     Spring press;
 
     explicit Button(std::string l, std::function<void()> cb = {})
@@ -187,10 +188,11 @@ public:
         Widget::update(dt);
     }
     void paint(Renderer& r, const Theme& th) override {
-        Color acc = th.color("accent", {96, 126, 205});
+        Color acc = danger ? Color{214, 78, 78, 255} : th.color("accent", {96, 126, 205});
+        Color surf = danger ? Color{74, 40, 44, 255} : th.color("surface", {46, 49, 68});
         // The selected state reads as a brighter (accent-tinted) base; hover then
         // brightens further so it's still responsive when already selected.
-        Color base = selected ? lerp(th.color("surface", {46, 49, 68}), acc, 0.30f) : th.color("surface", {46, 49, 68});
+        Color base = selected ? lerp(surf, acc, 0.30f) : surf;
         Color c = (hovered && enabled) ? lerp(base, acc, 0.40f) : base;
         c = lerp(c, lerp(acc, Color{0, 0, 0, 255}, 0.35f), press.value * 0.5f);
         float rad = th.metric("radius", 10.0f);
