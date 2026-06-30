@@ -35,6 +35,10 @@ public:
 
     int numRows() const { return rowCount(); } // public view of the row count
 
+    // Snap to the last row on the next paint — for follow-tail views (logs). Cleared
+    // after it applies, so the user can scroll up freely until it's requested again.
+    void scrollToBottom() { stickBottom_ = true; }
+
     // Multi-selection (#215). With multiSelect off, only the lead row is ever in
     // the set, so isSelected(selected) and selection() == {selected}.
     bool isSelected(int i) const { return sel_.count(i) > 0; }
@@ -104,6 +108,10 @@ public:
 
         Rect vp = bodyViewport();
         clampScroll(vp);
+        if (stickBottom_) {
+            scrollY_ = std::max(0.0f, contentHeight() - vp.h);
+            stickBottom_ = false;
+        }
         r.pushClip(vp);
         int n = rowCount();
         int first = std::max(0, (int)(scrollY_ / rowHeight));
@@ -227,8 +235,9 @@ private:
     static constexpr float kMinThumb = 28.0f;
     float scrollY_ = 0.0f;
     bool sbDrag_ = false;
-    std::set<int> sel_; // selected rows (lead row mirrored in `selected`)
-    int anchor_ = -1;   // range anchor for shift-select
+    bool stickBottom_ = false; // snap to the last row on the next paint (follow-tail)
+    std::set<int> sel_;        // selected rows (lead row mirrored in `selected`)
+    int anchor_ = -1;          // range anchor for shift-select
 };
 
 // ---- ListView --------------------------------------------------------------
