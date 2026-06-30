@@ -1,4 +1,5 @@
 #pragma once
+#include <algorithm>
 #include <functional>
 #include <optional>
 #include <string>
@@ -53,6 +54,7 @@ public:
     std::string role = "text";
     std::optional<Color> colorOverride;
     bool preformatted = false; // true => verbatim lines (no word-wrap / whitespace collapse)
+    bool center = false;       // center each wrapped line horizontally
 
     explicit Paragraph(std::string t, float s = 1.4f) : text(std::move(t)), scale(s) {}
 
@@ -65,7 +67,9 @@ public:
         Color c = colorOverride.value_or(th.color(role, {220, 224, 235}));
         float y = rect.y;
         wrap(r, rect.w, [&](const std::string& line) {
-            r.text(rect.x, y, scale, c, line.c_str());
+            float x = rect.x;
+            if (center) x += std::max(0.0f, (rect.w - r.measureText(scale, line.c_str()).w) * 0.5f);
+            r.text(x, y, scale, c, line.c_str());
             y += textLineH(scale);
         });
     }
