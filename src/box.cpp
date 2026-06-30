@@ -10,7 +10,13 @@ Size Box::measure(Renderer& r, float availW, float availH) {
     // A fixed-width column constrains its children's measuring width to its own inner
     // width, so wrapping children (Paragraph) report their true (wrapped) height —
     // otherwise the box under-sizes and the last child overflows its bottom padding.
-    float childW = (col && prefW >= 0) ? std::max(0.0f, prefW - padding.l - padding.r) : availW;
+    // Clamp prefW to availW too: if a parent constrains us narrower, arrange() shrinks
+    // us, so measure children at the narrower width to keep heights honest.
+    float childW = availW;
+    if (col && prefW >= 0) {
+        float w = (availW > 0) ? std::min(prefW, availW) : prefW;
+        childW = std::max(0.0f, w - padding.l - padding.r);
+    }
     float mainSum = 0, crossMax = 0;
     int n = 0;
     for (auto& c : children_) {
