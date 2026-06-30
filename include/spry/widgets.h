@@ -24,6 +24,27 @@ public:
     }
 };
 
+// A determinate progress bar: a rounded track with an accent-filled portion (0..1).
+class ProgressBar : public Widget {
+public:
+    float value = 0.0f; // clamped to [0, 1]
+    float thickness = 8.0f;
+    Size measure(Renderer&, float availW, float) override {
+        return Size{availW > 0 ? availW : 200.0f, thickness};
+    }
+    void paint(Renderer& r, const Theme& th) override {
+        float rad = rect.h * 0.5f;
+        Color track = th.color("surfaceAlt", {32, 34, 48});
+        r.fillRoundedRect(rect.x + rect.w * 0.5f, rect.y + rect.h * 0.5f, rect.w, rect.h, rad, track, track);
+        float frac = std::max(0.0f, std::min(1.0f, value));
+        float w = frac * rect.w;
+        if (w > rect.h) { // only draw once it's at least a rounded cap wide
+            Color acc = th.color("accent", {96, 126, 205});
+            r.fillRoundedRect(rect.x + w * 0.5f, rect.y + rect.h * 0.5f, w, rect.h, rad, acc, acc);
+        }
+    }
+};
+
 class Label : public Widget {
 public:
     std::string text;
