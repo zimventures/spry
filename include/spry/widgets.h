@@ -61,11 +61,19 @@ public:
 
     Size measure(Renderer&, float, float) override { return Size{drawW, drawH}; }
     void paint(Renderer& r, const Theme&) override {
-        if (handle && *handle == 0 && pixels && srcW > 0 && srcH > 0)
+        // Upload once per widget instance: guard on tried_ so a backend that can't
+        // upload (default Renderer, or a failed load returning 0) doesn't retry every
+        // frame. A successful upload caches into *handle and skips future instances.
+        if (handle && *handle == 0 && !tried_ && pixels && srcW > 0 && srcH > 0) {
             *handle = r.loadImage(pixels, srcW, srcH);
+            tried_ = true;
+        }
         if (handle && *handle)
             r.drawImage(*handle, rect, tint);
     }
+
+  private:
+    bool tried_ = false; // an upload was attempted this instance (success or failure)
 };
 
 class Label : public Widget {
