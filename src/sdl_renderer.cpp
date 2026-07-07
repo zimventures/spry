@@ -120,7 +120,11 @@ SdlRenderer::SdlRenderer(SDL_Renderer* r) : r_(r) {
     text_->r = r_;
 }
 
-SdlRenderer::~SdlRenderer() { delete text_; }
+SdlRenderer::~SdlRenderer() {
+    for (SDL_Texture* t : images_)
+        if (t) SDL_DestroyTexture(t);
+    delete text_;
+}
 
 bool SdlRenderer::loadFont(const char* path) { return text_ && text_->load(path); }
 
@@ -200,6 +204,31 @@ void SdlRenderer::text(float x, float y, float scale, Color c, const char* s) {
         }
         pen += sg.xadv;
     }
+}
+
+ImageHandle SdlRenderer::loadImage(const unsigned char* rgba, int w, int h) {
+    if (!rgba || w <= 0 || h <= 0) return 0;
+    // SDL_PIXELFORMAT_RGBA32 is byte-order R,G,B,A — matching stb_image's 4-channel
+    // output — regardless of endianness, so the upload is a straight copy.
+    SDL_Surface* surf =
+        SDL_CreateSurfaceFrom(w, h, SDL_PIXELFORMAT_RGBA32, const_cast<unsigned char*>(rgba), w * 4);
+    if (!surf) return 0;
+    SDL_Texture* tex = SDL_CreateTextureFromSurface(r_, surf);
+    SDL_DestroySurface(surf);
+    if (!tex) return 0;
+    SDL_SetTextureBlendMode(tex, SDL_BLENDMODE_BLEND);
+    images_.push_back(tex);
+    return (ImageHandle)(std::uintptr_t)tex;
+}
+
+void SdlRenderer::drawImage(ImageHandle img, const Rect& dst, Color mod) {
+    if (!img) return;
+    SDL_Texture* tex = (SDL_Texture*)(std::uintptr_t)img;
+    Color c = tint(mod); // fold in the active opacity
+    SDL_SetTextureColorMod(tex, c.r, c.g, c.b);
+    SDL_SetTextureAlphaMod(tex, c.a);
+    SDL_FRect d{dst.x, dst.y, dst.w, dst.h};
+    SDL_RenderTexture(r_, tex, nullptr, &d);
 }
 
 Size SdlRenderer::measureText(float scale, const char* s) {

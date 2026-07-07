@@ -83,10 +83,15 @@ void main(){
 static const char* kFrag = R"(
 in vec4 vColor; in vec2 vUV;
 uniform sampler2D uTex;
+uniform int uImage; // 0 = coverage (glyphs/fills, .r); 1 = full RGBA image, vColor is the tint
 out vec4 FragColor;
 void main(){
-    float a = texture(uTex, vUV).r; // coverage; white 1x1 tex => 1 for solid fills
-    FragColor = vec4(vColor.rgb, vColor.a * a);
+    if (uImage == 1) {
+        FragColor = texture(uTex, vUV) * vColor; // straight-alpha RGBA modulated by the tint
+    } else {
+        float a = texture(uTex, vUV).r; // coverage; white 1x1 tex => 1 for solid fills
+        FragColor = vec4(vColor.rgb, vColor.a * a);
+    }
 })";
 
 static GLuint compile(GLenum type, const char* version, const char* body) {
@@ -118,8 +123,9 @@ struct GlRenderer::Impl {
     GLuint prog = 0, vao = 0, vbo = 0, ebo = 0, white = 0;
     GLuint fbo = 0, fboTex = 0;
     int fboW = 0, fboH = 0;
-    GLint uViewport = -1, uTex = -1, uScale = -1;
-    float contentScale = 1.0f; // logical -> device px (HiDPI)
+    GLint uViewport = -1, uTex = -1, uScale = -1, uImage = -1;
+    float contentScale = 1.0f;  // logical -> device px (HiDPI)
+    std::vector<GLuint> images; // uploaded image textures, freed at teardown
 
     FT_Library lib = nullptr;
     FT_Face face = nullptr;
@@ -149,6 +155,7 @@ struct GlRenderer::Impl {
         uViewport = glGetUniformLocation(prog, "uViewport");
         uTex = glGetUniformLocation(prog, "uTex");
         uScale = glGetUniformLocation(prog, "uScale");
+        uImage = glGetUniformLocation(prog, "uImage");
 
         glGenVertexArrays(1, &vao);
         glBindVertexArray(vao);
@@ -275,6 +282,8 @@ GlRenderer::GlRenderer() : d_(new Impl()) {
 GlRenderer::~GlRenderer() {
     for (auto& [k, g] : d_->glyphs)
         if (g.tex) glDeleteTextures(1, &g.tex);
+    for (GLuint t : d_->images)
+        if (t) glDeleteTextures(1, &t);
     if (d_->hb) hb_font_destroy(d_->hb);
     if (d_->face) FT_Done_Face(d_->face);
     if (d_->lib) FT_Done_FreeType(d_->lib);
@@ -318,6 +327,7 @@ void GlRenderer::beginFrame(Color clear) {
     glUniform2f(d_->uViewport, (float)d_->vpW, (float)d_->vpH);
     glUniform1f(d_->uScale, d_->contentScale);
     glUniform1i(d_->uTex, 0);
+    glUniform1i(d_->uImage, 0); // default to the coverage path; drawImage flips it per-draw
 }
 void GlRenderer::endFrame() {
     glDisable(GL_SCISSOR_TEST);
@@ -399,6 +409,35 @@ void GlRenderer::text(float x, float y, float scale, Color c, const char* s) {
         }
         pen += sg.xadv * inv;
     }
+}
+
+ImageHandle GlRenderer::loadImage(const unsigned char* rgba, int w, int h) {
+    if (!rgba || w <= 0 || h <= 0) return 0;
+    GLuint tex = 0;
+    glGenTextures(1, &tex);
+    glBindTexture(GL_TEXTURE_2D, tex);
+    glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, rgba);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    d_->images.push_back(tex);
+    return (ImageHandle)tex; // the GL texture id doubles as the opaque handle
+}
+
+void GlRenderer::drawImage(ImageHandle img, const Rect& dst, Color mod) {
+    if (!img) return;
+    Color c = tint(mod); // fold in the active opacity, same as every other primitive
+    std::vector<float> v;
+    pushVert(v, dst.x, dst.y, c, 0.0f, 0.0f);
+    pushVert(v, dst.x + dst.w, dst.y, c, 1.0f, 0.0f);
+    pushVert(v, dst.x + dst.w, dst.y + dst.h, c, 1.0f, 1.0f);
+    pushVert(v, dst.x, dst.y + dst.h, c, 0.0f, 1.0f);
+    std::vector<int> idx{0, 1, 2, 0, 2, 3};
+    glUniform1i(d_->uImage, 1); // sample full RGBA for this draw...
+    d_->draw(v, idx, (GLuint)img);
+    glUniform1i(d_->uImage, 0); // ...then restore the coverage path for fills/text
 }
 
 Size GlRenderer::measureText(float scale, const char* s) {

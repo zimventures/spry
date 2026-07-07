@@ -1,5 +1,6 @@
 #pragma once
 #include <algorithm>
+#include <cstdint>
 #include <vector>
 
 #include "color.h"
@@ -19,6 +20,11 @@ struct Mesh {
     std::vector<Vertex> verts;
     std::vector<int> indices;
 };
+
+// An opaque handle to a GPU-resident image, returned by loadImage() and passed to
+// drawImage(). Wide enough to hold either a GL texture id or a backend pointer;
+// 0 means "none / upload failed". Each backend interprets the bits its own way.
+using ImageHandle = std::uintptr_t;
 
 // Text metrics (#212): a monospace cell model so layout can size text without a
 // renderer. text() advances by textCellW(); Label::measure() uses the same, so
@@ -43,6 +49,16 @@ public:
     // Shaped text extent (#212) — lets layout size proportional text. Width is the
     // sum of shaped advances; height is the line box.
     virtual Size measureText(float scale, const char* s) = 0;
+
+    // Images (#220). Upload tightly-packed RGBA8 pixels (w*h*4 bytes, straight
+    // alpha) to a GPU texture and return an opaque handle; draw it later with
+    // drawImage(). Backends own the texture and free it at teardown — there is no
+    // per-image free, so hold the handle and reuse it across frames rather than
+    // re-uploading. Returns 0 on bad input or an unsupported (e.g. headless)
+    // backend; drawImage() is then a no-op. `mod` modulates the image (white =
+    // as-is); the active opacity() folds into its alpha like every other colour.
+    virtual ImageHandle loadImage(const unsigned char* /*rgba*/, int /*w*/, int /*h*/) { return 0; }
+    virtual void drawImage(ImageHandle /*img*/, const Rect& /*dst*/, Color /*mod*/) {}
 
     // Clip stack (#213 — the seam noted in #208). Widgets that scroll content
     // (e.g. a text field) push a clip rect, draw, then pop. Pushes intersect with

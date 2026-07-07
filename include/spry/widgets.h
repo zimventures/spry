@@ -45,6 +45,29 @@ public:
     }
 };
 
+// A raster image (#220): draws RGBA pixels the caller owns, uploaded to the
+// renderer lazily on first paint and cached via a caller-held handle so repeated
+// scene rebuilds don't re-upload the same texture. Lays out at (drawW, drawH)
+// logical units. `pixels` must stay valid until the first paint; `handle` must
+// outlive the widget (own it on the view, not the transient scene tree), and be
+// zero-initialised — a non-zero slot is treated as already uploaded.
+class Image : public Widget {
+public:
+    const unsigned char* pixels = nullptr; // borrowed RGBA8 (w*h*4), only read at upload
+    int srcW = 0, srcH = 0;                // source pixel dimensions
+    float drawW = 0, drawH = 0;            // display size in logical units
+    ImageHandle* handle = nullptr;         // caller-owned upload cache; persists across rebuilds
+    Color tint{255, 255, 255, 255};        // modulation (white = as-is)
+
+    Size measure(Renderer&, float, float) override { return Size{drawW, drawH}; }
+    void paint(Renderer& r, const Theme&) override {
+        if (handle && *handle == 0 && pixels && srcW > 0 && srcH > 0)
+            *handle = r.loadImage(pixels, srcW, srcH);
+        if (handle && *handle)
+            r.drawImage(*handle, rect, tint);
+    }
+};
+
 class Label : public Widget {
 public:
     std::string text;

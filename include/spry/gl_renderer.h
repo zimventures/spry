@@ -33,6 +33,8 @@ public:
     void fillRect(float x, float y, float w, float h, Color c) override;
     void text(float x, float y, float scale, Color c, const char* s) override;
     Size measureText(float scale, const char* s) override;
+    ImageHandle loadImage(const unsigned char* rgba, int w, int h) override;
+    void drawImage(ImageHandle img, const Rect& dst, Color mod) override;
 
 protected:
     void applyClip(const Rect* r) override;
