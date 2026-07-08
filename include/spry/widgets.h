@@ -217,6 +217,10 @@ public:
     std::string label;
     std::function<void()> onClickCb;
     float scale = 1.4f;
+    // Padding each side of the label. Defaults give the standard button; shrink them
+    // (and/or scale) for compact toolbars — the button always sizes to its content.
+    float padX = 14.0f;
+    float padY = 7.0f;
     bool selected = false; // persistent active state (e.g. the current sidebar tab)
     bool enabled = true;   // false dims the button and ignores clicks
     bool danger = false;   // destructive action — red palette
@@ -227,7 +231,7 @@ public:
         focusable = true;
     }
     Size measure(Renderer& r, float, float) override {
-        return Size{r.measureText(scale, label.c_str()).w + 28.0f, textLineH(scale) + 14.0f};
+        return Size{r.measureText(scale, label.c_str()).w + 2.0f * padX, textLineH(scale) + 2.0f * padY};
     }
     void onClick() override {
         if (enabled && onClickCb) onClickCb();
