@@ -23,7 +23,11 @@ public:
     // Spry renders to an offscreen FBO so it composes with a host that owns the
     // default framebuffer (e.g. Cleat's ImGui frame, which clears late).
     unsigned int targetTexture() const;          // GL texture of the rendered UI (for ImGui::Image)
-    void blitToDefault(int dstW, int dstH);       // copy the FBO to the default framebuffer
+    void blitToDefault(int dstW, int dstH);       // copy the FBO to the default framebuffer (overwrite)
+    // Composite the FBO onto the default framebuffer with alpha blending — for
+    // presenting a transparent overlay directly over a host frame, without an
+    // ImGui::Image bridge (#222). Fills the FBO's device-pixel extent.
+    void presentBlended();
 
     void beginFrame(Color clear) override;
     void endFrame() override;

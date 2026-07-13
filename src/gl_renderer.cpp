@@ -312,6 +312,28 @@ void GlRenderer::blitToDefault(int dstW, int dstH) {
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
 
+void GlRenderer::presentBlended() {
+    float w = (float)d_->vpW, h = (float)d_->vpH;
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    glViewport(0, 0, d_->vpW, d_->vpH);
+    glDisable(GL_SCISSOR_TEST);
+    glDisable(GL_DEPTH_TEST);
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    glUseProgram(d_->prog);
+    // Draw straight in device px: uScale 1, viewport = FBO size.
+    glUniform2f(d_->uViewport, w, h);
+    glUniform1f(d_->uScale, 1.0f);
+    glUniform1i(d_->uTex, 0);
+    glUniform1i(d_->uImage, 1); // sample the FBO's full RGBA (straight alpha)
+    // Fullscreen quad, UVs V-flipped (GL FBO is bottom-up), white tint.
+    std::vector<float> verts = {0, 0, 1, 1, 1, 1, 0, 1, w, 0, 1, 1, 1, 1, 1, 1,
+                                w, h, 1, 1, 1, 1, 1, 0, 0, h, 1, 1, 1, 1, 0, 0};
+    std::vector<int> idx = {0, 1, 2, 0, 2, 3};
+    d_->draw(verts, idx, d_->fboTex);
+    glUniform1i(d_->uImage, 0); // restore the coverage default
+}
+
 void GlRenderer::beginFrame(Color clear) {
     glBindFramebuffer(GL_FRAMEBUFFER, d_->fbo); // render into our FBO, not the host's screen
     glViewport(0, 0, d_->vpW, d_->vpH);
