@@ -54,6 +54,13 @@ public:
 
     // ---- input, focus & keyboard (#216) ----
     Widget* focused() const { return focused_; }
+    // Desired mouse cursor this frame: the pressed widget's while a drag is held
+    // (so a resize cursor persists off the divider), else the hovered widget's.
+    // The host reads this each frame and applies the platform cursor (#222).
+    Cursor cursor() const {
+        Widget* w = pressed_ ? pressed_ : hovered_;
+        return w ? w->cursor() : Cursor::Default;
+    }
     // True while a widget holds the pointer (e.g. mid drag on a slider). Lets a host
     // defer a tree rebuild until the interaction finishes.
     bool hasActivePress() const { return pressed_ != nullptr; }

@@ -17,6 +17,10 @@ namespace spry {
 // Accessibility role (#216) — exposed via the a11y tree; no platform backend yet.
 enum class Role { None, Group, Label, Button, Checkbox, Radio, TextField, Panel };
 
+// Desired mouse cursor while a widget is the hover/press target (#222). The host
+// maps these to platform cursors; widgets that don't override keep the arrow.
+enum class Cursor { Default, ResizeH, ResizeV };
+
 class Widget {
 public:
     virtual ~Widget() = default;
@@ -83,6 +87,9 @@ public:
     // IME pre-edit (composition) text, not yet committed (#213).
     virtual void onTextEditing(const char* /*utf8*/) {}
     virtual void onFocusChanged(bool /*focused*/) {}
+
+    // Mouse cursor to show while this widget is the hover/press target (#222).
+    virtual Cursor cursor() const { return Cursor::Default; }
 
     // Text-input / IME hooks (#213). A widget that edits text returns true so the
     // host can start platform text input and place the IME candidate window at the
