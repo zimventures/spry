@@ -22,6 +22,9 @@ public:
     enum class Phase { Opening, Open, Closing, Closed };
 
     bool interactive = true;          // false => pointer-transparent (tooltips/toasts)
+    bool passThrough = false;         // interactive, but only within contentRect — input
+                                      // outside it falls through to the root (non-blocking
+                                      // floating layers, e.g. the toast stack)
     bool dimBackground = false;       // draw a scrim behind the content (modal)
     bool dismissOnOutsideClick = true;
     bool dismissOnEscape = true;

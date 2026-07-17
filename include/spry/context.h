@@ -146,7 +146,11 @@ public:
             ~Guard() { current_() = p; }
         } guard{prev};
         Overlay* ov = topInteractiveOverlay();
-        Widget* ir = ov ? static_cast<Widget*>(ov) : root_.get();
+        Widget* ir = inputRootAt(e.x, e.y); // pass-through overlays don't own input outside their content
+        if (e.type == InputEvent::MouseMove || e.type == InputEvent::MouseDown || e.type == InputEvent::MouseUp) {
+            lastPointerX_ = e.x; // remembered so a widget's onClick can anchor a popover at the pointer
+            lastPointerY_ = e.y;
+        }
         switch (e.type) {
             case InputEvent::MouseMove:
                 // While a widget holds the press, route moves to it as a drag
@@ -157,10 +161,13 @@ public:
                     updateHover(ir->hitTest(e.x, e.y));
                 break;
             case InputEvent::MouseDown: {
-                // A click outside the active overlay's content dismisses it and is
-                // swallowed (doesn't reach widgets beneath).
-                if (ov && !ov->contentRect().contains(e.x, e.y)) {
-                    if (ov->dismissOnOutsideClick) ov->requestClose();
+                // The overlay that owns this point, if any (ir is an overlay unless it's
+                // the root). A click outside a *blocking* overlay's content dismisses it
+                // and is swallowed; a pass-through overlay never owns a point outside its
+                // content, so such clicks already fell through to the overlay/root beneath.
+                Overlay* iro = ir != root_.get() ? static_cast<Overlay*>(ir) : nullptr;
+                if (iro && !iro->contentRect().contains(e.x, e.y)) {
+                    if (iro->dismissOnOutsideClick) iro->requestClose();
                     break;
                 }
                 Widget* hit = ir->hitTest(e.x, e.y);
@@ -222,11 +229,10 @@ public:
         root_->arrange(r, full);
         for (auto& o : overlays_) o->arrange(r, full); // overlays fill the window
 
-        Widget* ir = inputRoot();
         if (pressed_)
             pressed_->onMouseDrag(mouseX, mouseY); // sustain drag-select without per-move events
         else
-            updateHover(ir->hitTest(mouseX, mouseY));
+            updateHover(inputRootAt(mouseX, mouseY)->hitTest(mouseX, mouseY));
         updateTooltip(dt);
 
         root_->update(dt);
@@ -247,6 +253,11 @@ public:
             textActive_ = active;
         }
     }
+
+    // Last pointer position seen by handleEvent — the anchor point for a popover opened
+    // from a widget's onClick (which runs during event dispatch, when this is current).
+    float lastPointerX() const { return lastPointerX_; }
+    float lastPointerY() const { return lastPointerY_; }
 
 private:
     static Context*& current_() {
@@ -307,6 +318,22 @@ private:
         Overlay* o = topInteractiveOverlay();
         return o ? static_cast<Widget*>(o) : root_.get();
     }
+    // The widget that owns input at (x,y): the topmost interactive overlay that captures
+    // the point. A normal overlay captures everything; a pass-through one captures only
+    // its content rect, so input elsewhere falls to the overlay beneath it (or the root).
+    // Lets a pass-through overlay (the toast stack) float without blocking the shell — or
+    // a modal beneath it.
+    Widget* inputRootAt(float x, float y) const {
+        for (auto it = overlays_.rbegin(); it != overlays_.rend(); ++it) {
+            Overlay* o = it->get();
+            if (!o->interactive || o->closed())
+                continue;
+            if (!o->passThrough || o->contentRect().contains(x, y))
+                return o;
+            // pass-through overlay that doesn't own this point → keep looking beneath it
+        }
+        return root_.get();
+    }
     static bool subtreeContains(Widget* root, Widget* w) {
         if (!root || !w) return false;
         if (root == w) return true;
@@ -353,6 +380,7 @@ private:
     Widget* hovered_ = nullptr;
     Widget* pressed_ = nullptr;
     Widget* focused_ = nullptr;
+    float lastPointerX_ = 0.0f, lastPointerY_ = 0.0f; // last pointer position (for anchored popovers)
     Theme from_, to_, displayed_;
     float trans_ = 1.0f;
 
