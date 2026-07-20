@@ -16,11 +16,11 @@ namespace spry {
 
 class Panel : public Widget {
 public:
-    float radius = -1.0f; // -1 => use theme metric "radius"
+    float radius = -1.0f; // -1 => use the theme's tokens::Radius metric
     void paint(Renderer& r, const Theme& th) override {
-        float rad = radius >= 0 ? radius : th.metric("radius", 12.0f);
+        float rad = radius >= 0 ? radius : th.metric(tokens::Radius, 12.0f);
         r.fillRoundedRect(rect.x + rect.w * 0.5f, rect.y + rect.h * 0.5f, rect.w, rect.h, rad,
-                          th.color("surface", {40, 43, 62}), th.color("surfaceAlt", {32, 34, 48}));
+                          th.color(tokens::Surface, {40, 43, 62}), th.color(tokens::SurfaceAlt, {32, 34, 48}));
     }
 };
 
@@ -34,12 +34,12 @@ public:
     }
     void paint(Renderer& r, const Theme& th) override {
         float rad = rect.h * 0.5f;
-        Color track = th.color("surfaceAlt", {32, 34, 48});
+        Color track = th.color(tokens::SurfaceAlt, {32, 34, 48});
         r.fillRoundedRect(rect.x + rect.w * 0.5f, rect.y + rect.h * 0.5f, rect.w, rect.h, rad, track, track);
         float frac = std::max(0.0f, std::min(1.0f, value));
         float w = frac * rect.w;
         if (w > rect.h) { // only draw once it's at least a rounded cap wide
-            Color acc = th.color("accent", {96, 126, 205});
+            Color acc = th.color(tokens::Accent, {96, 126, 205});
             r.fillRoundedRect(rect.x + w * 0.5f, rect.y + rect.h * 0.5f, w, rect.h, rad, acc, acc);
         }
     }
@@ -80,7 +80,7 @@ class Label : public Widget {
 public:
     std::string text;
     float scale = 1.6f;
-    std::string role = "text";          // theme color role
+    std::string role = tokens::Text;          // theme color role
     std::optional<Color> colorOverride; // per-widget override beats the theme
 
     explicit Label(std::string t, float s = 1.6f) : text(std::move(t)), scale(s) {}
@@ -103,7 +103,7 @@ class Paragraph : public Widget {
 public:
     std::string text;
     float scale = 1.4f;
-    std::string role = "text";
+    std::string role = tokens::Text;
     std::optional<Color> colorOverride;
     bool preformatted = false; // true => verbatim lines (no word-wrap / whitespace collapse)
     bool center = false;       // center each wrapped line horizontally
@@ -198,14 +198,14 @@ public:
     }
     void paint(Renderer& r, const Theme& th) override {
         float k = lift.value < 0 ? 0 : (lift.value > 1 ? 1 : lift.value);
-        Color base = th.color("surface", {46, 49, 68});
-        Color acc = th.color("accent", {64, 84, 150});
+        Color base = th.color(tokens::Surface, {46, 49, 68});
+        Color acc = th.color(tokens::Accent, {64, 84, 150});
         Color c = lerp(base, acc, k);
         float yo = -6.0f * k;
-        float rad = th.metric("radius", 12.0f);
+        float rad = th.metric(tokens::Radius, 12.0f);
         r.fillRoundedRect(rect.x + rect.w * 0.5f, rect.y + rect.h * 0.5f + yo, rect.w, rect.h, rad,
                           lerp(c, lerp(acc, Color{255, 255, 255, 255}, 0.2f), 0.25f * k), c);
-        Color txt = lerp(th.color("text", {226, 229, 242}), th.color("accentText", {20, 20, 20}), k);
+        Color txt = lerp(th.color(tokens::Text, {226, 229, 242}), th.color(tokens::AccentText, {20, 20, 20}), k);
         r.text(rect.x + 14, rect.y + 14 + yo, 1.6f, txt, label.c_str());
     }
 };
@@ -244,14 +244,14 @@ public:
         Widget::update(dt);
     }
     void paint(Renderer& r, const Theme& th) override {
-        Color acc = danger ? Color{214, 78, 78, 255} : th.color("accent", {96, 126, 205});
-        Color surf = danger ? Color{74, 40, 44, 255} : th.color("surface", {46, 49, 68});
+        Color acc = danger ? Color{214, 78, 78, 255} : th.color(tokens::Accent, {96, 126, 205});
+        Color surf = danger ? Color{74, 40, 44, 255} : th.color(tokens::Surface, {46, 49, 68});
         // The selected state reads as a brighter (accent-tinted) base; hover then
         // brightens further so it's still responsive when already selected.
         Color base = selected ? lerp(surf, acc, 0.30f) : surf;
         Color c = (hovered && enabled) ? lerp(base, acc, 0.40f) : base;
         c = lerp(c, lerp(acc, Color{0, 0, 0, 255}, 0.35f), press.value * 0.5f);
-        float rad = th.metric("radius", 10.0f);
+        float rad = th.metric(tokens::Radius, 10.0f);
         float yo = press.value * 1.5f;
         float cx = rect.x + rect.w * 0.5f, cy = rect.y + rect.h * 0.5f;
         if (focused) {
@@ -260,7 +260,7 @@ public:
         }
         r.fillRoundedRect(cx, cy + yo, rect.w, rect.h, rad, c, lerp(c, Color{0, 0, 0, 255}, 0.18f));
         float tw = r.measureText(scale, label.c_str()).w;
-        Color text = enabled ? th.color("text", {226, 229, 242}) : th.color("textDim", {110, 114, 128});
+        Color text = enabled ? th.color(tokens::Text, {226, 229, 242}) : th.color(tokens::TextDim, {110, 114, 128});
         r.text(rect.x + (rect.w - tw) * 0.5f, rect.y + (rect.h - textLineH(scale)) * 0.5f + yo, scale, text,
                label.c_str());
     }
@@ -291,14 +291,14 @@ public:
     void paint(Renderer& r, const Theme& th) override {
         float d = textLineH(scale) * 0.8f;
         float bx = rect.x + d * 0.5f, by = rect.y + rect.h * 0.5f;
-        Color acc = th.color("accent", {96, 126, 205});
-        Color border = (hovered || focused) ? acc : th.color("textDim", {140, 144, 160});
+        Color acc = th.color(tokens::Accent, {96, 126, 205});
+        Color border = (hovered || focused) ? acc : th.color(tokens::TextDim, {140, 144, 160});
         r.fillRoundedRect(bx, by, d, d, d * 0.5f, border, border);
-        Color fill = th.color("surface", {40, 43, 62});
+        Color fill = th.color(tokens::Surface, {40, 43, 62});
         r.fillRoundedRect(bx, by, d - 3.0f, d - 3.0f, (d - 3.0f) * 0.5f, fill, lerp(fill, Color{0, 0, 0, 255}, 0.15f));
         if (selected)
             r.fillRoundedRect(bx, by, d - 7.0f, d - 7.0f, (d - 7.0f) * 0.5f, acc, acc);
-        r.text(rect.x + d + 8.0f, rect.y + (rect.h - textLineH(scale)) * 0.5f, scale, th.color("text", {226, 229, 242}),
+        r.text(rect.x + d + 8.0f, rect.y + (rect.h - textLineH(scale)) * 0.5f, scale, th.color(tokens::Text, {226, 229, 242}),
                label.c_str());
     }
 };
@@ -324,16 +324,16 @@ public:
     void paint(Renderer& r, const Theme& th) override {
         float box = textLineH(scale) * 0.8f;
         float bx = rect.x + box * 0.5f, by = rect.y + rect.h * 0.5f;
-        Color acc = th.color("accent", {96, 126, 205});
-        Color border = (hovered || focused) ? acc : th.color("textDim", {140, 144, 160});
+        Color acc = th.color(tokens::Accent, {96, 126, 205});
+        Color border = (hovered || focused) ? acc : th.color(tokens::TextDim, {140, 144, 160});
         r.fillRoundedRect(bx, by, box, box, 5.0f, border, border);
-        Color fill = checked ? acc : th.color("surface", {40, 43, 62});
+        Color fill = checked ? acc : th.color(tokens::Surface, {40, 43, 62});
         r.fillRoundedRect(bx, by, box - 3.0f, box - 3.0f, 4.0f, fill, lerp(fill, Color{0, 0, 0, 255}, 0.15f));
         if (checked)
-            r.text(rect.x + box * 0.2f, by - box * 0.55f, scale * 0.95f, th.color("accentText", {235, 238, 248}),
+            r.text(rect.x + box * 0.2f, by - box * 0.55f, scale * 0.95f, th.color(tokens::AccentText, {235, 238, 248}),
                    "x");
         r.text(rect.x + box + 8.0f, rect.y + (rect.h - textLineH(scale)) * 0.5f, scale,
-               th.color("text", {226, 229, 242}), label.c_str());
+               th.color(tokens::Text, {226, 229, 242}), label.c_str());
     }
 };
 
@@ -372,8 +372,8 @@ public:
         float w = h * 1.9f;
         float k = knob.value < 0 ? 0 : (knob.value > 1 ? 1 : knob.value);
         float cx = rect.x + w * 0.5f, cy = rect.y + rect.h * 0.5f;
-        Color off = th.color("surface", {40, 43, 62});
-        Color acc = th.color("accent", {96, 126, 205});
+        Color off = th.color(tokens::Surface, {40, 43, 62});
+        Color acc = th.color(tokens::Accent, {96, 126, 205});
         Color track = lerp(off, acc, k);
         if (focused) {
             Color ring{acc.r, acc.g, acc.b, 110};
@@ -386,7 +386,7 @@ public:
         r.fillRoundedRect(kx, cy, knobR, knobR, knobR * 0.5f, knobCol, lerp(knobCol, Color{200, 204, 214, 255}, 0.6f));
         if (!label.empty())
             r.text(rect.x + w + 10.0f, rect.y + (rect.h - textLineH(scale)) * 0.5f, scale,
-                   th.color("text", {226, 229, 242}), label.c_str());
+                   th.color(tokens::Text, {226, 229, 242}), label.c_str());
     }
 };
 
@@ -434,8 +434,8 @@ public:
     void paint(Renderer& r, const Theme& th) override {
         float cy = rect.y + rect.h * 0.5f;
         float tx = rect.x + kThumbR, tw = rect.w - 2 * kThumbR;
-        Color acc = th.color("accent", {96, 126, 205});
-        Color trackBg = th.color("surface", {40, 43, 62});
+        Color acc = th.color(tokens::Accent, {96, 126, 205});
+        Color trackBg = th.color(tokens::Surface, {40, 43, 62});
         float f = thumb.value < 0 ? 0 : (thumb.value > 1 ? 1 : thumb.value);
         r.fillRoundedRect(tx + tw * 0.5f, cy, tw, 5.0f, 2.5f, trackBg, trackBg);                 // track
         r.fillRoundedRect(tx + (tw * f) * 0.5f, cy, tw * f, 5.0f, 2.5f, acc, acc);                // filled

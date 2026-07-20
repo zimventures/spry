@@ -101,10 +101,12 @@ always works without a file; `loadFromFile()` parses a minimal flat format (no J
 dependency); `lerp(a, b, t)` interpolates per-token for animated transitions. `Color` is a
 plain RGBA8 struct with `hsv` / `toHsv` / `lerp` helpers.
 
-**Theme token vocabulary (de-facto public contract).** Widgets read these token names; a theme
-should define them. Colors: `background`, `surface`, `surfaceAlt`, `accent`, `accentText`,
-`text`, `textDim`, `scrim`. Metric: `radius`. A theme missing a token gets the widget's
-fallback. Formalizing this list into a documented registry is tracked as follow-up.
+**Theme token vocabulary.** The core token names widgets read live in `theme_tokens.h` as
+`spry::tokens::` constants (#321): colors `background`, `surface`, `surfaceAlt`, `accent`,
+`accentText`, `text`, `textDim`, `scrim`, and metric `radius`, each documented. Widgets reference
+the constants rather than raw literals; `Theme::missingCoreTokens()` lets a host validate a
+loaded theme. A theme missing a token gets the widget's fallback, and hosts may define extra
+custom tokens.
 
 #### 6. Animation — `anim.h`
 
@@ -143,8 +145,8 @@ scratch):
 - **Small and curated.** New widgets are additive; the core loop (`Context` / `Widget` /
   `Renderer` / `Theme` / `InputEvent`) stays minimal.
 - **Semver once extracted.** After the public-repo split (#224), breaking changes to public
-  types bump the major version. Until the split, the surface may still shift as #207 follow-ups
-  land (notably the theme-token registry; the SDL input-pump helper landed as `sdl_host.h`, #320).
+  types bump the major version. The #207 follow-ups have landed: the SDL input-pump helper
+  (`sdl_host.h`, #320) and the theme-token registry (`theme_tokens.h`, #321).
 - **The umbrella header is the contract.** If it's not reachable from `<spry/spry.h>` (or a
   backend header), it isn't public.
 
@@ -181,8 +183,6 @@ target_link_libraries(myapp PRIVATE spry)
   decoupling contract. A non-SDL host translates events itself.
 - **`sdl_renderer.h` pulls in `<SDL3/SDL.h>`**, unlike the pimpl-clean `gl_renderer.h`. Consumers
   who include the SDL backend get SDL in that translation unit.
-- **Theme token names are a stringly-typed de-facto contract** scattered across widgets. Until a
-  documented registry (or enum) exists, a theme author discovers tokens by reading this ADR.
 - **Accessibility is a placeholder.** The a11y tree is exposed but nothing consumes it yet.
 
 ## Alternatives considered

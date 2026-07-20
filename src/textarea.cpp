@@ -160,17 +160,17 @@ void TextArea::update(float dt) {
 void TextArea::paint(Renderer& r, const Theme& th) {
     r_ = &r;
     layout(r); // text may have changed since arrange (onChange edits)
-    float rad = th.metric("radius", 8.0f) * 0.7f;
+    float rad = th.metric(tokens::Radius, 8.0f) * 0.7f;
     float cx = rect.x + rect.w * 0.5f, cy = rect.y + rect.h * 0.5f;
 
-    Color surface = th.color("surfaceAlt", {32, 34, 48});
-    Color acc = th.color("accent", {96, 126, 205});
+    Color surface = th.color(tokens::SurfaceAlt, {32, 34, 48});
+    Color acc = th.color(tokens::Accent, {96, 126, 205});
     if (focused) {
         Color ring{acc.r, acc.g, acc.b, 150};
         r.fillRoundedRect(cx, cy, rect.w, rect.h, rad, ring, ring);
         r.fillRoundedRect(cx, cy, rect.w - 3, rect.h - 3, rad - 1, surface, surface);
     } else {
-        Color border = hovered ? Color{acc.r, acc.g, acc.b, 90} : th.color("textDim", {140, 144, 160});
+        Color border = hovered ? Color{acc.r, acc.g, acc.b, 90} : th.color(tokens::TextDim, {140, 144, 160});
         r.fillRoundedRect(cx, cy, rect.w, rect.h, rad, border, border);
         r.fillRoundedRect(cx, cy, rect.w - 2, rect.h - 2, rad - 1, surface, surface);
     }
@@ -184,8 +184,8 @@ void TextArea::paint(Renderer& r, const Theme& th) {
         scrollToCaret_ = false;
     }
 
-    Color textCol = th.color("text", {226, 229, 242});
-    Color dimCol = th.color("textDim", {140, 144, 160});
+    Color textCol = th.color(tokens::Text, {226, 229, 242});
+    Color dimCol = th.color(tokens::TextDim, {140, 144, 160});
     const std::string& s = edit_.text();
     float originX = rect.x + kPad;
 

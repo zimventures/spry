@@ -72,16 +72,16 @@ public:
     }
 
     void paint(Renderer& r, const Theme& th) override {
-        float rad = th.metric("radius", 8.0f);
+        float rad = th.metric(tokens::Radius, 8.0f);
         float cx = rect.x + rect.w * 0.5f, cy = rect.y + rect.h * 0.5f;
-        Color acc = th.color("accent", {96, 126, 205});
-        Color surface = th.color("surface", {40, 43, 62});
+        Color acc = th.color(tokens::Accent, {96, 126, 205});
+        Color surface = th.color(tokens::Surface, {40, 43, 62});
         if (focused) {
             Color ring{acc.r, acc.g, acc.b, 150};
             r.fillRoundedRect(cx, cy, rect.w, rect.h, rad, ring, ring);
             r.fillRoundedRect(cx, cy, rect.w - 3, rect.h - 3, rad - 1, surface, surface);
         } else {
-            Color border = hovered ? Color{acc.r, acc.g, acc.b, 90} : th.color("textDim", {140, 144, 160});
+            Color border = hovered ? Color{acc.r, acc.g, acc.b, 90} : th.color(tokens::TextDim, {140, 144, 160});
             r.fillRoundedRect(cx, cy, rect.w, rect.h, rad, border, border);
             r.fillRoundedRect(cx, cy, rect.w - 2, rect.h - 2, rad - 1, surface, surface);
         }
@@ -89,7 +89,7 @@ public:
         float ty = rect.y + (rect.h - textLineH(scale)) * 0.5f;
         bool hasSel = selected >= 0 && selected < (int)options.size();
         const std::string& label = hasSel ? options[selected] : placeholder;
-        Color textCol = hasSel ? th.color("text", {226, 229, 242}) : th.color("textDim", {140, 144, 160});
+        Color textCol = hasSel ? th.color(tokens::Text, {226, 229, 242}) : th.color(tokens::TextDim, {140, 144, 160});
         r.pushClip(Rect{rect.x + 2, rect.y + 2, rect.w - kChevron - kPad, rect.h - 4});
         r.text(rect.x + kPad, ty, scale, textCol, label.c_str());
         r.popClip();
@@ -97,7 +97,7 @@ public:
         // Down chevron, drawn as a thin filled triangle on the right.
         float chCx = rect.x + rect.w - kChevron * 0.5f - kPad * 0.5f;
         float chCy = cy + 1.0f, s = 4.0f;
-        Color chev = th.color("textDim", {150, 154, 170});
+        Color chev = th.color(tokens::TextDim, {150, 154, 170});
         std::vector<Vertex> v{{chCx - s, chCy - s * 0.6f, chev}, {chCx + s, chCy - s * 0.6f, chev},
                               {chCx, chCy + s * 0.6f, chev}};
         std::vector<int> idx{0, 1, 2};

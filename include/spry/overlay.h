@@ -81,7 +81,7 @@ public:
         if (!visible) return;
         float a = presence();
         if (dimBackground) {
-            Color scrim = th.color("scrim", {8, 9, 14, 170});
+            Color scrim = th.color(tokens::Scrim, {8, 9, 14, 170});
             scrim.a = (uint8_t)(scrim.a * a);
             r.fillRect(rect.x, rect.y, rect.w, rect.h, scrim);
         }
@@ -126,9 +126,9 @@ protected:
     }
     void paintSurface(Renderer& r, const Theme& th) override {
         Rect c = contentRect_;
-        float rad = th.metric("radius", 12.0f);
+        float rad = th.metric(tokens::Radius, 12.0f);
         r.fillRoundedRect(c.x + c.w * 0.5f, c.y + c.h * 0.5f, c.w, c.h, rad,
-                          th.color("surface", {40, 43, 62}), th.color("surfaceAlt", {32, 34, 48}));
+                          th.color(tokens::Surface, {40, 43, 62}), th.color(tokens::SurfaceAlt, {32, 34, 48}));
     }
 };
 
@@ -152,11 +152,11 @@ public:
     }
     void paint(Renderer& r, const Theme& th) override {
         if (hovered || focused) {
-            Color acc = th.color("accent", {96, 126, 205});
+            Color acc = th.color(tokens::Accent, {96, 126, 205});
             r.fillRoundedRect(rect.x + rect.w * 0.5f, rect.y + rect.h * 0.5f, rect.w - 6, rect.h - 2, 6.0f,
                               Color{acc.r, acc.g, acc.b, 60}, Color{acc.r, acc.g, acc.b, 60});
         }
-        Color textC = th.color("text", {226, 229, 242});
+        Color textC = th.color(tokens::Text, {226, 229, 242});
         float labelX = rect.x + 12.0f;
         if (icon) {
             icon(r, rect.x + 16.0f, rect.y + rect.h * 0.5f, textC);
@@ -202,12 +202,12 @@ protected:
     }
     void paintSurface(Renderer& r, const Theme& th) override {
         Rect c = contentRect_;
-        float rad = th.metric("radius", 10.0f);
+        float rad = th.metric(tokens::Radius, 10.0f);
         // Soft shadow then the panel.
         r.fillRoundedRect(c.x + c.w * 0.5f, c.y + c.h * 0.5f + 3, c.w + 6, c.h + 6, rad + 2,
                           Color{0, 0, 0, 60}, Color{0, 0, 0, 60});
         r.fillRoundedRect(c.x + c.w * 0.5f, c.y + c.h * 0.5f, c.w, c.h, rad,
-                          th.color("surface", {46, 49, 68}), th.color("surfaceAlt", {38, 40, 56}));
+                          th.color(tokens::Surface, {46, 49, 68}), th.color(tokens::SurfaceAlt, {38, 40, 56}));
     }
 
 private:
@@ -240,7 +240,7 @@ protected:
     void paintSurface(Renderer& r, const Theme& th) override {
         Rect c = contentRect_;
         r.fillRoundedRect(c.x + c.w * 0.5f, c.y + c.h * 0.5f, c.w, c.h, 6.0f,
-                          th.color("surfaceAlt", {30, 32, 46}), th.color("surface", {24, 26, 38}));
+                          th.color(tokens::SurfaceAlt, {30, 32, 46}), th.color(tokens::Surface, {24, 26, 38}));
     }
 };
 
@@ -273,11 +273,11 @@ protected:
     }
     void paintSurface(Renderer& r, const Theme& th) override {
         Rect c = contentRect_;
-        Color acc = th.color("accent", {96, 126, 205});
+        Color acc = th.color(tokens::Accent, {96, 126, 205});
         r.fillRoundedRect(c.x + c.w * 0.5f, c.y + c.h * 0.5f + 3, c.w + 4, c.h + 4, 10.0f, Color{0, 0, 0, 70},
                           Color{0, 0, 0, 70});
-        r.fillRoundedRect(c.x + c.w * 0.5f, c.y + c.h * 0.5f, c.w, c.h, 10.0f, lerp(th.color("surface", {46, 49, 68}), acc, 0.25f),
-                          th.color("surface", {40, 43, 62}));
+        r.fillRoundedRect(c.x + c.w * 0.5f, c.y + c.h * 0.5f, c.w, c.h, 10.0f, lerp(th.color(tokens::Surface, {46, 49, 68}), acc, 0.25f),
+                          th.color(tokens::Surface, {40, 43, 62}));
     }
 
 private:

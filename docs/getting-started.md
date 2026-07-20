@@ -140,10 +140,13 @@ Theme::loadFromFile("midnight.theme", t); // optional overrides (flat text forma
 ctx.setThemeImmediate(t);                 // or ctx.setTheme(t) for an animated crossfade
 ```
 
-The core token vocabulary widgets expect: colors `background`, `surface`, `surfaceAlt`,
-`accent`, `accentText`, `text`, `textDim`, `scrim`; metric `radius`. Read them yourself with
-`theme.color("accent")` / `theme.metric("radius")`; a missing token uses your fallback. You can
-also build a `Theme` entirely in code from your own config.
+The core token vocabulary widgets expect is defined in
+[`<spry/theme_tokens.h>`](../include/spry/theme_tokens.h) — colors `background`, `surface`,
+`surfaceAlt`, `accent`, `accentText`, `text`, `textDim`, `scrim`, and metric `radius`, each with
+a `spry::tokens::` constant and a doc comment. Read them with `theme.color(tokens::Accent)` /
+`theme.metric(tokens::Radius)`; a missing token falls back to the value you pass. You can build a
+`Theme` entirely in code, and `theme.missingCoreTokens()` reports any core tokens you left out
+(handy for catching typos after loading a theme file). Hosts may define extra custom tokens too.
 
 `ctx.setTheme(newTheme)` crossfades every token over a few frames — theme switching is animated
 for free.

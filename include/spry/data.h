@@ -100,9 +100,9 @@ public:
     }
 
     void paint(Renderer& r, const Theme& th) override {
-        float rad = th.metric("radius", 8.0f) * 0.6f;
+        float rad = th.metric(tokens::Radius, 8.0f) * 0.6f;
         r.fillRoundedRect(rect.x + rect.w * 0.5f, rect.y + rect.h * 0.5f, rect.w, rect.h, rad,
-                          th.color("surfaceAlt", {32, 34, 48}), th.color("surface", {40, 43, 62}));
+                          th.color(tokens::SurfaceAlt, {32, 34, 48}), th.color(tokens::Surface, {40, 43, 62}));
         if (headerHeight() > 0.0f)
             paintHeader(r, th, Rect{rect.x, rect.y, rect.w - kScrollW, headerHeight()});
 
@@ -120,7 +120,7 @@ public:
             Rect rr{vp.x, vp.y + (float)i * rowHeight - scrollY_, vp.w, rowHeight};
             drawRow(r, th, i, rr, isSelected(i), false);
             if (multiSelect && i == selected) { // a thin ring marks the keyboard lead row
-                Color a = th.color("accent", {96, 126, 205});
+                Color a = th.color(tokens::Accent, {96, 126, 205});
                 r.fillRect(rr.x, rr.y, rr.w, 1.0f, a);
                 r.fillRect(rr.x, rr.y + rr.h - 1.0f, rr.w, 1.0f, a);
             }
@@ -228,7 +228,7 @@ private:
         float t = maxS > 0 ? scrollY_ / maxS : 0.0f;
         float ty = vp.y + t * (vp.h - thumbH);
         float sx = rect.x + rect.w - kScrollW * 0.5f; // thumb centered within the kScrollW gutter
-        Color c = th.color("textDim", {140, 144, 160});
+        Color c = th.color(tokens::TextDim, {140, 144, 160});
         r.fillRoundedRect(sx, ty + thumbH * 0.5f, kScrollW - 6.0f, thumbH, (kScrollW - 6.0f) * 0.5f, c, c);
     }
 
@@ -250,10 +250,10 @@ protected:
     int rowCount() const override { return (int)items.size(); }
     void drawRow(Renderer& r, const Theme& th, int i, Rect rr, bool sel, bool) override {
         if (sel) {
-            Color a = th.color("accent", {96, 126, 205});
+            Color a = th.color(tokens::Accent, {96, 126, 205});
             r.fillRect(rr.x, rr.y, rr.w, rr.h, Color{a.r, a.g, a.b, 80});
         }
-        r.text(rr.x + 10.0f, rr.y + (rr.h - textLineH(scale)) * 0.5f, scale, th.color("text", {226, 229, 242}),
+        r.text(rr.x + 10.0f, rr.y + (rr.h - textLineH(scale)) * 0.5f, scale, th.color(tokens::Text, {226, 229, 242}),
                items[i].c_str());
     }
 };
@@ -291,7 +291,7 @@ protected:
     float headerHeight() const override { return 30.0f; }
 
     void paintHeader(Renderer& r, const Theme& th, Rect hr) override {
-        r.fillRect(hr.x, hr.y, hr.w, hr.h, th.color("surface", {40, 43, 62}));
+        r.fillRect(hr.x, hr.y, hr.w, hr.h, th.color(tokens::Surface, {40, 43, 62}));
         float x = hr.x;
         float total = totalWeight();
         for (int c = 0; c < (int)columns.size(); ++c) {
@@ -299,12 +299,12 @@ protected:
             std::string t = columns[c].title;
             if (c == sortCol) t += sortAsc ? "  ^" : "  v";
             r.pushClip(Rect{x, hr.y, cw, hr.h});
-            r.text(x + 10.0f, hr.y + (hr.h - textLineH(scale)) * 0.5f, scale, th.color("textDim", {150, 154, 170}),
+            r.text(x + 10.0f, hr.y + (hr.h - textLineH(scale)) * 0.5f, scale, th.color(tokens::TextDim, {150, 154, 170}),
                    t.c_str());
             r.popClip();
             x += cw;
         }
-        Color line = th.color("textDim", {90, 94, 110});
+        Color line = th.color(tokens::TextDim, {90, 94, 110});
         r.fillRect(hr.x, hr.y + hr.h - 1.0f, hr.w, 1.0f, Color{line.r, line.g, line.b, 120});
     }
     void headerClick(float localX) override {
@@ -328,7 +328,7 @@ protected:
     }
     void drawRow(Renderer& r, const Theme& th, int i, Rect rr, bool sel, bool hov) override {
         if (sel) {
-            Color a = th.color("accent", {96, 126, 205});
+            Color a = th.color(tokens::Accent, {96, 126, 205});
             r.fillRect(rr.x, rr.y, rr.w, rr.h, Color{a.r, a.g, a.b, 90});
         } else if (i % 2) {
             r.fillRect(rr.x, rr.y, rr.w, rr.h, Color{255, 255, 255, 6}); // zebra striping
@@ -341,7 +341,7 @@ protected:
             float cw = rr.w * (columns[c].weight / total);
             const char* cell = c < (int)row.size() ? row[c].c_str() : "";
             r.pushClip(Rect{x, rr.y, cw - 4.0f, rr.h});
-            r.text(x + 10.0f, rr.y + (rr.h - textLineH(scale)) * 0.5f, scale, th.color("text", {226, 229, 242}),
+            r.text(x + 10.0f, rr.y + (rr.h - textLineH(scale)) * 0.5f, scale, th.color(tokens::Text, {226, 229, 242}),
                    cell);
             r.popClip();
             x += cw;
@@ -461,14 +461,14 @@ protected:
     void drawRow(Renderer& r, const Theme& th, int i, Rect rr, bool sel, bool) override {
         const Flat& f = flat_[i];
         if (sel) {
-            Color a = th.color("accent", {96, 126, 205});
+            Color a = th.color(tokens::Accent, {96, 126, 205});
             r.fillRect(rr.x, rr.y, rr.w, rr.h, Color{a.r, a.g, a.b, 80});
         }
         float ax = rr.x + kPad + (float)f.depth * kIndent;
         float cy = rr.y + rr.h * 0.5f;
         if (!f.node->children.empty()) drawTriangle(r, ax + kIndent * 0.5f, cy, f.node->expanded, th);
         r.text(ax + kIndent + 4.0f, rr.y + (rr.h - textLineH(scale)) * 0.5f, scale,
-               th.color("text", {226, 229, 242}), f.node->label.c_str());
+               th.color(tokens::Text, {226, 229, 242}), f.node->label.c_str());
     }
 
 private:
@@ -482,7 +482,7 @@ private:
             for (auto& c : n->children) flatten(c.get(), depth + 1);
     }
     static void drawTriangle(Renderer& r, float cx, float cy, bool expanded, const Theme& th) {
-        Color c = th.color("textDim", {150, 154, 170});
+        Color c = th.color(tokens::TextDim, {150, 154, 170});
         float s = 4.0f;
         std::vector<Vertex> v;
         if (expanded)
@@ -585,7 +585,7 @@ private:
         float t = maxS > 0 ? scrollY_ / maxS : 0.0f;
         float ty = rect.y + t * (rect.h - thumbH);
         float sx = rect.x + rect.w - kScrollW * 0.5f - 2.0f;
-        Color c = th.color("textDim", {140, 144, 160});
+        Color c = th.color(tokens::TextDim, {140, 144, 160});
         r.fillRoundedRect(sx, ty + thumbH * 0.5f, kScrollW - 6.0f, thumbH, (kScrollW - 6.0f) * 0.5f, c, c);
     }
 
@@ -645,9 +645,9 @@ public:
     }
     void paint(Renderer& r, const Theme& th) override {
         lastR_ = &r;
-        Color textC = th.color("text", {226, 229, 242});
-        Color dim = th.color("textDim", {150, 154, 170});
-        Color acc = th.color("accent", {96, 126, 205});
+        Color textC = th.color(tokens::Text, {226, 229, 242});
+        Color dim = th.color(tokens::TextDim, {150, 154, 170});
+        Color acc = th.color(tokens::Accent, {96, 126, 205});
         float tx = rect.x;
         float activeX = rect.x, activeW = 0.0f;
         for (int i = 0; i < (int)tabs.size(); ++i) {

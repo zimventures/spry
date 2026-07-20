@@ -1,12 +1,15 @@
 #pragma once
 #include <string>
 #include <unordered_map>
+#include <vector>
 
 #include "color.h"
+#include "theme_tokens.h" // the core token vocabulary widgets read (spry::tokens)
 
 // Data-driven theming (#211). A theme is a bag of named design tokens — colors
 // and metrics (radii/spacing/motion) — that widgets read by role. Themes load
 // from a file, swap at runtime, and can be interpolated (animated transitions).
+// The core token names widgets rely on live in theme_tokens.h.
 namespace spry {
 
 struct Theme {
@@ -20,6 +23,18 @@ struct Theme {
     float metric(const std::string& key, float fallback = 0.0f) const {
         auto it = metrics.find(key);
         return it != metrics.end() ? it->second : fallback;
+    }
+
+    // Core tokens (theme_tokens.h) this theme does NOT define, so a host can warn about typos
+    // or omissions after loading a theme. Empty means the theme covers the full core vocabulary;
+    // any listed token still works at runtime via each widget's fallback.
+    std::vector<std::string> missingCoreTokens() const {
+        std::vector<std::string> missing;
+        for (const char* t : kCoreColorTokens)
+            if (!colors.count(t)) missing.push_back(t);
+        for (const char* t : kCoreMetricTokens)
+            if (!metrics.count(t)) missing.push_back(t);
+        return missing;
     }
 
     // A sensible built-in so a Theme always works without a file.

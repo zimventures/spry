@@ -8,11 +8,12 @@ namespace spry {
 Theme Theme::builtinDark() {
     Theme t;
     t.colors = {
-        {"background", {17, 18, 23}}, {"surface", {40, 43, 62}},    {"surfaceAlt", {32, 34, 48}},
-        {"text", {224, 227, 238}},    {"textDim", {140, 144, 160}}, {"accent", {96, 126, 205}},
-        {"accentText", {235, 238, 248}},
+        {tokens::Background, {17, 18, 23}}, {tokens::Surface, {40, 43, 62}},
+        {tokens::SurfaceAlt, {32, 34, 48}}, {tokens::Text, {224, 227, 238}},
+        {tokens::TextDim, {140, 144, 160}}, {tokens::Accent, {96, 126, 205}},
+        {tokens::AccentText, {235, 238, 248}}, {tokens::Scrim, {8, 9, 14, 170}},
     };
-    t.metrics = {{"radius", 12.0f}, {"pad", 24.0f}};
+    t.metrics = {{tokens::Radius, 12.0f}, {"pad", 24.0f}};
     return t;
 }
 

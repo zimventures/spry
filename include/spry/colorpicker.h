@@ -83,7 +83,7 @@ public:
         // Hue cursor (vertical marker).
         float hx = g.hue.x + h_ * g.hue.w;
         r.fillRect(hx - 2.0f, g.hue.y - 2.0f, 4.0f, g.hue.h + 4.0f, white);
-        r.fillRect(hx - 1.0f, g.hue.y - 1.0f, 2.0f, g.hue.h + 2.0f, th.color("textDim", {60, 62, 74}));
+        r.fillRect(hx - 1.0f, g.hue.y - 1.0f, 2.0f, g.hue.h + 2.0f, th.color(tokens::TextDim, {60, 62, 74}));
     }
 
 private:
@@ -143,11 +143,11 @@ protected:
     }
     void paintSurface(Renderer& r, const Theme& th) override {
         Rect c = contentRect_;
-        float rad = th.metric("radius", 10.0f);
+        float rad = th.metric(tokens::Radius, 10.0f);
         r.fillRoundedRect(c.x + c.w * 0.5f, c.y + c.h * 0.5f + 3, c.w + 6, c.h + 6, rad + 2, Color{0, 0, 0, 60},
                           Color{0, 0, 0, 60});
-        r.fillRoundedRect(c.x + c.w * 0.5f, c.y + c.h * 0.5f, c.w, c.h, rad, th.color("surface", {46, 49, 68}),
-                          th.color("surfaceAlt", {38, 40, 56}));
+        r.fillRoundedRect(c.x + c.w * 0.5f, c.y + c.h * 0.5f, c.w, c.h, rad, th.color(tokens::Surface, {46, 49, 68}),
+                          th.color(tokens::SurfaceAlt, {38, 40, 56}));
     }
 };
 
@@ -191,16 +191,16 @@ public:
     std::string accessibleLabel() const override { return hex(); }
 
     void paint(Renderer& r, const Theme& th) override {
-        float rad = th.metric("radius", 8.0f);
-        Color acc = th.color("accent", {96, 126, 205});
+        float rad = th.metric(tokens::Radius, 8.0f);
+        Color acc = th.color(tokens::Accent, {96, 126, 205});
         float sw = rect.h - 6.0f; // swatch box
         float scx = rect.x + 3.0f + sw * 0.5f, scy = rect.y + rect.h * 0.5f;
-        Color border = focused ? acc : (hovered ? Color{acc.r, acc.g, acc.b, 120} : th.color("textDim", {140, 144, 160}));
+        Color border = focused ? acc : (hovered ? Color{acc.r, acc.g, acc.b, 120} : th.color(tokens::TextDim, {140, 144, 160}));
         r.fillRoundedRect(scx, scy, sw + 2, sw + 2, rad, border, border);
         r.fillRoundedRect(scx, scy, sw - 1, sw - 1, rad - 1, value, value);
         if (showHex)
             r.text(rect.x + sw + 11.0f, rect.y + (rect.h - textLineH(scale)) * 0.5f, scale,
-                   th.color("text", {226, 229, 242}), hex().c_str());
+                   th.color(tokens::Text, {226, 229, 242}), hex().c_str());
     }
 };
 
