@@ -13,6 +13,7 @@
 #include <memory>
 #include <string>
 
+#include <spry/sdl_host.h>     // SDL event pump (opt-in; not in the umbrella header)
 #include <spry/sdl_renderer.h> // concrete backend (opt-in; not in the umbrella header)
 #include <spry/spry.h>         // umbrella: Context, Widget, Box, widgets, Theme, ...
 
@@ -67,47 +68,26 @@ int main(int, char**) {
     ctx.setRoot(std::move(root));
     ctx.setThemeImmediate(Theme::builtinDark());
 
-    // Translate the platform events the toolkit cares about into InputEvent.
-    auto pump = [&](const SDL_Event& e, bool& running) {
-        InputEvent ev;
-        switch (e.type) {
-        case SDL_EVENT_QUIT:
-            running = false;
-            return;
-        case SDL_EVENT_MOUSE_MOTION:
-            ev.type = InputEvent::MouseMove;
-            ev.x = e.motion.x;
-            ev.y = e.motion.y;
-            break;
-        case SDL_EVENT_MOUSE_BUTTON_DOWN:
-        case SDL_EVENT_MOUSE_BUTTON_UP:
-            ev.type = e.type == SDL_EVENT_MOUSE_BUTTON_DOWN ? InputEvent::MouseDown : InputEvent::MouseUp;
-            ev.x = e.button.x;
-            ev.y = e.button.y;
-            ev.button = e.button.button == SDL_BUTTON_RIGHT ? 1 : e.button.button == SDL_BUTTON_MIDDLE ? 2 : 0;
-            break;
-        case SDL_EVENT_KEY_DOWN:
-            if (e.key.key == SDLK_ESCAPE)
-                running = false;
-            return;
-        default:
-            return;
-        }
-        ctx.handleEvent(ev);
-    };
-
     bool running = true;
     Uint64 last = SDL_GetTicks();
     while (running) {
         SDL_Event e;
-        while (SDL_PollEvent(&e))
-            pump(e, running);
+        while (SDL_PollEvent(&e)) {
+            // spry/sdl_host.h's pumpEvent translates + dispatches the input events; the host
+            // still owns app lifecycle (quit).
+            if (e.type == SDL_EVENT_QUIT || (e.type == SDL_EVENT_KEY_DOWN && e.key.key == SDLK_ESCAPE))
+                running = false;
+            pumpEvent(ctx, e, win);
+        }
 
         Uint64 now = SDL_GetTicks();
         float dt = (now - last) / 1000.0f;
         last = now;
+        // frame()'s mouse must be in the same Spry pixel space as pumpEvent's, or hover/drag
+        // drift apart on HiDPI. mouseToSpry scales window points -> pixels (a no-op at 1x).
         float mx = 0, my = 0;
         SDL_GetMouseState(&mx, &my);
+        mouseToSpry(win, mx, my, mx, my);
 
         ren.beginFrame(ctx.displayedTheme().color("background", Color{17, 18, 23}));
         ctx.frame(ren, dt, mx, my); // layout -> hover -> update -> draw

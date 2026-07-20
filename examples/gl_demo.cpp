@@ -10,6 +10,7 @@
 #include <string>
 
 #include "spry/gl_renderer.h"
+#include "spry/sdl_host.h" // SDL event pump + clipboard/IME wiring
 #include "spry/spry.h"
 
 using namespace spry;
@@ -206,40 +207,6 @@ static bool SDLCALL eventWatch(void* userdata, SDL_Event* e) {
     return true;
 }
 
-static Key toKey(SDL_Keycode k) {
-    switch (k) {
-        case SDLK_TAB: return Key::Tab;
-        case SDLK_RETURN: return Key::Enter;
-        case SDLK_ESCAPE: return Key::Escape;
-        case SDLK_SPACE: return Key::Space;
-        case SDLK_BACKSPACE: return Key::Backspace;
-        case SDLK_DELETE: return Key::Delete;
-        case SDLK_LEFT: return Key::Left;
-        case SDLK_RIGHT: return Key::Right;
-        case SDLK_UP: return Key::Up;
-        case SDLK_DOWN: return Key::Down;
-        case SDLK_HOME: return Key::Home;
-        case SDLK_END: return Key::End;
-        // Letters bound to editing chords (select-all, clipboard, undo/redo).
-        case SDLK_A: return Key::A;
-        case SDLK_C: return Key::C;
-        case SDLK_V: return Key::V;
-        case SDLK_X: return Key::X;
-        case SDLK_Y: return Key::Y;
-        case SDLK_Z: return Key::Z;
-        default: return Key::None;
-    }
-}
-
-// Translate the current point->pixel scale for mouse coords (HiDPI).
-static void mouseToSpry(SDL_Window* win, float px, float py, float& ox, float& oy) {
-    int wp = 0, hp = 0, ww = 0, hh = 0;
-    SDL_GetWindowSizeInPixels(win, &wp, &hp);
-    SDL_GetWindowSize(win, &ww, &hh);
-    ox = px * (ww > 0 ? (float)wp / ww : 1.0f);
-    oy = py * (hh > 0 ? (float)hp / hh : 1.0f);
-}
-
 int main(int, char**) {
     SDL_SetMainReady();
     if (!SDL_Init(SDL_INIT_VIDEO)) return 1;
@@ -278,31 +245,9 @@ int main(int, char**) {
     ctx.setRoot(buildUI(ctx, [&] { ctx.setTheme(midnight); }, [&] { ctx.setTheme(ember); }));
     ctx.setThemeImmediate(midnight);
 
-    // Wire platform clipboard + IME for the text fields (#213). The toolkit core
-    // stays SDL-free; the host installs these.
-    setClipboardHandlers(
-        [] {
-            char* t = SDL_GetClipboardText();
-            std::string s = t ? t : "";
-            SDL_free(t);
-            return s;
-        },
-        [](const std::string& s) { SDL_SetClipboardText(s.c_str()); });
-
-    ctx.setTextInputHandler([win](bool active, const Rect& caret) {
-        if (!active) {
-            if (SDL_TextInputActive(win)) SDL_StopTextInput(win);
-            return;
-        }
-        if (!SDL_TextInputActive(win)) SDL_StartTextInput(win);
-        // caret is in Spry (FBO pixel) space; convert to window points for SDL.
-        int wp = 0, hp = 0, ww = 0, hh = 0;
-        SDL_GetWindowSizeInPixels(win, &wp, &hp);
-        SDL_GetWindowSize(win, &ww, &hh);
-        float sx = wp > 0 ? (float)ww / wp : 1.0f, sy = hp > 0 ? (float)hh / hp : 1.0f;
-        SDL_Rect r{(int)(caret.x * sx), (int)(caret.y * sy), (int)(caret.w * sx), (int)(caret.h * sy)};
-        SDL_SetTextInputArea(win, &r, 0);
-    });
+    // Wire platform clipboard + IME for the text fields (#213/#320). The toolkit core stays
+    // SDL-free; spry/sdl_host.h installs the standard SDL handlers.
+    installSdlHost(ctx, win);
 
     App app{win, &ren, &ctx, SDL_GetTicks()};
     SDL_AddEventWatch(eventWatch, &app);
@@ -311,68 +256,10 @@ int main(int, char**) {
     while (running) {
         SDL_Event e;
         while (SDL_PollEvent(&e)) {
-            switch (e.type) {
-                case SDL_EVENT_QUIT:
-                    running = false;
-                    break;
-                case SDL_EVENT_KEY_DOWN: {
-                    if (e.key.key == SDLK_ESCAPE) running = false;
-                    InputEvent ev;
-                    ev.type = InputEvent::KeyDown;
-                    ev.key = toKey(e.key.key);
-                    ev.shift = (e.key.mod & SDL_KMOD_SHIFT) != 0;
-                    // Treat Cmd (GUI) as Ctrl so the editing chords work on macOS.
-                    ev.ctrl = (e.key.mod & (SDL_KMOD_CTRL | SDL_KMOD_GUI)) != 0;
-                    ev.alt = (e.key.mod & SDL_KMOD_ALT) != 0;
-                    ctx.handleEvent(ev);
-                    break;
-                }
-                case SDL_EVENT_TEXT_INPUT: {
-                    InputEvent ev;
-                    ev.type = InputEvent::Text;
-                    ev.text = e.text.text;
-                    ctx.handleEvent(ev);
-                    break;
-                }
-                case SDL_EVENT_TEXT_EDITING: { // IME composition (pre-edit)
-                    InputEvent ev;
-                    ev.type = InputEvent::TextEditing;
-                    ev.text = e.edit.text;
-                    ctx.handleEvent(ev);
-                    break;
-                }
-                case SDL_EVENT_MOUSE_MOTION: {
-                    InputEvent ev;
-                    ev.type = InputEvent::MouseMove;
-                    mouseToSpry(win, e.motion.x, e.motion.y, ev.x, ev.y);
-                    ctx.handleEvent(ev);
-                    break;
-                }
-                case SDL_EVENT_MOUSE_WHEEL: {
-                    InputEvent ev;
-                    ev.type = InputEvent::Wheel;
-                    ev.wheel = e.wheel.y;
-                    float px = 0, py = 0;
-                    SDL_GetMouseState(&px, &py); // wheel events carry no position; use the cursor
-                    mouseToSpry(win, px, py, ev.x, ev.y);
-                    ctx.handleEvent(ev);
-                    break;
-                }
-                case SDL_EVENT_MOUSE_BUTTON_DOWN:
-                case SDL_EVENT_MOUSE_BUTTON_UP: {
-                    InputEvent ev;
-                    ev.type = (e.type == SDL_EVENT_MOUSE_BUTTON_DOWN) ? InputEvent::MouseDown : InputEvent::MouseUp;
-                    mouseToSpry(win, e.button.x, e.button.y, ev.x, ev.y);
-                    ev.button = (int)e.button.button - 1; // SDL: 1 = left
-                    SDL_Keymod mod = SDL_GetModState();
-                    ev.shift = (mod & SDL_KMOD_SHIFT) != 0;
-                    ev.ctrl = (mod & (SDL_KMOD_CTRL | SDL_KMOD_GUI)) != 0; // Cmd = Ctrl on macOS
-                    ctx.handleEvent(ev);
-                    break;
-                }
-                default:
-                    break;
-            }
+            // App lifecycle stays the host's job; spry/sdl_host.h translates the input events.
+            if (e.type == SDL_EVENT_QUIT || (e.type == SDL_EVENT_KEY_DOWN && e.key.key == SDLK_ESCAPE))
+                running = false;
+            pumpEvent(ctx, e, win);
         }
         renderFrame(app);
     }

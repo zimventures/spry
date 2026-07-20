@@ -144,7 +144,7 @@ scratch):
   `Renderer` / `Theme` / `InputEvent`) stays minimal.
 - **Semver once extracted.** After the public-repo split (#224), breaking changes to public
   types bump the major version. Until the split, the surface may still shift as #207 follow-ups
-  land (notably the theme-token registry and an optional input-pump convenience header).
+  land (notably the theme-token registry; the SDL input-pump helper landed as `sdl_host.h`, #320).
 - **The umbrella header is the contract.** If it's not reachable from `<spry/spry.h>` (or a
   backend header), it isn't public.
 
@@ -174,10 +174,11 @@ target_link_libraries(myapp PRIVATE spry)
 
 **Negative / follow-ups**
 
-- **No built-in SDL→`InputEvent` pump.** Every consumer re-implements the event-translation and
-  text-input/clipboard wiring shown in `gl_demo.cpp`. Candidate for an optional convenience
-  header (`spry/sdl_host.h`) so simple apps don't copy boilerplate — deliberately left out of
-  the core to preserve the decoupling contract.
+- **SDL event pump.** The core stays platform-agnostic (it consumes `InputEvent`), so an SDL
+  host still translates events — but the optional `<spry/sdl_host.h>` header (#320) now packages
+  the standard wiring (`toKey`, `pumpEvent`, clipboard + IME handlers), so simple apps don't copy
+  boilerplate. It's opt-in and outside the umbrella header (it pulls in SDL3), preserving the
+  decoupling contract. A non-SDL host translates events itself.
 - **`sdl_renderer.h` pulls in `<SDL3/SDL.h>`**, unlike the pimpl-clean `gl_renderer.h`. Consumers
   who include the SDL backend get SDL in that translation unit.
 - **Theme token names are a stringly-typed de-facto contract** scattered across widgets. Until a

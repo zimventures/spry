@@ -181,16 +181,34 @@ ctx.handleEvent(ev);
 ```
 
 `Context` routes events to the hovered/pressed/focused widget, handles Tab focus traversal, and
-fires `onClick` when a press and release land on the same widget. For text editing and clipboard,
-wire two host hooks once:
+fires `onClick` when a press and release land on the same widget.
 
-- `ctx.setTextInputHandler(fn)` — called with the caret rect when a text widget is focused; wire
-  it to `SDL_StartTextInput` / `SDL_SetTextInputArea` / `SDL_StopTextInput`.
-- `spry::setClipboardHandlers(get, set)` — back them with `SDL_GetClipboardText` /
-  `SDL_SetClipboardText`.
+If your host is SDL3, the optional **[`<spry/sdl_host.h>`](../include/spry/sdl_host.h)** header
+does all of this for you — include it (it's opt-in, not in the umbrella header) and the loop
+becomes:
 
-(These are the same few lines in every SDL host — an optional `spry/sdl_host.h` helper to remove
-the boilerplate is tracked as a follow-up.)
+```cpp
+installSdlHost(ctx, win);              // once: SDL clipboard + text-input/IME handlers
+while (running) {
+    SDL_Event e;
+    while (SDL_PollEvent(&e)) {
+        if (e.type == SDL_EVENT_QUIT) running = false; // app lifecycle stays yours
+        pumpEvent(ctx, e, win);        // translate + dispatch the input event
+    }
+    float mx, my;
+    SDL_GetMouseState(&mx, &my);
+    mouseToSpry(win, mx, my, mx, my);  // window points -> Spry pixels (no-op at 1x)
+    ren.beginFrame(ctx.displayedTheme().color("background"));
+    ctx.frame(ren, dt, mx, my);        // frame()'s mouse must match pumpEvent's pixel space
+    ren.endFrame();
+}
+```
+
+`pumpEvent` handles keycode translation, HiDPI mouse scaling, Cmd→Ctrl, and IME. Note the
+per-frame mouse passed to `ctx.frame()` (used for hover/drag) must be in the **same** Spry pixel
+space — scale `SDL_GetMouseState` through `mouseToSpry` too, or on HiDPI the two drift apart. A
+non-SDL host translates its platform events into `InputEvent` and calls `ctx.handleEvent` the
+same way.
 
 Each frame, read `ctx.cursor()` and apply the platform cursor (Spry asks for resize cursors over
 draggable dividers, etc.).
