@@ -19,12 +19,14 @@ Don't add Cleat includes under `libs/spry/`.
 - ✅ Public API & module design (#207)
 - ✅ OpenGL backend for in-host integration (#217)
 
-## Public API
+## Learn it
 
-The public surface is documented in
-[`docs/adr/0001-spry-public-api.md`](../../docs/adr/0001-spry-public-api.md): the
-Context/frame loop, the Widget tree, layout, theming, animation, input, and the renderer
-backend interface — plus what's stable vs experimental and the theme-token vocabulary.
+- **[Getting started](docs/getting-started.md)** — a hands-on tutorial from a blank window to an
+  interactive, themed, animated app.
+- **[API reference & design (ADR)](../../docs/adr/0001-spry-public-api.md)** — the Context/frame
+  loop, Widget tree, layout, theming, animation, input, and renderer backend; what's stable vs
+  experimental; the theme-token vocabulary.
+- **[Examples](examples/README.md)** — runnable programs, smallest first.
 
 Namespace `spry::`. Include the umbrella header plus exactly one renderer backend:
 
@@ -33,15 +35,13 @@ Namespace `spry::`. Include the umbrella header plus exactly one renderer backen
 #include <spry/sdl_renderer.h>  // OR <spry/gl_renderer.h>
 ```
 
-`examples/hello.cpp` (target `spry_hello`) is the minimal one-screen example — a themed
-window with a clickable button in ~90 lines, against only the public headers.
-
 ## Build (standalone demos)
 ```
 cmake -B build -G Ninja
 cmake --build build
-./build/spry_demo      # SDL backend gallery
-./build/spry_hello     # minimal "hello toolkit" example
+./build/spry_hello     # minimal "hello toolkit" example — start here
+./build/spry_demo      # SDL backend layout + theming gallery
+./build/spry_gl_demo   # full interactive gallery (OpenGL backend)
 ```
 
 Consume it from another CMake project with `add_subdirectory(libs/spry)` then
