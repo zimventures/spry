@@ -4,7 +4,7 @@ A hands-on tutorial for the Spry UI toolkit. It builds up from a blank window to
 interactive, themed, animated app, teaching the public API one piece at a time.
 
 - For the **reference** view of the API — every module, what's stable vs experimental, the
-  stability contract — see [`docs/adr/0001-spry-public-api.md`](../../../docs/adr/0001-spry-public-api.md).
+  stability contract — see [`docs/adr/0001-spry-public-api.md`](adr/0001-spry-public-api.md).
 - For runnable code, see [`examples/`](../examples/) (indexed in
   [`examples/README.md`](../examples/README.md)). This guide references those files rather than
   repeating them.
@@ -223,5 +223,5 @@ and `Context` shows it after a hover delay.
 - **[`examples/demo.cpp`](../examples/demo.cpp)** — layout + theming gallery on the SDL backend.
 - **[`examples/gl_demo.cpp`](../examples/gl_demo.cpp)** — the full interactive gallery on the GL
   backend: every widget, overlays, text editing, clipboard, HiDPI, animated theme swaps.
-- **[`docs/adr/0001-spry-public-api.md`](../../../docs/adr/0001-spry-public-api.md)** — the API
+- **[`docs/adr/0001-spry-public-api.md`](adr/0001-spry-public-api.md)** — the API
   reference and design rationale.

@@ -1,0 +1,48 @@
+# CI for the standalone Spry repository. In the Cleat monorepo this file lives under
+# libs/spry/.github/ and is inert (Cleat has its own workflows); it becomes active once Spry
+# is split to its own repo (#224), where libs/spry/ is the repo root.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build:
+    name: build & test (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # SDL3, FreeType and HarfBuzz are fetched + built from source by CMake. On Linux,
+      # SDL3 needs system dev libraries for its video/GL backends; macOS needs none.
+      - name: Install Linux build deps
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            ninja-build \
+            libgl1-mesa-dev \
+            libx11-dev libxext-dev libxrandr-dev libxcursor-dev libxi-dev \
+            libxfixes-dev libxss-dev \
+            libwayland-dev libxkbcommon-dev wayland-protocols \
+            libpulse-dev libasound2-dev
+
+      - name: Install macOS build deps
+        if: runner.os == 'macOS'
+        run: brew install ninja
+
+      - name: Configure
+        run: cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build (library + examples)
+        run: cmake --build build
+
+      - name: Test
+        run: ctest --test-dir build --output-on-failure
