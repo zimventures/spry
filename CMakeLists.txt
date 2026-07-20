@@ -120,6 +120,15 @@ if(SPRY_BUILD_DEMO)
         COMMAND ${CMAKE_COMMAND} -E copy_directory
             ${CMAKE_CURRENT_SOURCE_DIR}/examples/themes
             $<TARGET_FILE_DIR:spry_gl_demo>/themes)
+
+    # Minimal one-screen "hello toolkit" example — the reference for the public API
+    # (#207). Uses only the umbrella header + the SDL backend and the built-in theme,
+    # so it needs no theme files copied alongside it.
+    add_executable(spry_hello ${_spry_demo_excl} examples/hello.cpp)
+    target_link_libraries(spry_hello PRIVATE spry)
+    if(MINGW)
+        target_link_options(spry_hello PRIVATE -static -static-libgcc -static-libstdc++)
+    endif()
 endif()
 
 # Headless unit tests for the input/focus/keyboard logic (#216). Defaults on when
