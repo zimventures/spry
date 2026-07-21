@@ -87,11 +87,23 @@ markdown_extensions:
       emoji_index: !!python/name:material.extensions.emoji.twemoji
       emoji_generator: !!python/name:material.extensions.emoji.to_svg
 
-# Navigation. This is the minimal, renderable skeleton for the toolchain scaffold
-# (#2). The full information architecture — Guides, Widgets, Examples, Contributing
-# and the landing page — is fleshed out in #4, and content pages land in #5–#9.
+# Navigation — the site's information architecture (#4). Section landing pages and
+# guide stubs are navigable end-to-end now; the full prose lands in the content
+# tickets (Getting started #5, Guides #6, Widgets #7, Examples #8, API ref #10).
 nav:
   - Home: index.md
   - Getting started: getting-started.md
-  - Building the docs: building-docs.md
+  - Guides:
+      - guides/index.md
+      - Layout & the widget tree: guides/layout.md
+      - Theming & tokens: guides/theming.md
+      - Animation: guides/animation.md
+      - Text: guides/text.md
+      - Input, focus & keyboard nav: guides/input.md
+      - Renderer backends: guides/renderer-backends.md
+  - Widgets: widgets/index.md
+  - Examples: examples/index.md
   - API reference: api/index.html
+  - Contributing:
+      - contributing/index.md
+      - Building the docs: building-docs.md
