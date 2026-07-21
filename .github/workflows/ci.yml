@@ -18,7 +18,7 @@ jobs:
         os: [ubuntu-latest, macos-latest]
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       # SDL3, FreeType and HarfBuzz are fetched + built from source by CMake. On Linux,
       # SDL3 needs system dev libraries for its video/GL backends; macOS needs none.
