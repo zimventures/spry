@@ -9,48 +9,58 @@
 #include "widget.h"
 #include "widgets.h"
 
-// Overlays (#214): transient layers drawn above the root — modals, menus,
-// tooltips, toasts. Context owns a stack of them, draws them on top of the root,
-// routes input to the topmost interactive one, and prunes them once closed. An
-// overlay fills the window so it can position content anywhere and (when modal)
-// catch outside clicks. Each owns a presence spring that fades + offsets its
-// surface in and out; subclasses place and paint that surface.
+/// @file overlay.h
+/// Overlays: transient layers drawn above the widget tree.
+
 namespace spry {
 
+/// @addtogroup widgets
+/// @{
+
+/// Base for transient layers drawn above the root (#214) — `Modal`, `Menu`,
+/// `Tooltip`, `Toast`. `Context` owns a stack of them, draws them on top, routes
+/// input to the topmost interactive one, and prunes them once closed. An overlay
+/// fills the window so it can position content anywhere and (when modal) catch
+/// outside clicks. Each owns a presence spring that fades + offsets its surface;
+/// subclasses implement @ref placeContent and @ref paintSurface.
 class Overlay : public Widget {
 public:
+    /// Lifecycle phase of an overlay's open/close animation.
     enum class Phase { Opening, Open, Closing, Closed };
 
-    bool interactive = true;          // false => pointer-transparent (tooltips/toasts)
-    bool passThrough = false;         // interactive, but only within contentRect — input
-                                      // outside it falls through to the root (non-blocking
-                                      // floating layers, e.g. the toast stack)
-    bool dimBackground = false;       // draw a scrim behind the content (modal)
-    bool dismissOnOutsideClick = true;
-    bool dismissOnEscape = true;
-    float autoClose = 0.0f;           // seconds visible before self-closing (0 = never)
-    std::function<void()> onClosed;   // fired once, when fully closed
-    int stackIndex = 0;               // slot among stacked() overlays, assigned by Context
+    bool interactive = true;   ///< False ⇒ pointer-transparent (tooltips/toasts).
+    bool passThrough = false;  ///< Interactive only within @ref contentRect; input outside falls through.
+    bool dimBackground = false; ///< Draw a scrim behind the content (modal).
+    bool dismissOnOutsideClick = true;  ///< Close on a click outside the content.
+    bool dismissOnEscape = true;        ///< Close on the Escape key.
+    float autoClose = 0.0f;    ///< Seconds visible before self-closing (0 = never).
+    std::function<void()> onClosed;  ///< Fired once, when fully closed.
+    int stackIndex = 0;        ///< Slot among @ref stacked overlays, assigned by `Context`.
 
     Overlay() = default;
 
-    // Stacked overlays (toasts) tile in a corner instead of overlapping; Context
-    // assigns each a stackIndex per frame and the subclass offsets by it.
+    /// Stacked overlays (toasts) tile in a corner instead of overlapping; `Context`
+    /// assigns each a @ref stackIndex per frame and the subclass offsets by it.
     virtual bool stacked() const { return false; }
 
-    // Start the close animation; Context removes the overlay once closed().
+    /// Start the close animation; `Context` removes the overlay once @ref closed.
     void requestClose() {
         if (phase_ == Phase::Closing || phase_ == Phase::Closed) return;
         phase_ = Phase::Closing;
     }
+    /// True once the close animation has finished.
     bool closed() const { return phase_ == Phase::Closed; }
+    /// Open-ness in [0,1] — drives the fade/offset (0 = hidden, 1 = fully open).
     float presence() const { return appear_.value < 0 ? 0 : (appear_.value > 1 ? 1 : appear_.value); }
 
+    /// Set the content widget the overlay positions and draws.
     Widget* setContent(std::unique_ptr<Widget> c) {
         content_ = c.get();
         return add(std::move(c));
     }
+    /// The content widget, or `nullptr`.
     Widget* content() const { return content_; }
+    /// The content's placed rectangle (valid after layout).
     const Rect& contentRect() const { return contentRect_; }
 
     // Fill the window; the subclass positions content within it.
@@ -92,10 +102,12 @@ public:
     }
 
 protected:
+    /// Position the content rect within the full window (subclasses implement this).
     virtual Rect placeContent(Rect full, Size content) = 0;
+    /// Paint the overlay's surface behind the content (default: nothing).
     virtual void paintSurface(Renderer& /*r*/, const Theme& /*th*/) {}
 
-    // Clamp a content rect so it stays within the window.
+    /// Clamp a content rect so it stays within the window.
     static Rect clampToWindow(Rect full, Rect c) {
         if (c.x + c.w > full.x + full.w) c.x = full.x + full.w - c.w;
         if (c.y + c.h > full.y + full.h) c.y = full.y + full.h - c.h;
@@ -104,14 +116,14 @@ protected:
         return c;
     }
 
-    Spring appear_{};
-    Phase phase_ = Phase::Opening;
-    Widget* content_ = nullptr;
-    Rect contentRect_{};
+    Spring appear_{};                 ///< Presence spring (drives the fade/offset).
+    Phase phase_ = Phase::Opening;    ///< Current lifecycle @ref Phase.
+    Widget* content_ = nullptr;       ///< The content widget (owned via `children_`).
+    Rect contentRect_{};              ///< The content's placed rectangle.
 };
 
-// A centred modal: scrim behind, panel rises + fades in. The caller supplies the
-// content (typically a padded Box with a title, body, and buttons).
+/// A centered modal: scrim behind, panel rises + fades in. Supply the content via
+/// `setContent` (typically a padded `Box` with a title, body, and buttons).
 class Modal : public Overlay {
 public:
     Modal() {
@@ -132,16 +144,17 @@ protected:
     }
 };
 
-// A row inside a Menu: hover-highlights, click runs its action and closes the menu.
+/// A row inside a `Menu`: hover-highlights, click runs its action and closes the menu.
 class MenuItem : public Widget {
 public:
-    std::string label;
-    std::function<void()> chosen; // action + close, wired by Menu
-    // Optional leading icon, drawn centered at (cx, cy) in the given colour. The
-    // consumer supplies the glyph so the toolkit stays icon-agnostic.
+    std::string label;             ///< The item's text.
+    std::function<void()> chosen;  ///< Action + close, wired by `Menu`.
+    /// Optional leading icon, drawn centered at (cx, cy) in the given color. The
+    /// consumer supplies the glyph so the toolkit stays icon-agnostic.
     std::function<void(Renderer&, float cx, float cy, Color)> icon;
-    float scale = 1.4f;
+    float scale = 1.4f;            ///< Text scale.
 
+    /// Construct an item labelled `l`.
     explicit MenuItem(std::string l) : label(std::move(l)) { focusable = true; }
     Size measure(Renderer& r, float, float) override {
         float iconW = icon ? 24.0f : 0.0f;
@@ -166,12 +179,13 @@ public:
     }
 };
 
-// A dropdown / context menu anchored at a point. Items are a vertical list; a
-// click outside (or Escape) dismisses it.
+/// A dropdown / context menu anchored at a point. Items are a vertical list; a
+/// click outside (or Escape) dismisses it.
 class Menu : public Overlay {
 public:
-    float anchorX = 0.0f, anchorY = 0.0f;
-    float minWidth = 0.0f; // floor for the menu width (e.g. match a combo's box)
+    float anchorX = 0.0f;  ///< Anchor X, in Spry coordinates.
+    float anchorY = 0.0f;  ///< Anchor Y, in Spry coordinates.
+    float minWidth = 0.0f; ///< Floor for the menu width (e.g. to match a combo's box).
 
     Menu() {
         dimBackground = false;
@@ -183,6 +197,8 @@ public:
         list_->spacing = 2;
         setContent(std::move(list));
     }
+    /// Append an item with `label` that runs `action` (and closes the menu) when
+    /// chosen; `icon` optionally draws a leading glyph.
     void addItem(std::string label, std::function<void()> action,
                  std::function<void(Renderer&, float, float, Color)> icon = nullptr) {
         auto* it = list_->emplace<MenuItem>(std::move(label));
@@ -214,11 +230,13 @@ private:
     Box* list_ = nullptr;
 };
 
-// A small label anchored near a point, fading in. Non-interactive; auto-closes.
+/// A small label anchored near a point, fading in. Non-interactive; auto-closes.
 class Tooltip : public Overlay {
 public:
-    float anchorX = 0.0f, anchorY = 0.0f;
+    float anchorX = 0.0f;  ///< Anchor X, in Spry coordinates.
+    float anchorY = 0.0f;  ///< Anchor Y, in Spry coordinates.
 
+    /// Show `text` near the anchor for `lifetime` seconds (0 = until dismissed).
     explicit Tooltip(std::string text, float lifetime = 2.5f) {
         interactive = false;
         dismissOnOutsideClick = false;
@@ -244,9 +262,11 @@ protected:
     }
 };
 
-// A transient notification: slides up from the bottom-centre, lingers, fades out.
+/// A transient notification: slides up from the bottom-center, lingers, fades out.
+/// Multiple toasts stack upward.
 class Toast : public Overlay {
 public:
+    /// Show `text` for `lifetime` seconds before auto-closing.
     explicit Toast(std::string text, float lifetime = 3.0f) {
         interactive = false;
         dismissOnOutsideClick = false;
@@ -284,5 +304,7 @@ private:
     static constexpr float kSlotH = 52.0f; // vertical spacing between stacked toasts
     Spring slot_;                          // eases toward stackIndex * kSlotH
 };
+
+/// @}
 
 } // namespace spry

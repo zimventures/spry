@@ -43,7 +43,8 @@ struct InputEvent {
     /// not yet committed; `Text` carries committed UTF-8 the host has finalized.
     enum Type { MouseMove, MouseDown, MouseUp, Wheel, KeyDown, Text, TextEditing };
     Type type = MouseMove;      ///< Which kind of event this is.
-    float x = 0, y = 0;         ///< Mouse position, in Spry coordinates.
+    float x = 0;                ///< Mouse X, in Spry coordinates.
+    float y = 0;                ///< Mouse Y, in Spry coordinates.
     int button = 0;             ///< Mouse button: 0 = left, 1 = right, 2 = middle.
     float wheel = 0;            ///< Wheel delta (for `Wheel` events).
     Key key = Key::None;        ///< Key (for `KeyDown` events).

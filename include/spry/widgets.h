@@ -9,14 +9,19 @@
 #include "theme.h"
 #include "widget.h"
 
-// A few basic leaf widgets so the layout engine has something to compose, now
-// theme-aware (#211): they read colors/metrics by role from the active Theme.
-// The full widget set (buttons, tables, trees, overlays) is #214.
+/// @file widgets.h
+/// The basic leaf widgets: surfaces, text, and the common controls.
+
 namespace spry {
 
+/// @addtogroup widgets
+/// @{
+
+/// A rounded surface fill (the `surface`→`surfaceAlt` gradient). A container — nest
+/// a `Box` inside for content.
 class Panel : public Widget {
 public:
-    float radius = -1.0f; // -1 => use the theme's tokens::Radius metric
+    float radius = -1.0f;  ///< Corner radius; -1 = use the theme's `radius` metric.
     void paint(Renderer& r, const Theme& th) override {
         float rad = radius >= 0 ? radius : th.metric(tokens::Radius, 12.0f);
         r.fillRoundedRect(rect.x + rect.w * 0.5f, rect.y + rect.h * 0.5f, rect.w, rect.h, rad,
@@ -24,11 +29,11 @@ public:
     }
 };
 
-// A determinate progress bar: a rounded track with an accent-filled portion (0..1).
+/// A determinate progress bar: a rounded track with an accent-filled portion.
 class ProgressBar : public Widget {
 public:
-    float value = 0.0f; // clamped to [0, 1]
-    float thickness = 8.0f;
+    float value = 0.0f;      ///< Progress, clamped to [0, 1].
+    float thickness = 8.0f;  ///< Bar height, in logical pixels.
     Size measure(Renderer&, float availW, float) override {
         return Size{availW > 0 ? availW : 200.0f, thickness};
     }
@@ -51,13 +56,19 @@ public:
 // logical units. `pixels` must stay valid until the first paint; `handle` must
 // outlive the widget (own it on the view, not the transient scene tree), and be
 // zero-initialised — a non-zero slot is treated as already uploaded.
+/// A raster image (#220): draws caller-owned RGBA pixels, uploaded to the renderer
+/// lazily on first paint and cached via a caller-held @ref handle so scene rebuilds
+/// don't re-upload. `pixels` must stay valid until the first paint; `handle` must
+/// outlive the widget and start zero-initialised.
 class Image : public Widget {
 public:
-    const unsigned char* pixels = nullptr; // borrowed RGBA8 (w*h*4), only read at upload
-    int srcW = 0, srcH = 0;                // source pixel dimensions
-    float drawW = 0, drawH = 0;            // display size in logical units
-    ImageHandle* handle = nullptr;         // caller-owned upload cache; persists across rebuilds
-    Color tint{255, 255, 255, 255};        // modulation (white = as-is)
+    const unsigned char* pixels = nullptr;  ///< Borrowed RGBA8 (`srcW*srcH*4`), read only at upload.
+    int srcW = 0;                 ///< Source width, in pixels.
+    int srcH = 0;                 ///< Source height, in pixels.
+    float drawW = 0;              ///< Display width, in logical units.
+    float drawH = 0;              ///< Display height, in logical units.
+    ImageHandle* handle = nullptr; ///< Caller-owned upload cache; persists across rebuilds.
+    Color tint{255, 255, 255, 255}; ///< Modulation color (white = as-is).
 
     Size measure(Renderer&, float, float) override { return Size{drawW, drawH}; }
     void paint(Renderer& r, const Theme&) override {
@@ -76,13 +87,15 @@ public:
     bool tried_ = false; // an upload was attempted this instance (success or failure)
 };
 
+/// A single line of text, sized to its content.
 class Label : public Widget {
 public:
-    std::string text;
-    float scale = 1.6f;
-    std::string role = tokens::Text;          // theme color role
-    std::optional<Color> colorOverride; // per-widget override beats the theme
+    std::string text;                 ///< The text to draw.
+    float scale = 1.6f;               ///< Text scale (multiple of the base size).
+    std::string role = tokens::Text;  ///< Theme color token to draw with.
+    std::optional<Color> colorOverride;  ///< Per-widget color override (beats @ref role).
 
+    /// Construct a label showing `t` at scale `s`.
     explicit Label(std::string t, float s = 1.6f) : text(std::move(t)), scale(s) {}
     Size measure(Renderer& r, float, float) override {
         return Size{r.measureText(scale, text.c_str()).w + 2.0f, textLineH(scale)};
@@ -99,15 +112,18 @@ public:
 // its measured height grows with the wrapped line count. Honors explicit '\n' as
 // hard line breaks. (Word-based wrapping — a single word longer than the width
 // isn't broken, so clip the container if that's possible.)
+/// Multi-line, word-wrapped text (#220). Wraps to the width it's arranged into; its
+/// height grows with the line count. Honors explicit `\n` as hard breaks.
 class Paragraph : public Widget {
 public:
-    std::string text;
-    float scale = 1.4f;
-    std::string role = tokens::Text;
-    std::optional<Color> colorOverride;
-    bool preformatted = false; // true => verbatim lines (no word-wrap / whitespace collapse)
-    bool center = false;       // center each wrapped line horizontally
+    std::string text;                 ///< The text to draw.
+    float scale = 1.4f;               ///< Text scale.
+    std::string role = tokens::Text;  ///< Theme color token to draw with.
+    std::optional<Color> colorOverride;  ///< Per-widget color override (beats @ref role).
+    bool preformatted = false;  ///< Verbatim lines (no word-wrap / whitespace collapse).
+    bool center = false;        ///< Center each wrapped line horizontally.
 
+    /// Construct a paragraph showing `t` at scale `s`.
     explicit Paragraph(std::string t, float s = 1.4f) : text(std::move(t)), scale(s) {}
 
     Size measure(Renderer& r, float availW, float) override {
@@ -184,12 +200,13 @@ private:
     }
 };
 
-// Hoverable card — brightens/lifts on hover via its own spring. All colours come
-// from the theme, so it recolours live when the theme swaps.
+/// A hoverable card that brightens/lifts on hover via its own `Spring`. Colors come
+/// from the theme, so it recolors live when the theme swaps.
 class Card : public Widget {
 public:
-    std::string label;
-    Spring lift;
+    std::string label;  ///< The card's caption.
+    Spring lift;        ///< Hover-lift animation state.
+    /// Construct a card labelled `l`.
     explicit Card(std::string l) : label(std::move(l)) {}
     void update(float dt) override {
         lift.target = hovered ? 1.0f : 0.0f;
@@ -212,20 +229,21 @@ public:
 
 // A focusable button (#216): click, or Enter/Space when focused, to activate.
 // Brightens on hover, darkens on press, shows a focus ring for keyboard nav.
+/// A focusable button (#216): click, or Enter/Space when focused. Brightens on
+/// hover, darkens on press, shows a focus ring.
 class Button : public Widget {
 public:
-    std::string label;
-    std::function<void()> onClickCb;
-    float scale = 1.4f;
-    // Padding each side of the label. Defaults give the standard button; shrink them
-    // (and/or scale) for compact toolbars — the button always sizes to its content.
-    float padX = 14.0f;
-    float padY = 7.0f;
-    bool selected = false; // persistent active state (e.g. the current sidebar tab)
-    bool enabled = true;   // false dims the button and ignores clicks
-    bool danger = false;   // destructive action — red palette
-    Spring press;
+    std::string label;               ///< Button text.
+    std::function<void()> onClickCb; ///< Click handler.
+    float scale = 1.4f;              ///< Text scale.
+    float padX = 14.0f;              ///< Horizontal padding each side of the label.
+    float padY = 7.0f;               ///< Vertical padding above/below the label.
+    bool selected = false;  ///< Persistent active state (e.g. the current sidebar tab).
+    bool enabled = true;    ///< When false, dims the button and ignores clicks.
+    bool danger = false;    ///< Destructive action — uses a red palette.
+    Spring press;           ///< Press animation state.
 
+    /// Construct a button labelled `l` with click handler `cb`.
     explicit Button(std::string l, std::function<void()> cb = {})
         : label(std::move(l)), onClickCb(std::move(cb)) {
         focusable = true;
@@ -269,13 +287,17 @@ public:
 // A focusable radio button. The group is managed by the caller: set `selected` per
 // button and re-point the group's value in onSelect (selecting fires onSelect only
 // when it wasn't already selected).
+/// A focusable radio button. The group is managed by the caller: set `selected` per
+/// button and re-point the group in @ref onSelect (which fires only when the button
+/// wasn't already selected).
 class RadioButton : public Widget {
 public:
-    std::string label;
-    bool selected = false;
-    std::function<void()> onSelect;
-    float scale = 1.4f;
+    std::string label;              ///< The label text.
+    bool selected = false;          ///< Whether this button is selected.
+    std::function<void()> onSelect; ///< Fired when this button becomes selected.
+    float scale = 1.4f;             ///< Text scale.
 
+    /// Construct a radio button labelled `l`, initially `sel`ected or not.
     explicit RadioButton(std::string l, bool sel = false) : label(std::move(l)), selected(sel) { focusable = true; }
     Size measure(Renderer& r, float, float) override {
         return Size{textLineH(scale) + 8.0f + r.measureText(scale, label.c_str()).w, textLineH(scale) + 6.0f};
@@ -303,14 +325,15 @@ public:
     }
 };
 
-// A focusable checkbox (#216).
+/// A focusable checkbox (#216).
 class Checkbox : public Widget {
 public:
-    std::string label;
-    bool checked = false;
-    std::function<void(bool)> onChange;
-    float scale = 1.4f;
+    std::string label;                  ///< The label text.
+    bool checked = false;               ///< Checked state.
+    std::function<void(bool)> onChange; ///< Fired with the new state on toggle.
+    float scale = 1.4f;                 ///< Text scale.
 
+    /// Construct a checkbox labelled `l`, initially `c`hecked or not.
     explicit Checkbox(std::string l, bool c = false) : label(std::move(l)), checked(c) { focusable = true; }
     Size measure(Renderer& r, float, float) override {
         return Size{textLineH(scale) + 8.0f + r.measureText(scale, label.c_str()).w, textLineH(scale) + 6.0f};
@@ -339,14 +362,17 @@ public:
 
 // A focusable on/off switch (#214). Click or Enter/Space to toggle; the knob
 // slides between ends via its own spring, and the track colour crossfades.
+/// A focusable on/off switch (#214). Click or Enter/Space to toggle; the knob
+/// slides between ends via its own `Spring`, and the track color crossfades.
 class Toggle : public Widget {
 public:
-    std::string label;
-    bool on = false;
-    std::function<void(bool)> onChange;
-    float scale = 1.4f;
-    Spring knob; // 0 (off) .. 1 (on)
+    std::string label;                  ///< Optional label drawn beside the switch.
+    bool on = false;                    ///< On/off state.
+    std::function<void(bool)> onChange; ///< Fired with the new state on toggle.
+    float scale = 1.4f;                 ///< Text scale.
+    Spring knob;                        ///< Knob-slide animation (0 = off, 1 = on).
 
+    /// Construct a toggle with optional label `l`, initially on (`v`) or off.
     explicit Toggle(std::string l = {}, bool v = false) : label(std::move(l)), on(v) {
         focusable = true;
         knob.value = knob.target = v ? 1.0f : 0.0f;
@@ -390,16 +416,19 @@ public:
     }
 };
 
-// A focusable horizontal slider (#214). Click/drag the track to set the value;
-// arrow keys nudge, Home/End jump to the ends. The thumb eases via a spring.
+/// A focusable horizontal slider (#214). Click/drag the track to set the value;
+/// arrow keys nudge, Home/End jump to the ends. The thumb eases via a `Spring`.
 class Slider : public Widget {
 public:
-    float minV = 0.0f, maxV = 1.0f, value = 0.0f;
-    float step = 0.0f; // 0 => continuous; otherwise snap to multiples of step
-    std::function<void(float)> onChange;
-    Spring thumb; // 0..1 fraction
+    float minV = 0.0f;  ///< Minimum value.
+    float maxV = 1.0f;  ///< Maximum value.
+    float value = 0.0f; ///< Current value (in [`minV`, `maxV`]).
+    float step = 0.0f;  ///< Snap increment; 0 = continuous.
+    std::function<void(float)> onChange;  ///< Fired with the new value on change.
+    Spring thumb;       ///< Thumb-position animation (0..1 fraction).
 
     Slider() { focusable = true; }
+    /// Construct a slider over [`lo`, `hi`] with initial value `v`.
     Slider(float lo, float hi, float v) : minV(lo), maxV(hi), value(v) {
         focusable = true;
         thumb.value = thumb.target = fraction();
@@ -467,5 +496,7 @@ private:
         if (onChange) onChange(value);
     }
 };
+
+/// @}
 
 } // namespace spry

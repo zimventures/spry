@@ -12,37 +12,42 @@
 #include "theme.h"
 #include "widget.h"
 
-// Data / container widgets (#215): the chrome Cleat's views need. A virtualized
-// list base (only visible rows are drawn) powers ListView, Table (sortable), and
-// TreeView; plus a generic ScrollView for arbitrary content and a TabBar. All
-// scroll with proper clipping via the renderer clip stack (#213) and support
-// keyboard + mouse selection.
+/// @file data.h
+/// Data / container widgets: the virtualized list base and its widgets, plus a
+/// generic scroll view and a tab bar.
+///
+/// @note Framed for a specific host's needs (#215) but generally useful — see the
+/// [Cleat-shaped] note in the public-API ADR.
+
 namespace spry {
 
-// ---- VirtualList -----------------------------------------------------------
-// Base for row-oriented, vertically-scrolled widgets. Subclasses supply a row
-// count + a per-row painter; the base owns scroll, clipping, the scrollbar, wheel
-// + keyboard navigation, and click selection. Rows are never materialized as
-// widgets, so 100k rows cost the same as a screenful.
+/// @addtogroup widgets
+/// @{
+
+/// Base for row-oriented, vertically-scrolled widgets. Subclasses supply a row
+/// count (@ref rowCount) + a per-row painter (@ref drawRow); the base owns scroll,
+/// clipping, the scrollbar, wheel + keyboard navigation, and click selection. Rows
+/// are never materialized as widgets, so 100k rows cost the same as a screenful.
 class VirtualList : public Widget {
 public:
-    float rowHeight = 26.0f;
-    int selected = -1;              // the lead / active row (also the single selection)
-    bool multiSelect = false;       // enable shift-range + ctrl-toggle selection
-    std::function<void(int)> onSelect; // fired with the lead row whenever selection changes
+    float rowHeight = 26.0f;   ///< Height of each row, in logical pixels.
+    int selected = -1;         ///< The lead / active row (also the single selection); -1 = none.
+    bool multiSelect = false;  ///< Enable shift-range + ctrl-toggle selection.
+    std::function<void(int)> onSelect;  ///< Fired with the lead row whenever selection changes.
 
     VirtualList() { focusable = true; }
 
-    int numRows() const { return rowCount(); } // public view of the row count
+    /// The number of rows (a public view of @ref rowCount).
+    int numRows() const { return rowCount(); }
 
-    // Snap to the last row on the next paint — for follow-tail views (logs). Cleared
-    // after it applies, so the user can scroll up freely until it's requested again.
+    /// Snap to the last row on the next paint — for follow-tail views (logs).
     void scrollToBottom() { stickBottom_ = true; }
 
-    // Multi-selection (#215). With multiSelect off, only the lead row is ever in
-    // the set, so isSelected(selected) and selection() == {selected}.
+    /// True if row `i` is selected.
     bool isSelected(int i) const { return sel_.count(i) > 0; }
+    /// All selected row indices.
     std::vector<int> selection() const { return std::vector<int>(sel_.begin(), sel_.end()); }
+    /// Clear the selection.
     void clearSelection() {
         sel_.clear();
         selected = -1;
@@ -130,23 +135,33 @@ public:
     }
 
 protected:
+    /// Number of rows (subclass supplies this).
     virtual int rowCount() const = 0;
+    /// Paint row `index` into `rowRect` (subclass supplies this).
     virtual void drawRow(Renderer&, const Theme&, int index, Rect rowRect, bool selected, bool hovered) = 0;
+    /// Height of the (optional) header row; 0 = none.
     virtual float headerHeight() const { return 0.0f; }
+    /// Paint the header row.
     virtual void paintHeader(Renderer&, const Theme&, Rect) {}
+    /// Handle a click in the header (local x within the header).
     virtual void headerClick(float /*localX*/) {}
-    // Return true to consume the click (e.g. a tree toggle) and suppress selection.
+    /// Handle a mouse-down on a row; return `true` to consume it (e.g. a tree
+    /// toggle) and suppress selection.
     virtual bool rowMouseDown(int /*row*/, float /*localX*/, bool /*shift*/) { return false; }
 
+    /// The body area below the header, excluding the scrollbar gutter.
     Rect bodyViewport() const {
         float hh = headerHeight();
         return Rect{rect.x, rect.y + hh, rect.w - kScrollW, rect.h - hh};
     }
+    /// Total height of all rows.
     float contentHeight() const { return (float)rowCount() * rowHeight; }
+    /// True if the content overflows the viewport (a scrollbar is shown).
     bool scrollbarVisible() const { return contentHeight() > bodyViewport().h; }
+    /// The current vertical scroll offset.
     float scrollY() const { return scrollY_; }
 
-    static constexpr float kScrollW = 12.0f;
+    static constexpr float kScrollW = 12.0f;  ///< Scrollbar gutter width.
 
 private:
     int rowAtY(float y) const {
@@ -240,11 +255,11 @@ private:
     int anchor_ = -1;          // range anchor for shift-select
 };
 
-// ---- ListView --------------------------------------------------------------
+/// A flat, virtualized list of text rows.
 class ListView : public VirtualList {
 public:
-    std::vector<std::string> items;
-    float scale = 1.4f;
+    std::vector<std::string> items;  ///< The row strings.
+    float scale = 1.4f;              ///< Text scale.
 
 protected:
     int rowCount() const override { return (int)items.size(); }
@@ -258,27 +273,28 @@ protected:
     }
 };
 
-// ---- Table -----------------------------------------------------------------
+/// A `Table` column: a title and a relative width weight.
 struct Column {
-    std::string title;
-    float weight = 1.0f; // share of the body width
+    std::string title;    ///< Header label.
+    float weight = 1.0f;  ///< Share of the body width.
 };
 
-// A sortable data table. Cells are row-major strings; clicking a header sorts by
-// that column (numeric when both cells parse as numbers, else lexicographic) and
-// toggles direction. Rows are virtualized via VirtualList; selection is by the
-// displayed row.
+/// A sortable data table. Cells are row-major strings; clicking a header sorts by
+/// that column (numeric when both cells parse as numbers, else lexicographic) and
+/// toggles direction. Rows are virtualized; selection is by the displayed row.
 class Table : public VirtualList {
 public:
-    std::vector<Column> columns;
-    std::vector<std::vector<std::string>> rows;
-    float scale = 1.3f;
-    int sortCol = -1;
-    bool sortAsc = true;
+    std::vector<Column> columns;                  ///< Column definitions.
+    std::vector<std::vector<std::string>> rows;   ///< Row-major cell strings.
+    float scale = 1.3f;    ///< Text scale.
+    int sortCol = -1;      ///< Currently-sorted column index; -1 = unsorted.
+    bool sortAsc = true;   ///< Sort direction (ascending when true).
 
     Table() { rowHeight = 28.0f; }
 
     // Data row backing the i-th displayed row (sorting permutes the order).
+    /// Index into @ref rows backing the `displayRow`-th visible row (sorting
+    /// permutes the display order).
     int dataRow(int displayRow) const {
         return (displayRow >= 0 && displayRow < (int)order_.size()) ? order_[displayRow] : displayRow;
     }
@@ -395,32 +411,35 @@ private:
     mutable std::vector<int> order_; // display row -> data row
 };
 
-// ---- TreeView --------------------------------------------------------------
+/// A node in a @ref TreeView.
 struct TreeNode {
-    std::string label;
-    bool expanded = false;
-    std::vector<std::unique_ptr<TreeNode>> children;
+    std::string label;    ///< The node's text.
+    bool expanded = false; ///< Whether children are shown.
+    std::vector<std::unique_ptr<TreeNode>> children;  ///< Child nodes.
 
+    /// Construct a node labelled `l`.
     explicit TreeNode(std::string l = {}) : label(std::move(l)) {}
+    /// Add a child labelled `l` and return it.
     TreeNode& add(std::string l) {
         children.push_back(std::make_unique<TreeNode>(std::move(l)));
         return *children.back();
     }
 };
 
-// A hierarchical list. Expanded nodes are flattened into the virtualized row set;
-// clicking the disclosure triangle toggles a node, clicking elsewhere selects it.
+/// A hierarchical list. Expanded nodes are flattened into the virtualized row set;
+/// clicking the disclosure triangle toggles a node, clicking elsewhere selects it.
 class TreeView : public VirtualList {
 public:
-    std::vector<std::unique_ptr<TreeNode>> roots;
-    float scale = 1.4f;
+    std::vector<std::unique_ptr<TreeNode>> roots;  ///< The top-level nodes.
+    float scale = 1.4f;  ///< Text scale.
 
+    /// Add a root node labelled `label` and return it. Call @ref rebuild after.
     TreeNode& addRoot(std::string label) {
         roots.push_back(std::make_unique<TreeNode>(std::move(label)));
         flat_.clear(); // invalidate the flattened cache (rebuilt lazily or via rebuild())
         return *roots.back();
     }
-    // Re-flatten after changing node structure (adding children, toggling expand).
+    /// Re-flatten after changing the node structure (adding children, toggling expand).
     void rebuild() {
         flat_.clear();
         for (auto& r : roots) flatten(r.get(), 0);
@@ -498,12 +517,12 @@ private:
     std::vector<Flat> flat_;
 };
 
-// ---- ScrollView ------------------------------------------------------------
-// Scrolls a single content child (arbitrary widget tree), clipping it to the
-// viewport. For row data prefer the virtualized widgets above; this is for things
-// like a tall settings panel.
+/// Scrolls a single content child (an arbitrary widget tree), clipping it to the
+/// viewport. For row data prefer the virtualized widgets above; this is for things
+/// like a tall settings panel. Size it with `prefW`/`prefH` or `grow`.
 class ScrollView : public Widget {
 public:
+    /// Set the content widget to scroll.
     Widget* setContent(std::unique_ptr<Widget> c) {
         content_ = c.get();
         children_.clear();
@@ -520,14 +539,15 @@ public:
         return Size{prefW >= 0 ? prefW : 0.0f, prefH >= 0 ? prefH : 0.0f};
     }
 
-    // Inspection (host diagnostics / layout assertions).
+    /// The viewport height (for host diagnostics / layout assertions).
     float viewportHeight() const { return rect.h; }
+    /// The content's total height.
     float contentHeight() const { return contentH_; }
 
-    // Scroll position, so a view that rebuilds its scene can carry the offset across
-    // the rebuild instead of snapping to the top. Set before arrange; the next
-    // arrange clamps it to the new content height.
+    /// The current scroll offset — read it to carry the position across a scene
+    /// rebuild instead of snapping to the top.
     float scrollOffset() const { return scrollY_; }
+    /// Set the scroll offset (before `arrange`; the next arrange clamps it).
     void setScrollOffset(float y) { scrollY_ = y; }
 
     bool onWheel(float, float dy) override {
@@ -596,15 +616,14 @@ private:
     bool sbDrag_ = false;
 };
 
-// ---- TabBar ----------------------------------------------------------------
-// A horizontal row of tabs with an animated active indicator. Click or
-// Left/Right (when focused) to switch; onChange reports the new index.
+/// A horizontal row of tabs with an animated active indicator. Click or Left/Right
+/// (when focused) to switch; @ref onChange reports the new index.
 class TabBar : public Widget {
 public:
-    std::vector<std::string> tabs;
-    int active = 0;
-    std::function<void(int)> onChange;
-    float scale = 1.4f;
+    std::vector<std::string> tabs;       ///< Tab labels.
+    int active = 0;                      ///< Index of the active tab.
+    std::function<void(int)> onChange;   ///< Fired with the new index on switch.
+    float scale = 1.4f;                  ///< Text scale.
 
     TabBar() { focusable = true; }
 
@@ -688,5 +707,7 @@ private:
     Spring indX_, indW_;
     Renderer* lastR_ = nullptr;
 };
+
+/// @}
 
 } // namespace spry

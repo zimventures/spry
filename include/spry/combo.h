@@ -9,27 +9,34 @@
 #include "overlay.h"
 #include "widget.h"
 
-// A dropdown selector (#220): a closed box showing the current option, which opens
-// a Menu of choices on click (or Enter/Space). Arrow keys cycle the selection in
-// place without opening. Built on the existing Menu overlay; it reaches the
-// Context to spawn that menu via Context::current() during the click.
+/// @file combo.h
+/// A dropdown selector widget.
+
 namespace spry {
 
+/// @addtogroup widgets
+/// @{
+
+/// A dropdown selector (#220): a closed box showing the current option, which opens
+/// a `Menu` of choices on click (or Enter/Space). Arrow keys cycle the selection in
+/// place without opening. Built on the `Menu` overlay, which it spawns via
+/// `Context::current()` during the click.
 class Combo : public Widget {
 public:
-    std::vector<std::string> options;
-    int selected = 0; // index into options; -1 = none
-    float scale = 1.4f;
-    std::string placeholder = "Select...";
-    // Fired when the selection changes (via the menu or arrow keys).
+    std::vector<std::string> options;      ///< The choices.
+    int selected = 0;                      ///< Index into @ref options; -1 = none.
+    float scale = 1.4f;                    ///< Text scale.
+    std::string placeholder = "Select..."; ///< Shown when nothing is selected.
+    /// Fired when the selection changes (via the menu or arrow keys), with the index and value.
     std::function<void(int index, const std::string& value)> onChange;
 
     Combo() { focusable = true; }
+    /// Construct with options and an initial selection.
     explicit Combo(std::vector<std::string> opts, int sel = 0) : options(std::move(opts)), selected(sel) {
         focusable = true;
     }
 
-    // Select by value; no-op (returns false) if absent. Does not fire onChange.
+    /// Select by value; no-op (returns `false`) if absent. Does not fire @ref onChange.
     bool setValue(const std::string& v) {
         for (int i = 0; i < (int)options.size(); ++i)
             if (options[i] == v) {
@@ -38,6 +45,7 @@ public:
             }
         return false;
     }
+    /// The currently-selected value (empty string if none).
     const std::string& value() const {
         static const std::string kEmpty;
         return (selected >= 0 && selected < (int)options.size()) ? options[selected] : kEmpty;
@@ -126,5 +134,7 @@ private:
         ctx->addOverlay(std::move(menu));
     }
 };
+
+/// @}
 
 } // namespace spry

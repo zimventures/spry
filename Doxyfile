@@ -40,13 +40,11 @@ STRIP_FROM_INC_PATH    = include
 # Animation, Input, Renderer backends) via @defgroup blocks in spry.h and
 # @addtogroup in each header — see the "Topics" page in the generated site.
 #
-# EXTRACT_ALL stays ON for now (#10, core-first): the core headers are fully
-# doc-commented, while the larger widget headers (widgets.h, data.h, overlay.h,
-# combo.h, colorpicker.h, textfield.h, textarea.h, text_edit.h) are documented in
-# follow-ups. Once they're covered, flip EXTRACT_ALL = NO + WARN_IF_UNDOCUMENTED =
-# YES (and WARN_AS_ERROR) so undocumented public symbols fail the build.
+# EXTRACT_ALL is OFF: every public header under include/spry/ is fully doc-commented
+# (#10 + #21), so undocumented public symbols are treated as errors (below) rather
+# than silently surfaced. Add a doc-comment when you add public API.
 #---------------------------------------------------------------------------
-EXTRACT_ALL            = YES
+EXTRACT_ALL            = NO
 EXTRACT_STATIC         = YES
 EXTRACT_LOCAL_CLASSES  = YES
 HIDE_UNDOC_MEMBERS     = NO
@@ -57,14 +55,16 @@ SORT_MEMBER_DOCS       = YES
 SORT_BRIEF_DOCS        = YES
 
 #---------------------------------------------------------------------------
-# Warnings. WARN_IF_UNDOCUMENTED has no effect while EXTRACT_ALL is ON; it gets
-# turned up together with EXTRACT_ALL = NO when the follow-up headers are covered.
+# Warnings. Undocumented public symbols (and doc errors) FAIL the build, so the
+# reference can't silently rot — process everything, then exit non-zero if any
+# warning fired. WARN_NO_PARAMDOC stays off (per-parameter docs aren't required).
 #---------------------------------------------------------------------------
 QUIET                  = YES
 WARNINGS               = YES
-WARN_IF_UNDOCUMENTED   = NO
+WARN_IF_UNDOCUMENTED   = YES
 WARN_IF_DOC_ERROR      = YES
 WARN_NO_PARAMDOC       = NO
+WARN_AS_ERROR          = FAIL_ON_WARNINGS
 
 #---------------------------------------------------------------------------
 # Output formats — HTML only.
