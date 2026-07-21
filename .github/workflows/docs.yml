@@ -33,11 +33,13 @@ on:
 permissions:
   contents: read
 
-# One in-flight docs deploy at a time; let a newer push supersede an older one,
-# but never cancel a run that is midway through publishing.
+# Concurrency is scoped by event so PR validation never queues behind a
+# production deploy: each pull request gets its own lane (a newer push cancels the
+# older, still-running build), while pushes to main and manual dispatches share a
+# single "production" lane that is never cancelled midway through publishing.
 concurrency:
-  group: pages
-  cancel-in-progress: false
+  group: docs-${{ github.event_name == 'pull_request' && github.head_ref || 'production' }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   build:
@@ -73,16 +75,20 @@ jobs:
         # getting-started.md's repo-relative links are normalized for the site.
         run: mkdocs build
 
+      # Publish only from main. Gating on the ref (not just "not a PR") also
+      # stops a workflow_dispatch run started from a non-main branch from
+      # uploading that branch's site to production Pages.
       - name: Upload Pages artifact
-        if: github.event_name != 'pull_request'
+        if: github.ref == 'refs/heads/main'
         uses: actions/upload-pages-artifact@v3
         with:
           path: site
 
   deploy:
     name: Deploy to GitHub Pages
-    # Build validates every PR; deploy only from main (and manual dispatch).
-    if: github.event_name != 'pull_request'
+    # Build validates every PR; publish only from main. The ref check also blocks
+    # a workflow_dispatch run selected from a non-main branch from deploying.
+    if: github.ref == 'refs/heads/main'
     needs: build
     runs-on: ubuntu-latest
     permissions:
