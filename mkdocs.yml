@@ -97,6 +97,7 @@ nav:
       - guides/index.md
       - Layout & the widget tree: guides/layout.md
       - Theming & tokens: guides/theming.md
+      - Theme tokens (reference): guides/theme-tokens.md
       - Animation: guides/animation.md
       - Text: guides/text.md
       - Input, focus & keyboard nav: guides/input.md

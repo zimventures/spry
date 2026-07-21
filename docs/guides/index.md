@@ -8,6 +8,8 @@ guides go deep on a single subsystem.
   layout, sizing hints, wrapping.
 - **[Theming & tokens](theming.md)** — the token vocabulary, `.theme` files,
   animated theme swaps.
+- **[Theme tokens (reference)](theme-tokens.md)** — the authoritative token table
+  and how to write a `.theme` file.
 - **[Animation](animation.md)** — `Spring`, easing functions, transitions.
 - **[Text](text.md)** — FreeType + HarfBuzz shaping, fonts, metrics.
 - **[Input, focus & keyboard nav](input.md)** — `InputEvent`, hit-testing, focus

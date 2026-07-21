@@ -53,9 +53,9 @@ typos are caught at compile time. To validate a theme you loaded from a file,
 extra custom tokens beyond the core set.
 
 !!! tip "Full token reference"
-    The complete, per-token vocabulary — each name, its role, and its default — is
-    the [theme-token reference](../adr/0001-spry-public-api.md) (a dedicated page
-    lands in [#9](https://github.com/zimventures/spry/issues/9)).
+    The complete, per-token vocabulary — each name, its role, its consumers, and its
+    `builtinDark` value — is the **[Theme tokens reference](theme-tokens.md)**, which
+    also covers the `.theme` file format and how to write your own theme.
 
 ## Animated theme swaps
 
