@@ -59,7 +59,8 @@ animated widget. Not everything is a spring, though: the
 
 ## Related
 
-- [Theming & tokens](theming.md) — theme swaps are springs applied to every token.
+- [Theming & tokens](theming.md) — theme swaps are an `easeOutCubic` tween over
+  `lerp`-interpolated tokens (not springs).
 - [Layout & the widget tree](layout.md) — `update(dt)` is where widgets step their
   springs each frame.
 - [Getting started §6](../getting-started.md#6-animation) — animation in tutorial

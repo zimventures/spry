@@ -14,13 +14,18 @@ load overrides from a flat text file:
 
 ```cpp
 Theme t = Theme::builtinDark();             // always works, no file needed
-Theme::loadFromFile("midnight.theme", t);   // optional overrides (flat text format)
+if (!Theme::loadFromFile("midnight.theme", t))
+    /* file missing/unreadable — t keeps the built-in values */;
 ctx.setThemeImmediate(t);                    // apply with no transition
 
-// Reading a token (e.g. inside a custom widget's draw):
-Color accent = theme.color("accent");
-float radius = theme.metric("radius", 6.0f); // 6.0 if the theme omits it
+// Reading a token (e.g. inside a custom widget's draw) — prefer the tokens:: constants:
+Color accent = theme.color(tokens::Accent);
+float radius = theme.metric(tokens::Radius, 6.0f); // 6.0 if the theme omits it
 ```
+
+`loadFromFile` returns `false` if the file is missing or unreadable, leaving the
+theme you passed untouched — so starting from `builtinDark()` guarantees a usable
+theme either way.
 
 The file format is deliberately minimal — `color <key> r g b [a]` (channels are
 0–255, alpha optional) and `metric <key> <value>` lines, with `#` for comments and
@@ -54,11 +59,15 @@ extra custom tokens beyond the core set.
 
 ## Animated theme swaps
 
-`ctx.setTheme(newTheme)` doesn't snap — it **crossfades every token** over a few
-frames, interpolating each color and metric, so switching themes (light ↔ dark, or
-a user-picked accent) animates for free. `setThemeImmediate` is the no-transition
-version for the initial theme. Each token is `lerp`-interpolated along an
-`easeOutCubic` tween (see [Animation](animation.md)).
+`ctx.setTheme(newTheme)` doesn't snap — it **crossfades the theme's tokens** over a
+few frames, interpolating each color and metric toward its new value, so switching
+themes (light ↔ dark, or a user-picked accent) animates for free. `setThemeImmediate`
+is the no-transition version for the initial theme. Each token is `lerp`-interpolated
+along an `easeOutCubic` tween (see [Animation](animation.md)).
+
+Interpolation covers the tokens the **outgoing** theme defines; a token that exists
+only in the incoming theme appears when the transition completes (in practice both
+share the same [core token set](#the-token-vocabulary), so this rarely shows).
 
 ```cpp
 ctx.setTheme(Theme::builtinDark());   // animated crossfade from the current theme
@@ -84,7 +93,7 @@ token registry landed with #321; new tokens are additive.
 
 ## Related
 
-- [Animation](animation.md) — the springs/easing behind the crossfade.
+- [Animation](animation.md) — the `easeOutCubic` easing behind the crossfade.
 - [Getting started §5](../getting-started.md#5-theming) — theming in tutorial form.
 - Example: [`demo.cpp`](https://github.com/zimventures/spry/blob/main/examples/demo.cpp)
   hot-swaps `.theme` files (press **T**).

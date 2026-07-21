@@ -44,9 +44,19 @@ Supporting value types: `Color`, `Vertex`, `Mesh`, and the opaque `ImageHandle`.
     GL application. `gl_renderer.h` is pimpl-clean (it doesn't leak SDL into your
     translation unit).
 
+    A current GL context must exist before you construct it, and the host provides
+    the drawable size via `setSize` (call it again on resize — the backend doesn't
+    own the window):
+
     ```cpp
-    GlRenderer ren;         // draws into its own FBO, blits to the host
+    GlRenderer ren;                 // a current GL context must already exist
+    ren.loadFont("…/DejaVuSansMono.ttf");
+    ren.setSize(fbW, fbH);          // drawable size in pixels; call again on resize
+    ren.setContentScale(dpiScale);  // optional: HiDPI framebuffer scale (default 1)
     ```
+
+    The host then composites Spry's FBO into its own frame with `blitToDefault` or
+    `presentBlended` (see Stability below).
 
 Rule of thumb: building a small app or tool? Use **`SdlRenderer`**. Dropping a
 Spry panel into an existing OpenGL application? Use **`GlRenderer`**.
