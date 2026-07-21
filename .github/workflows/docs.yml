@@ -57,10 +57,14 @@ jobs:
       - name: Install MkDocs dependencies
         run: pip install -r requirements-docs.txt
 
-      - name: Install Doxygen
+      # Doxygen for the API reference; the Cairo/imaging system libs for the
+      # Material social-cards plugin (og:image generation).
+      - name: Install Doxygen + Cairo imaging libs
         run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends doxygen
+          sudo apt-get install -y --no-install-recommends \
+            doxygen \
+            libcairo2-dev libfreetype6-dev libffi-dev libjpeg-dev libpng-dev libz-dev
 
       - name: Fetch doxygen-awesome-css
         run: bash scripts/fetch-doxygen-awesome.sh

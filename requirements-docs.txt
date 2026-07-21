@@ -5,3 +5,7 @@
 # Pins are exact so local builds and CI stay reproducible. Bump deliberately.
 mkdocs-material==9.7.7
 pymdown-extensions==11.0.1
+# Social/SEO cards (mkdocs-material[imaging]). These also need the native Cairo
+# system libraries — installed by CI and documented in docs/building-docs.md.
+pillow==12.3.0
+cairosvg==2.9.0
