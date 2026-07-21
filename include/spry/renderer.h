@@ -138,8 +138,8 @@ protected:
 };
 
 /// Shared geometry usable by any backend or widget: a rounded rect as a triangle
-/// fan, with optional gooey edge distortion (`distortAmp`/`phase`; `amp <= 0` → a
-/// clean panel). Filled with a vertical `top`→`bot` gradient.
+/// fan, with optional gooey edge distortion (`distortAmp`/`phase`; `distortAmp <= 0`
+/// → a clean panel). Filled with a vertical `top`→`bot` gradient.
 Mesh roundedBlob(float cx, float cy, float w, float h, float radius, float distortAmp, float phase,
                  Color top, Color bot, int seg = 8);
 
