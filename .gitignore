@@ -1,1 +1,11 @@
 build/
+
+# Documentation build artifacts
+# mkdocs build output
+site/
+# Doxygen-generated C++ reference
+docs/api/
+# fetched tooling (doxygen-awesome-css)
+external/
+# local docs virtualenv
+.venv-docs/

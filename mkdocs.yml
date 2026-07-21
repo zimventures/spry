@@ -1,0 +1,97 @@
+# MkDocs configuration for the Spry documentation site.
+# Hand-written prose (guides, tutorials, examples) is built by MkDocs Material.
+# The C++ API reference is generated separately by Doxygen into docs/api/ and
+# served as static files under /api/ (see docs/building-docs.md and the Doxyfile).
+#
+# Local preview:  pip install -r requirements-docs.txt && mkdocs serve
+site_name: Spry
+site_url: https://zimventures.github.io/spry/
+site_description: >-
+  A retained-mode, animation-first UI toolkit in C++20 — lightweight, themeable,
+  GPU-rendered.
+site_author: zimventures
+copyright: Copyright &copy; zimventures — released under the zlib license
+
+repo_url: https://github.com/zimventures/spry
+repo_name: zimventures/spry
+edit_uri: edit/main/docs/
+
+# The MkDocs source tree. The existing docs/getting-started.md and docs/adr/ are
+# kept in place here; docs/api/ is Doxygen's generated output (git-ignored).
+docs_dir: docs
+
+theme:
+  name: material
+  language: en
+  features:
+    - navigation.tabs          # top-level sections as tabs
+    - navigation.sections      # group nested pages in the sidebar
+    - navigation.top           # back-to-top button
+    - navigation.instant       # SPA-style instant loading
+    - navigation.tracking      # update the URL with the active anchor
+    - toc.follow
+    - search.suggest
+    - search.highlight
+    - content.code.copy        # copy button on code blocks
+    - content.code.annotate    # inline code annotations
+    - content.tabs.link
+  palette:
+    # Light/dark toggle. Palette follows the system preference by default.
+    - media: "(prefers-color-scheme)"
+      toggle:
+        icon: material/brightness-auto
+        name: Switch to light mode
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-4
+        name: Switch to system preference
+  font:
+    text: Inter
+    code: JetBrains Mono
+  icon:
+    repo: fontawesome/brands/github
+
+plugins:
+  - search
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - md_in_html
+  - def_list
+  - footnotes
+  - tables
+  - toc:
+      permalink: true
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.details
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+
+# Navigation. This is the minimal, renderable skeleton for the toolchain scaffold
+# (#2). The full information architecture — Guides, Widgets, Examples, Contributing
+# and the landing page — is fleshed out in #4, and content pages land in #5–#9.
+nav:
+  - Home: index.md
+  - Getting started: getting-started.md
+  - Building the docs: building-docs.md
+  - API reference: api/index.html
