@@ -71,9 +71,10 @@ jobs:
         run: doxygen
 
       - name: Build site (MkDocs)
-        # NOTE: strict link-checking (`--strict`) is enabled in #5, once
-        # getting-started.md's repo-relative links are normalized for the site.
-        run: mkdocs build
+        # --strict fails the build on broken internal links / bad nav refs, so
+        # docs breakage is caught on PRs before merge (getting-started.md's links
+        # were normalized for the site in #5).
+        run: mkdocs build --strict
 
       # Publish only from main. Gating on the ref (not just "not a PR") also
       # stops a workflow_dispatch run started from a non-main branch from
