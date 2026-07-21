@@ -4,10 +4,11 @@ A hands-on tutorial for the Spry UI toolkit. It builds up from a blank window to
 interactive, themed, animated app, teaching the public API one piece at a time.
 
 - For the **reference** view of the API — every module, what's stable vs experimental, the
-  stability contract — see [`docs/adr/0001-spry-public-api.md`](adr/0001-spry-public-api.md).
-- For runnable code, see [`examples/`](../examples/) (indexed in
-  [`examples/README.md`](../examples/README.md)). This guide references those files rather than
-  repeating them.
+  stability contract — see the [public-API ADR](adr/0001-spry-public-api.md) and the generated
+  [C++ API reference](api/index.html).
+- For runnable code, see the [examples gallery](examples/index.md) (sources under
+  [`examples/`](https://github.com/zimventures/spry/tree/main/examples)). This guide references
+  those files rather than repeating them.
 
 Spry is a **retained-mode** toolkit: you build a persistent tree of `Widget` objects once, then
 drive it each frame. The host owns the window, the GPU, and the event loop; Spry owns layout,
@@ -32,7 +33,8 @@ Include the umbrella header plus **one** renderer backend:
 
 ```cpp
 #include <spry/spry.h>          // Context, Widget, Box, widgets, Theme, anim, input
-#include <spry/sdl_renderer.h>  // OR <spry/gl_renderer.h>
+#include <spry/sdl_renderer.h>  // one renderer backend — OR <spry/gl_renderer.h>
+#include <spry/sdl_host.h>      // optional SDL event pump (used in §2 and §7)
 using namespace spry;
 ```
 
@@ -43,7 +45,9 @@ embed in a host that already owns an OpenGL context.
 
 ## 2. The smallest app
 
-The full minimal program is [`examples/hello.cpp`](../examples/hello.cpp) (~90 lines). Its shape:
+The full minimal program is
+[`examples/hello.cpp`](https://github.com/zimventures/spry/blob/main/examples/hello.cpp)
+(~90 lines). Its shape:
 
 ```cpp
 SdlRenderer ren(sdl);          // wrap a host-owned SDL_Renderer*
@@ -54,17 +58,20 @@ ctx.setRoot(buildTree());      // a std::unique_ptr<Widget>
 ctx.setThemeImmediate(Theme::builtinDark());
 
 while (running) {
-    // 1. feed input
-    while (SDL_PollEvent(&e)) ctx.handleEvent(translate(e));
-    // 2. draw one frame
+    SDL_Event e;
+    while (SDL_PollEvent(&e)) pumpEvent(ctx, e, win);   // translate + dispatch input
     ren.beginFrame(ctx.displayedTheme().color("background"));
-    ctx.frame(ren, dt, mouseX, mouseY);   // layout → hover → update → draw
+    ctx.frame(ren, dt, mouseX, mouseY);                 // layout → hover → update → draw
     ren.endFrame();
 }
 ```
 
-The two calls that matter are **`handleEvent`** (feed one translated platform event) and
+The two calls that matter are **`pumpEvent`** (translate one SDL event into a `spry::InputEvent`
+and dispatch it — from the optional `<spry/sdl_host.h>`; §7 shows the manual path too) and
 **`frame`** (run one frame). Everything else is host boilerplate.
+
+> 📸 **Screenshot — blank window.** _Placeholder; captured by the media pipeline
+> ([#11](https://github.com/zimventures/spry/issues/11))._
 
 ---
 
@@ -125,8 +132,12 @@ toggle->onChange = [](bool on) { /* … */ };
 ```
 
 To update a widget, mutate its public fields (e.g. `label->text = "…"`) — the next `frame()`
-re-measures and redraws. See [`examples/gl_demo.cpp`](../examples/gl_demo.cpp) for a gallery
-that exercises nearly every widget.
+re-measures and redraws. See
+[`examples/gl_demo.cpp`](https://github.com/zimventures/spry/blob/main/examples/gl_demo.cpp) for a
+gallery that exercises nearly every widget.
+
+> 📸 **Screenshot — a laid-out UI.** _Placeholder; captured by the media pipeline
+> ([#11](https://github.com/zimventures/spry/issues/11))._
 
 ---
 
@@ -141,15 +152,19 @@ ctx.setThemeImmediate(t);                 // or ctx.setTheme(t) for an animated 
 ```
 
 The core token vocabulary widgets expect is defined in
-[`<spry/theme_tokens.h>`](../include/spry/theme_tokens.h) — colors `background`, `surface`,
-`surfaceAlt`, `accent`, `accentText`, `text`, `textDim`, `scrim`, and metric `radius`, each with
-a `spry::tokens::` constant and a doc comment. Read them with `theme.color(tokens::Accent)` /
-`theme.metric(tokens::Radius)`; a missing token falls back to the value you pass. You can build a
-`Theme` entirely in code, and `theme.missingCoreTokens()` reports any core tokens you left out
-(handy for catching typos after loading a theme file). Hosts may define extra custom tokens too.
+[`<spry/theme_tokens.h>`](https://github.com/zimventures/spry/blob/main/include/spry/theme_tokens.h)
+— colors `background`, `surface`, `surfaceAlt`, `accent`, `accentText`, `text`, `textDim`,
+`scrim`, and metric `radius`, each with a `spry::tokens::` constant and a doc comment. Read them
+with `theme.color(tokens::Accent)` / `theme.metric(tokens::Radius)`; a missing token falls back to
+the value you pass. You can build a `Theme` entirely in code, and `theme.missingCoreTokens()`
+reports any core tokens you left out (handy for catching typos after loading a theme file). Hosts
+may define extra custom tokens too.
 
 `ctx.setTheme(newTheme)` crossfades every token over a few frames — theme switching is animated
 for free.
+
+> 📸 **Screenshot — the same UI, two themes.** _Placeholder; captured by the media pipeline
+> ([#11](https://github.com/zimventures/spry/issues/11))._
 
 ---
 
@@ -168,13 +183,15 @@ float y = lift.value;     // eases toward target, no easing bookkeeping
 There are also `easeOutCubic` / `easeOutBack` for one-shot tweens. `Card`, `Toggle`, and the
 theme crossfade all use `Spring` internally — a good read if you're building an animated widget.
 
+> 🎞️ **GIF — hover lift & spring settle.** _Placeholder; captured by the media pipeline
+> ([#11](https://github.com/zimventures/spry/issues/11))._
+
 ---
 
 ## 7. Input & interactivity
 
 Spry is platform-agnostic: you translate your platform's events into `spry::InputEvent` and call
-`ctx.handleEvent`. `hello.cpp` translates the mouse; the fuller pump in
-[`examples/gl_demo.cpp`](../examples/gl_demo.cpp) also handles keyboard, wheel, text, and IME:
+`ctx.handleEvent`. The manual path is just a struct plus a call:
 
 ```cpp
 InputEvent ev;
@@ -186,9 +203,10 @@ ctx.handleEvent(ev);
 `Context` routes events to the hovered/pressed/focused widget, handles Tab focus traversal, and
 fires `onClick` when a press and release land on the same widget.
 
-If your host is SDL3, the optional **[`<spry/sdl_host.h>`](../include/spry/sdl_host.h)** header
-does all of this for you — include it (it's opt-in, not in the umbrella header) and the loop
-becomes:
+If your host is SDL3, the optional
+**[`<spry/sdl_host.h>`](https://github.com/zimventures/spry/blob/main/include/spry/sdl_host.h)**
+header does all of this for you — include it (it's opt-in, not in the umbrella header) and the
+loop becomes:
 
 ```cpp
 installSdlHost(ctx, win);              // once: SDL clipboard + text-input/IME handlers
@@ -211,7 +229,8 @@ while (running) {
 per-frame mouse passed to `ctx.frame()` (used for hover/drag) must be in the **same** Spry pixel
 space — scale `SDL_GetMouseState` through `mouseToSpry` too, or on HiDPI the two drift apart. A
 non-SDL host translates its platform events into `InputEvent` and calls `ctx.handleEvent` the
-same way.
+same way. The full pump — keyboard, wheel, text, and IME — is in
+[`examples/gl_demo.cpp`](https://github.com/zimventures/spry/blob/main/examples/gl_demo.cpp).
 
 Each frame, read `ctx.cursor()` and apply the platform cursor (Spry asks for resize cursors over
 draggable dividers, etc.).
@@ -236,13 +255,22 @@ same way. A widget's `onClick` can spawn an overlay via `Context::current()->add
 that's how `Combo` opens its dropdown. Hover tooltips are automatic: set `widget->tooltip = "…"`
 and `Context` shows it after a hover delay.
 
+> 📸 **Screenshot — an open menu / modal (interactive).** _Placeholder; captured by the media
+> pipeline ([#11](https://github.com/zimventures/spry/issues/11))._
+
 ---
 
-## Where to go next
+## Next steps
 
-- **[`examples/hello.cpp`](../examples/hello.cpp)** — the minimal app from §2.
-- **[`examples/demo.cpp`](../examples/demo.cpp)** — layout + theming gallery on the SDL backend.
-- **[`examples/gl_demo.cpp`](../examples/gl_demo.cpp)** — the full interactive gallery on the GL
-  backend: every widget, overlays, text editing, clipboard, HiDPI, animated theme swaps.
-- **[`docs/adr/0001-spry-public-api.md`](adr/0001-spry-public-api.md)** — the API
-  reference and design rationale.
+- **Go deeper** — the concept [Guides](guides/index.md): [layout](guides/layout.md),
+  [theming](guides/theming.md), [animation](guides/animation.md), [text](guides/text.md),
+  [input](guides/input.md), and [renderer backends](guides/renderer-backends.md).
+- **Browse the toolkit** — the [widget catalog](widgets/index.md).
+- **Read the code** — the [examples gallery](examples/index.md):
+  [`hello.cpp`](https://github.com/zimventures/spry/blob/main/examples/hello.cpp) (the minimal app
+  from §2), [`demo.cpp`](https://github.com/zimventures/spry/blob/main/examples/demo.cpp) (layout +
+  theming on the SDL backend), and
+  [`gl_demo.cpp`](https://github.com/zimventures/spry/blob/main/examples/gl_demo.cpp) (the full
+  interactive gallery on the GL backend).
+- **Reference** — the [C++ API reference](api/index.html) and the
+  [public-API ADR](adr/0001-spry-public-api.md) (design rationale + stability contract).
