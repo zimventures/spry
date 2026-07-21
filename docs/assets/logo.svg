@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Spry">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#6b7cf6"/>
+      <stop offset="1" stop-color="#4453c8"/>
+    </linearGradient>
+  </defs>
+  <rect x="3" y="3" width="58" height="58" rx="15" fill="url(#g)"/>
+  <!-- a damped "settling spring" wave: large swing, then smaller, then rest -->
+  <path d="M11 44 C 17 16, 24 16, 30 34 S 41 46, 45 30 S 52 26, 55 32"
+        fill="none" stroke="#ffffff" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

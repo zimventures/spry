@@ -48,10 +48,35 @@ Open `docs/api/index.html`, or browse it in-site at `/api/` once MkDocs has buil
     and then `mkdocs serve` — the **API reference** nav entry resolves to the
     generated pages. `docs/api/`, `site/`, and `external/` are all git-ignored.
 
+## Social cards (imaging deps)
+
+The Material **social** plugin generates per-page `og:image` cards, which needs the
+imaging extras (`Pillow` + `CairoSVG`, in `requirements-docs.txt`) **and the native
+Cairo libraries**:
+
+- **Linux** — `sudo apt-get install libcairo2-dev libfreetype6-dev libffi-dev libjpeg-dev libpng-dev libz-dev`
+- **macOS** — `brew install cairo freetype libffi`
+- **Windows** — install [GTK for Windows](https://github.com/tschoonj/GTK-for-Windows-Runtime-Environment-Installer) (provides `cairo.dll`)
+
+CI installs the Linux libs automatically. Cards regenerate on every build.
+
+## Screenshots & GIFs
+
+Site media under `docs/assets/` is captured by a small headless tool — see
+[docs/assets/README.md](https://github.com/zimventures/spry/blob/main/docs/assets/README.md)
+and `scripts/capture-media.sh`. The site build only *consumes* the committed media.
+
+## Versioning
+
+The site publishes a **single, unversioned** copy (latest `main`). We deliberately
+**defer** multi-version docs (e.g. [`mike`](https://github.com/jimporter/mike)) until
+Spry is versioned/extracted (semver begins after the public-repo split, #224). Pre-1.0,
+one always-current site is simpler and there are no released versions to preserve;
+revisit at the first tagged release.
+
 ## Notes
 
 - Dependency versions in `requirements-docs.txt` are pinned for reproducibility;
   bump them deliberately.
-- The full CI build-and-deploy to GitHub Pages is set up in
-  [#3](https://github.com/zimventures/spry/issues/3); the nav/landing-page shape in
-  [#4](https://github.com/zimventures/spry/issues/4).
+- Every push to `main` builds and deploys automatically to
+  <https://zimventures.github.io/spry/>.

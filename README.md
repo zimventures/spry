@@ -7,6 +7,13 @@ GPU-rendered. Built for [Cleat](https://github.com/zimventures/cleat), designed
 from day one to stand alone as a permissively-licensed open-source library.
 Epic: #205.
 
+### 📖 Documentation: **<https://zimventures.github.io/spry/>**
+
+The full docs site is live — a getting-started tutorial, concept guides, a widget
+catalog with screenshots, an examples gallery, and the complete
+[C++ API reference](https://zimventures.github.io/spry/api/). It builds and deploys
+automatically on every push to `main`.
+
 **License:** [zlib](LICENSE) (permissive). Third-party dependency notices:
 [`THIRD_PARTY.md`](THIRD_PARTY.md). Contributions welcome — see
 [`CONTRIBUTING.md`](CONTRIBUTING.md).
@@ -31,12 +38,17 @@ Don't add Cleat includes under `libs/spry/`.
 
 ## Learn it
 
-- **[Getting started](docs/getting-started.md)** — a hands-on tutorial from a blank window to an
-  interactive, themed, animated app.
-- **[API reference & design (ADR)](docs/adr/0001-spry-public-api.md)** — the Context/frame
-  loop, Widget tree, layout, theming, animation, input, and renderer backend; what's stable vs
-  experimental; the theme-token vocabulary.
-- **[Examples](examples/README.md)** — runnable programs, smallest first.
+Start at the **[documentation site](https://zimventures.github.io/spry/)**:
+
+- **[Getting started](https://zimventures.github.io/spry/getting-started/)** — a hands-on tutorial
+  from a blank window to an interactive, themed, animated app.
+- **[Guides](https://zimventures.github.io/spry/guides/)** — layout, theming, animation, text,
+  input, and renderer backends, one concept at a time.
+- **[Widget catalog](https://zimventures.github.io/spry/widgets/)** — every built-in widget with a
+  screenshot and usage snippet.
+- **[Examples](https://zimventures.github.io/spry/examples/)** — runnable programs, smallest first.
+- **[API reference](https://zimventures.github.io/spry/api/)** — generated from the headers; the
+  design rationale + stability contract is in [ADR 0001](docs/adr/0001-spry-public-api.md).
 
 Namespace `spry::`. Include the umbrella header plus exactly one renderer backend:
 

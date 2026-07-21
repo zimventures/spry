@@ -23,18 +23,24 @@ docs_dir: docs
 theme:
   name: material
   language: en
+  logo: assets/logo.svg
+  favicon: assets/logo.svg
   features:
     - navigation.tabs          # top-level sections as tabs
     - navigation.sections      # group nested pages in the sidebar
     - navigation.top           # back-to-top button
     - navigation.instant       # SPA-style instant loading
     - navigation.tracking      # update the URL with the active anchor
+    - navigation.footer        # prev/next links in the footer
     - toc.follow
     - search.suggest
     - search.highlight
+    - search.share             # shareable deep link to a search
     - content.code.copy        # copy button on code blocks
     - content.code.annotate    # inline code annotations
     - content.tabs.link
+    - content.action.edit      # "edit this page" → GitHub (edit_uri)
+    - content.action.view      # "view source" → GitHub
   palette:
     # Light/dark toggle. Palette follows the system preference by default.
     - media: "(prefers-color-scheme)"
@@ -63,6 +69,12 @@ theme:
 
 plugins:
   - search
+  # Social/SEO cards (og:image) generated per page. Needs the imaging extras
+  # (mkdocs-material[imaging] → Pillow + CairoSVG + native Cairo); CI installs the
+  # Cairo system libs. See docs/building-docs.md.
+  - social:
+      cards_layout_options:
+        background_color: "#4453c8"
 
 markdown_extensions:
   - admonition
@@ -91,6 +103,12 @@ markdown_extensions:
   - pymdownx.emoji:
       emoji_index: !!python/name:material.extensions.emoji.twemoji
       emoji_generator: !!python/name:material.extensions.emoji.to_svg
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/zimventures/spry
+      name: Spry on GitHub
 
 # Navigation — the site's information architecture (#4). Section landing pages and
 # guide stubs are navigable end-to-end now; the full prose lands in the content
