@@ -1,32 +1,42 @@
 #pragma once
 #include "renderer.h"
 
-// OpenGL 3.3 backend (#208 second backend, the path to #217). Renders Spry into
-// a host-owned GL context — the integration path for Cleat (SDL3 + OpenGL +
-// ImGui), where SDL_Renderer can't compose. A current GL context must exist
-// before construction; the host provides the drawable size via setSize() (the
-// backend doesn't own the window).
+/// @file gl_renderer.h
+/// The `GlRenderer` backend — embed Spry in a host that owns a GL context.
+
 namespace spry {
 
+/// @addtogroup renderer
+/// @{
+
+/// OpenGL 3.3 backend (#208; the path to #217): renders Spry into a host-owned GL
+/// context, for embedding in an app that already owns the default framebuffer.
+/// Renders to its own FBO and composites. `gl_renderer.h` is pimpl-clean (no SDL).
+/// @note A current GL context must exist before construction, and the host must
+/// provide the drawable size via @ref setSize (the backend doesn't own the window).
 class GlRenderer : public Renderer {
 public:
     GlRenderer();
     ~GlRenderer() override;
 
+    /// Load a TTF for real text (see `SdlRenderer::loadFont`).
     bool loadFont(const char* path);
-    void setSize(int w, int h); // drawable size in pixels; call on resize
-    // Content scale (HiDPI): widgets lay out in logical units and the renderer
-    // scales them to the device-pixel FBO, rasterizing text at device px for
-    // crispness. Default 1 (no scaling). Set to the framebuffer/DPI scale.
+    /// Set the drawable size in pixels; call again on resize.
+    void setSize(int w, int h);
+    /// HiDPI content scale: widgets lay out in logical units and the renderer
+    /// scales them to the device-pixel FBO, rasterizing text at device px for
+    /// crispness. Default 1 (no scaling); set to the framebuffer/DPI scale.
     void setContentScale(float s);
 
-    // Spry renders to an offscreen FBO so it composes with a host that owns the
-    // default framebuffer (e.g. Cleat's ImGui frame, which clears late).
-    unsigned int targetTexture() const;          // GL texture of the rendered UI (for ImGui::Image)
-    void blitToDefault(int dstW, int dstH);       // copy the FBO to the default framebuffer (overwrite)
-    // Composite the FBO onto the default framebuffer with alpha blending — for
-    // presenting a transparent overlay directly over a host frame, without an
-    // ImGui::Image bridge (#222). Fills the FBO's device-pixel extent.
+    /// GL texture id of the rendered UI (e.g. for `ImGui::Image`).
+    /// @note Cleat-shaped but generic — built for a specific host's compositing.
+    unsigned int targetTexture() const;
+    /// Copy the FBO to the default framebuffer (overwrite).
+    /// @note Cleat-shaped but generic.
+    void blitToDefault(int dstW, int dstH);
+    /// Composite the FBO onto the default framebuffer with alpha blending — for
+    /// presenting a transparent overlay over a host frame without an `ImGui::Image`
+    /// bridge (#222). @note Cleat-shaped but generic.
     void presentBlended();
 
     void beginFrame(Color clear) override;
@@ -47,5 +57,7 @@ private:
     struct Impl;
     Impl* d_ = nullptr;
 };
+
+/// @}
 
 } // namespace spry

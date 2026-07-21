@@ -1,28 +1,45 @@
 #pragma once
 
+/// @file layout.h
+/// Small value types shared by every module: sizes, rectangles, edge insets, and
+/// the layout enums.
+
 namespace spry {
 
+/// @addtogroup widgets
+/// @{
+
+/// A width/height pair, in logical pixels.
 struct Size {
-    float w = 0, h = 0;
+    float w = 0;  ///< Width.
+    float h = 0;  ///< Height.
 };
 
+/// An axis-aligned rectangle (position + size), in logical pixels.
 struct Rect {
     float x = 0, y = 0, w = 0, h = 0;
+    /// True if the point (`px`,`py`) lies within this rectangle (edges inclusive).
     bool contains(float px, float py) const {
         return px >= x && px <= x + w && py >= y && py <= y + h;
     }
 };
 
-// Margins / padding. Convenience ctors: Edges(all), Edges(horiz, vert), Edges(l,t,r,b).
+/// Edge insets (margins / padding). Convenience ctors: `Edges(all)`,
+/// `Edges(horiz, vert)`, `Edges(l, t, r, b)`.
 struct Edges {
     float l = 0, t = 0, r = 0, b = 0;
     Edges() = default;
-    Edges(float a) : l(a), t(a), r(a), b(a) {}
-    Edges(float h, float v) : l(h), t(v), r(h), b(v) {}
-    Edges(float l_, float t_, float r_, float b_) : l(l_), t(t_), r(r_), b(b_) {}
+    Edges(float a) : l(a), t(a), r(a), b(a) {}            ///< Same inset on all four sides.
+    Edges(float h, float v) : l(h), t(v), r(h), b(v) {}   ///< Horizontal + vertical insets.
+    Edges(float l_, float t_, float r_, float b_) : l(l_), t(t_), r(r_), b(b_) {}  ///< Per-side.
 };
 
+/// Main axis of a `Box`: lay children out in a row or a column.
 enum class Axis { Row, Column };
+
+/// Cross-axis alignment of children within a `Box`.
 enum class Align { Start, Center, End, Stretch };
+
+/// @}
 
 } // namespace spry

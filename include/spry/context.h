@@ -12,10 +12,19 @@
 #include "theme.h"
 #include "widget.h"
 
-// Owns the root widget + the active theme, and drives a frame: layout -> hover
-// hit-test -> update -> draw. Theme swaps are animated by interpolating tokens.
+/// @file context.h
+/// The application `Context` (#209): owns the tree, theme, overlays, and
+/// interaction state, and drives one frame.
+
 namespace spry {
 
+/// @addtogroup context
+/// @{
+
+/// Owns the root widget and the active theme, and drives a frame:
+/// layout → hover hit-test → update → draw. Theme swaps are animated by
+/// interpolating tokens. The host drives it with two calls per loop:
+/// @ref handleEvent (feed one translated event) and @ref frame (run one frame).
 class Context {
 public:
     Context() {
@@ -24,6 +33,8 @@ public:
         displayed_ = to_;
     }
 
+    /// Replace the root widget. Clears overlays and any focus/press/hover that
+    /// pointed into the old tree (they'd otherwise dangle).
     void setRoot(std::unique_ptr<Widget> root) {
         // Overlays (and the menu actions / tooltips they hold) belong to the current
         // tree — a menu can capture a widget by pointer. Drop them before the old
@@ -35,35 +46,42 @@ public:
         hovered_ = pressed_ = focused_ = nullptr;
         tipTarget_ = nullptr;
     }
+    /// The current root widget, or `nullptr`.
     Widget* root() const { return root_.get(); }
 
-    // Swap with no transition (e.g. initial theme).
+    /// Set the theme with **no** transition (e.g. the initial theme).
     void setThemeImmediate(Theme th) {
         to_ = std::move(th);
         from_ = to_;
         displayed_ = to_;
         trans_ = 1.0f;
     }
-    // Swap with an animated crossfade.
+    /// Set the theme with an animated crossfade from the current theme.
     void setTheme(Theme th) {
         from_ = displayed_;
         to_ = std::move(th);
         trans_ = 0.0f;
     }
+    /// The currently-interpolated theme — draw against this each frame.
     const Theme& displayedTheme() const { return displayed_; }
 
     // ---- input, focus & keyboard (#216) ----
+    /// The focused widget, or `nullptr`.
     Widget* focused() const { return focused_; }
     // Desired mouse cursor this frame: the pressed widget's while a drag is held
     // (so a resize cursor persists off the divider), else the hovered widget's.
     // The host reads this each frame and applies the platform cursor (#222).
+    /// Desired mouse cursor this frame: the pressed widget's while a drag is held
+    /// (so a resize cursor persists off the divider), else the hovered widget's.
+    /// The host reads this each frame and applies the platform cursor (#222).
     Cursor cursor() const {
         Widget* w = pressed_ ? pressed_ : hovered_;
         return w ? w->cursor() : Cursor::Default;
     }
-    // True while a widget holds the pointer (e.g. mid drag on a slider). Lets a host
-    // defer a tree rebuild until the interaction finishes.
+    /// True while a widget holds the pointer (e.g. mid-drag on a slider). Lets a
+    /// host defer a tree rebuild until the interaction finishes.
     bool hasActivePress() const { return pressed_ != nullptr; }
+    /// Move keyboard focus to `w` (or `nullptr` to clear), firing focus callbacks.
     void setFocus(Widget* w) {
         if (w == focused_) return;
         if (focused_) {
@@ -76,36 +94,36 @@ public:
             focused_->onFocusChanged(true);
         }
     }
-    // Host installs platform text input here (#213). Called with active=true and
-    // the caret rect when a text-editing widget is focused (each frame, so the IME
-    // candidate window tracks the caret), and active=false when focus leaves it.
-    // Wire it to SDL_StartTextInput / SDL_SetTextInputArea / SDL_StopTextInput.
+    /// Install the host's platform text-input handler (#213). Called with
+    /// `active=true` and the caret rect each frame while a text-editing widget is
+    /// focused (so the IME candidate window tracks the caret), and `active=false`
+    /// when focus leaves it. Wire it to `SDL_StartTextInput` /
+    /// `SDL_SetTextInputArea` / `SDL_StopTextInput`.
     void setTextInputHandler(std::function<void(bool active, const Rect& caret)> fn) {
         textInput_ = std::move(fn);
     }
 
     // ---- overlays (#214) ----
-    // Push a transient layer (modal/menu/tooltip/toast). It draws above the root,
-    // and — if interactive — captures input until dismissed. Context removes it
-    // once its close animation finishes.
+    /// Push a transient layer (modal/menu/tooltip/toast). It draws above the root
+    /// and — if interactive — captures input until dismissed. `Context` removes it
+    /// once its close animation finishes. Returns a borrowed pointer to it.
     Overlay* addOverlay(std::unique_ptr<Overlay> o) {
         Overlay* p = o.get();
         overlays_.push_back(std::move(o));
         return p;
     }
+    /// True if any interactive overlay (menu/modal) is up.
     bool hasInteractiveOverlay() const { return topInteractiveOverlay() != nullptr; }
-    // Topmost interactive overlay that isn't fully closed yet (one mid-close
-    // animation still counts), or null — for hosts that need to know a menu/modal
-    // is up, and for inspecting overlay content.
+    /// Topmost interactive overlay that isn't fully closed yet (a mid-close
+    /// animation still counts), or `nullptr` — for hosts that need to know a
+    /// menu/modal is up, and for inspecting overlay content.
     Overlay* topOverlay() const { return topInteractiveOverlay(); }
+    /// Number of overlays currently on the stack (including closing ones).
     std::size_t overlayCount() const { return overlays_.size(); }
-    // Drop all overlays immediately (e.g. when a host view is hidden, so a modal
-    // doesn't linger in the Context and reappear on reopen). Clears any
-    // focus/press/hover/tooltip that pointed into them.
-    // Null any focus/press/hover/tooltip target that lives inside `subtree`, before
-    // the caller destroys it (e.g. clearChildren() to repopulate a dynamic list).
-    // Without this those pointers would dangle and the next setFocus() etc. would
-    // touch freed widgets. The subtree itself isn't modified.
+    /// Null any focus/press/hover/tooltip target that lives inside `subtree`,
+    /// before the caller destroys it (e.g. `clearChildren()` to repopulate a
+    /// dynamic list). Without this those pointers would dangle and the next
+    /// `setFocus()` etc. would touch freed widgets. The subtree isn't modified.
     void dropInteractionWithin(Widget* subtree) {
         if (subtreeContains(subtree, focused_)) setFocus(nullptr);
         if (subtreeContains(subtree, pressed_)) pressed_ = nullptr;
@@ -119,6 +137,8 @@ public:
         }
     }
 
+    /// Drop all overlays immediately (e.g. when a host view is hidden). Clears any
+    /// focus/press/hover/tooltip that pointed into them.
     void clearOverlays() {
         for (auto& o : overlays_) {
             if (subtreeContains(o.get(), focused_)) setFocus(nullptr);
@@ -129,14 +149,13 @@ public:
         overlays_.clear();
     }
 
-    // The context currently dispatching an event, so a widget's onClick/onKey can
-    // spawn an overlay (e.g. a Combo opening its dropdown) via current()->addOverlay.
-    // Valid only during handleEvent(); null otherwise. Overlays are spawned at
-    // event time (clicks), never mid-frame, so this can't mutate overlays_ while
-    // frame() iterates them.
+    /// The context currently dispatching an event, so a widget's `onClick`/`onKey`
+    /// can spawn an overlay (e.g. a `Combo` opening its dropdown) via
+    /// `current()->addOverlay(...)`. Valid only during @ref handleEvent; `nullptr`
+    /// otherwise.
     static Context* current() { return current_(); }
 
-    // Host feeds translated platform events here.
+    /// Feed one translated platform event (the host's half of the loop).
     void handleEvent(const InputEvent& e) {
         if (!root_) return;
         Context* prev = current_();
@@ -211,12 +230,16 @@ public:
                 break;
         }
     }
-    // Walk the accessibility tree (role + label per non-None widget). The hook is
-    // present so a platform a11y backend can be added later without rework.
+    /// Walk the accessibility tree, invoking `fn` with each non-`None` widget's
+    /// role + label. @note Experimental: present so a platform a11y backend can be
+    /// added later without rework; nothing consumes it yet.
     void visitAccessible(const std::function<void(Widget*, Role, const std::string&)>& fn) const {
         if (root_) visitA(root_.get(), fn);
     }
 
+    /// Run one frame: advance the theme transition, lay out, hover hit-test,
+    /// update, and draw the tree and overlays. `mouseX`/`mouseY` are the pointer in
+    /// Spry pixels (must match the space @ref handleEvent received).
     void frame(Renderer& r, float dt, float mouseX, float mouseY) {
         if (!root_) return;
         trans_ = std::min(1.0f, trans_ + dt * 4.0f);
@@ -254,9 +277,10 @@ public:
         }
     }
 
-    // Last pointer position seen by handleEvent — the anchor point for a popover opened
-    // from a widget's onClick (which runs during event dispatch, when this is current).
+    /// Last pointer X seen by @ref handleEvent — the anchor point for a popover
+    /// opened from a widget's `onClick` (which runs during event dispatch).
     float lastPointerX() const { return lastPointerX_; }
+    /// Last pointer Y seen by @ref handleEvent (see @ref lastPointerX).
     float lastPointerY() const { return lastPointerY_; }
 
 private:
@@ -393,5 +417,7 @@ private:
     float tipTimer_ = 0.0f;
     Overlay* tip_ = nullptr; // the live hover tooltip, if any
 };
+
+/// @}
 
 } // namespace spry

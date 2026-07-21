@@ -23,6 +23,9 @@ AUTOLINK_SUPPORT       = YES
 
 #---------------------------------------------------------------------------
 # Input
+#
+# Only the public headers under include/spry/ are scanned; src/ (implementation,
+# pimpl structs) is never an input, so it stays out of the reference.
 #---------------------------------------------------------------------------
 INPUT                  = include/spry
 FILE_PATTERNS          = *.h
@@ -33,8 +36,15 @@ STRIP_FROM_INC_PATH    = include
 #---------------------------------------------------------------------------
 # Extraction
 #
-# EXTRACT_ALL surfaces every public entity even where headers are not yet
-# doc-commented; the doc-comment coverage pass (#10) enriches this over time.
+# The public API is grouped into logical modules (Context, Widgets, Theme,
+# Animation, Input, Renderer backends) via @defgroup blocks in spry.h and
+# @addtogroup in each header — see the "Topics" page in the generated site.
+#
+# EXTRACT_ALL stays ON for now (#10, core-first): the core headers are fully
+# doc-commented, while the larger widget headers (widgets.h, data.h, overlay.h,
+# combo.h, colorpicker.h, textfield.h, textarea.h, text_edit.h) are documented in
+# follow-ups. Once they're covered, flip EXTRACT_ALL = NO + WARN_IF_UNDOCUMENTED =
+# YES (and WARN_AS_ERROR) so undocumented public symbols fail the build.
 #---------------------------------------------------------------------------
 EXTRACT_ALL            = YES
 EXTRACT_STATIC         = YES
@@ -47,7 +57,8 @@ SORT_MEMBER_DOCS       = YES
 SORT_BRIEF_DOCS        = YES
 
 #---------------------------------------------------------------------------
-# Warnings — quiet until the #10 coverage pass turns these up.
+# Warnings. WARN_IF_UNDOCUMENTED has no effect while EXTRACT_ALL is ON; it gets
+# turned up together with EXTRACT_ALL = NO when the follow-up headers are covered.
 #---------------------------------------------------------------------------
 QUIET                  = YES
 WARNINGS               = YES
