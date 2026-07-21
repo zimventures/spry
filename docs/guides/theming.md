@@ -22,10 +22,20 @@ Color accent = theme.color("accent");
 float radius = theme.metric("radius", 6.0f); // 6.0 if the theme omits it
 ```
 
-The file format is deliberately minimal — `color name #RRGGBB` / `metric name value`
-lines, no JSON dependency — which keeps Spry's [decoupling
-contract](../adr/0001-spry-public-api.md) intact. A host that already has its own
-config system can skip files and populate a `Theme` programmatically.
+The file format is deliberately minimal — `color <key> r g b [a]` (channels are
+0–255, alpha optional) and `metric <key> <value>` lines, with `#` for comments and
+no JSON dependency — which keeps Spry's
+[decoupling contract](../adr/0001-spry-public-api.md) intact:
+
+```
+# midnight — cool dark theme
+color background  17 18 23
+color accent      96 126 205
+metric radius     12
+```
+
+A host that already has its own config system can skip files and populate a
+`Theme` programmatically.
 
 ## The token vocabulary
 
@@ -47,8 +57,8 @@ extra custom tokens beyond the core set.
 `ctx.setTheme(newTheme)` doesn't snap — it **crossfades every token** over a few
 frames, interpolating each color and metric, so switching themes (light ↔ dark, or
 a user-picked accent) animates for free. `setThemeImmediate` is the no-transition
-version for the initial theme. The interpolation is driven by the same
-[animation](animation.md) machinery the rest of the toolkit uses.
+version for the initial theme. Each token is `lerp`-interpolated along an
+`easeOutCubic` tween (see [Animation](animation.md)).
 
 ```cpp
 ctx.setTheme(Theme::builtinDark());   // animated crossfade from the current theme

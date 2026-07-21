@@ -2,8 +2,9 @@
 
 Animation is Spry's differentiator — a first-class primitive, not a bolt-on.
 Widgets own their own animation state (there are no global side-tables), and the
-core building block is `Spring`, a damped spring. This is why hover lifts, toggles,
-and even [theme crossfades](theming.md) feel alive without per-widget bookkeeping.
+core building block is `Spring`, a damped spring. This is why hover lifts and
+toggles feel alive without any global animation bookkeeping — and the same
+`anim.h` easings drive the [theme crossfade](theming.md).
 
 ## Spring
 
@@ -43,8 +44,11 @@ float k = easeOutBack(progress);   // progress in [0,1]
 
 ## Where it's used
 
-`Card`, `Toggle`, and the theme crossfade all use `Spring` internally — reading
-their sources is the fastest way to learn the pattern for a custom animated widget.
+`Card` and `Toggle` use `Spring` internally (the hover lift, the press, the toggle
+knob) — reading their sources is the fastest way to learn the pattern for a custom
+animated widget. Not everything is a spring, though: the
+[theme crossfade](theming.md) is a time-based `easeOutCubic` tween over
+`lerp`-interpolated tokens, not a `Spring`.
 
 > 🎞️ **GIF — hover lift & spring settle.** _Placeholder; captured by the media
 > pipeline ([#11](https://github.com/zimventures/spry/issues/11))._
