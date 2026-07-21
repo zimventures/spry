@@ -46,4 +46,5 @@ every asset into this directory, and assembles the GIF.
 | `cat-controls.png` | Widget catalog: buttons & controls | dark |
 | `cat-inputs.png` | Widget catalog: text input & selection | dark |
 | `cat-data.png` | Widget catalog: data containers | dark |
+| `cat-modal.png` | Widget catalog: a modal dialog | dark |
 | `cat-notify.png` | Widget catalog: tooltip & toast overlays | dark |

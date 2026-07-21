@@ -221,7 +221,12 @@ static void sceneCatInputs(Context& ctx) {
     ta->prefH = 68;
     auto* cb = root->emplace<Combo>(std::vector<std::string>{"Small", "Medium", "Large"}, 1);
     cb->prefW = 220;
-    root->emplace<ColorField>(Color{96, 126, 205});
+    auto* colors = row(root.get(), 16);
+    colors->cross = Align::Start; // don't stretch the ColorField to the pad's height
+    colors->emplace<ColorField>(Color{96, 126, 205});
+    auto* pad = colors->emplace<ColorPickerPad>(Color{96, 126, 205});
+    pad->prefW = 200;
+    pad->prefH = 150;
     ctx.setRoot(std::move(root));
 }
 
@@ -243,6 +248,23 @@ static void sceneCatText(Context& ctx) {
     p->prefW = 150;
     p->prefH = 78;
     column(p, 16, 6)->emplace<Label>("Panel", 1.4f);
+    // Image: a procedurally-generated RGBA gradient (buffer + handle persist across
+    // the capture frames so the one-time upload survives).
+    static unsigned char imgPix[72 * 72 * 4];
+    static ImageHandle imgHandle = 0;
+    for (int y = 0; y < 72; ++y)
+        for (int x = 0; x < 72; ++x) {
+            int i = (y * 72 + x) * 4;
+            imgPix[i] = (unsigned char)(x * 3 + 40);
+            imgPix[i + 1] = (unsigned char)(y * 3 + 40);
+            imgPix[i + 2] = 200;
+            imgPix[i + 3] = 255;
+        }
+    auto* img = r->emplace<Image>();
+    img->pixels = imgPix;
+    img->srcW = img->srcH = 72;
+    img->drawW = img->drawH = 78;
+    img->handle = &imgHandle;
     ctx.setRoot(std::move(root));
 }
 
@@ -268,6 +290,15 @@ static void sceneCatData(Context& ctx) {
     tv->addRoot("README.md");
     tv->rebuild();
     tv->prefH = 128;
+    auto* svCol = labeledPanel(top, "ScrollView", 236, 178);
+    auto* sv = svCol->emplace<ScrollView>();
+    sv->setContent(std::make_unique<Paragraph>(
+        "A ScrollView is a fixed viewport over taller content — drag the scrollbar "
+        "or use the wheel. This text is intentionally long so it overflows and a "
+        "scrollbar appears on the right edge of the viewport.",
+        1.2f));
+    sv->prefW = 200;
+    sv->prefH = 128;
 
     auto* bot = row(root.get(), 14);
     auto* tbCol = labeledPanel(bot, "Table", 300, 168);
@@ -280,6 +311,32 @@ static void sceneCatData(Context& ctx) {
     tab->tabs = {"Files", "Search", "Git"};
     tab->active = 0;
     ctx.setRoot(std::move(root));
+}
+
+static void sceneCatModal(Context& ctx) {
+    auto root = std::make_unique<Box>();
+    root->axis = Axis::Column;
+    root->padding = Edges(24);
+    root->spacing = 10;
+    root->emplace<Label>("Files", 1.8f);
+    auto* p = root->emplace<Panel>();
+    p->grow = 1.0f;
+    ctx.setRoot(std::move(root));
+
+    // A Modal centers host-arranged content (via setContent) and dims the page.
+    auto modal = std::make_unique<Modal>();
+    auto body = std::make_unique<Box>();
+    body->axis = Axis::Column;
+    body->padding = Edges(22);
+    body->spacing = 12;
+    body->prefW = 300;
+    body->emplace<Label>("Delete file?", 1.6f);
+    body->emplace<Paragraph>("This can't be undone.", 1.3f);
+    auto* btns = row(body.get(), 10);
+    btns->emplace<Button>("Cancel", [] {});
+    btns->emplace<Button>("Delete", [] {});
+    modal->setContent(std::move(body));
+    ctx.addOverlay(std::move(modal));
 }
 
 static void sceneCatNotify(Context& ctx) {
@@ -417,9 +474,10 @@ int main(int argc, char** argv) {
         {"menu-dark", 720, 460, &dark, sceneMenu},
         // Widget-catalog boards (#7)
         {"cat-controls", 560, 430, &dark, sceneCatControls},
-        {"cat-inputs", 560, 400, &dark, sceneCatInputs},
-        {"cat-text", 560, 320, &dark, sceneCatText},
-        {"cat-data", 640, 470, &dark, sceneCatData},
+        {"cat-inputs", 580, 560, &dark, sceneCatInputs},
+        {"cat-text", 620, 340, &dark, sceneCatText},
+        {"cat-data", 760, 470, &dark, sceneCatData},
+        {"cat-modal", 620, 400, &dark, sceneCatModal},
         {"cat-notify", 560, 320, &dark, sceneCatNotify},
     };
 

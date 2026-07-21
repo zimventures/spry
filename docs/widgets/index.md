@@ -17,7 +17,7 @@ tree with `parent->emplace<T>(args…)` (see [Layout](../guides/layout.md)).
 
 ## Text & surfaces
 
-![Label, Paragraph, Card, and Panel rendered in the dark theme](../assets/cat-text.png)
+![Label, Paragraph, a Card, a Panel, and an Image rendered in the dark theme](../assets/cat-text.png)
 
 **`Label`** — a single line of text, sized to its content. `text`, `scale`.
 
@@ -50,8 +50,10 @@ auto* bar = box->emplace<ProgressBar>();
 bar->value = 0.6f;
 ```
 
-**`Image`** — draws an RGBA image uploaded through the renderer (`Renderer::loadImage`).
-`drawW` / `drawH` set the display size. (Not shown above — it needs pixel data.)
+**`Image`** — draws an RGBA image uploaded through the renderer. Point `pixels` at a
+tightly-packed RGBA8 buffer with `srcW`/`srcH`, set the display size with `drawW`/`drawH`,
+and give it a caller-owned `handle` (the upload is cached there across rebuilds). `tint`
+modulates it. Shown as the gradient square above.
 
 ## Buttons & controls
 
@@ -97,7 +99,7 @@ s->onChange = [](float v) { /* … */ };
 
 ## Text input & selection
 
-![A TextField, a TextField with placeholder, a TextArea, a Combo, and a ColorField](../assets/cat-inputs.png)
+![A TextField, a placeholder TextField, a TextArea, a Combo, a ColorField, and a ColorPickerPad](../assets/cat-inputs.png)
 
 **`TextField`** — single-line editing (selection, clipboard, undo). `placeholder`,
 `onChange(text)`, `onSubmit()` (Enter). Construct with initial text.
@@ -132,7 +134,7 @@ cf->onChange = [](Color c) { /* … */ };
 
 ## Data containers
 
-![ListView, TreeView, a sortable Table, and a TabBar](../assets/cat-data.png)
+![ListView, TreeView, a ScrollView, a sortable Table, and a TabBar](../assets/cat-data.png)
 
 All the list-like widgets share a virtualized base (`VirtualList`): they render only
 visible rows, support keyboard navigation and `multiSelect`, and expose `selected` +
@@ -207,8 +209,10 @@ menu->addItem("Delete", [] { /* … */ });
 ctx.addOverlay(std::move(menu));
 ```
 
-**`Modal`** — centered content that dims the background with the `scrim` token;
-dismiss on outside-click / Escape (configurable).
+**`Modal`** — centered content (set via `setContent(...)`) that dims the background
+with the `scrim` token; dismiss on outside-click / Escape (configurable).
+
+![A modal dialog centered over a dimmed page](../assets/cat-modal.png)
 
 **`Tooltip`** — a small bubble shown at an anchor. Hover tooltips are automatic: set
 any widget's `tooltip` field and `Context` shows one after a hover delay.
