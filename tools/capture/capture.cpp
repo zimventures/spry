@@ -168,6 +168,136 @@ static void sceneMenu(Context& ctx) {
 }
 
 // ---------------------------------------------------------------------------
+// Widget-catalog boards (#7): each groups a category so every built-in widget
+// appears in a screenshot.
+// ---------------------------------------------------------------------------
+static Box* labeledPanel(Widget* parent, const char* title, float w, float h) {
+    auto* p = parent->emplace<Panel>();
+    p->prefW = w;
+    p->prefH = h;
+    auto* col = column(p, 12, 8);
+    col->emplace<Label>(title, 1.2f);
+    return col;
+}
+
+static void sceneCatControls(Context& ctx) {
+    auto root = std::make_unique<Box>();
+    root->axis = Axis::Column;
+    root->padding = Edges(26);
+    root->spacing = 14;
+    root->emplace<Label>("Buttons & controls", 1.8f);
+    auto* r = row(root.get(), 12);
+    r->emplace<Button>("Primary", [] {});
+    auto* bf = r->emplace<Button>("Focused", [] {});
+    bf->focused = true; // show the keyboard focus ring
+    auto* checks = row(root.get(), 20);
+    checks->emplace<Checkbox>("Checked", true);
+    checks->emplace<Checkbox>("Unchecked", false);
+    auto* radios = row(root.get(), 20);
+    radios->emplace<RadioButton>("Selected", true);
+    radios->emplace<RadioButton>("Option", false);
+    root->emplace<Toggle>("Toggle (on)", true);
+    auto* sl = root->emplace<Slider>(0.0f, 100.0f, 60.0f);
+    sl->prefW = 300;
+    auto* pb = root->emplace<ProgressBar>();
+    pb->value = 0.6f;
+    pb->prefW = 300;
+    ctx.setRoot(std::move(root));
+}
+
+static void sceneCatInputs(Context& ctx) {
+    auto root = std::make_unique<Box>();
+    root->axis = Axis::Column;
+    root->padding = Edges(26);
+    root->spacing = 14;
+    root->emplace<Label>("Text input & selection", 1.8f);
+    auto* tf = root->emplace<TextField>(std::string("Editable text"));
+    tf->prefW = 320;
+    auto* tf2 = root->emplace<TextField>();
+    tf2->placeholder = "Placeholder…";
+    tf2->prefW = 320;
+    auto* ta = root->emplace<TextArea>(std::string("Multi-line\ntext area"));
+    ta->prefW = 320;
+    ta->prefH = 68;
+    auto* cb = root->emplace<Combo>(std::vector<std::string>{"Small", "Medium", "Large"}, 1);
+    cb->prefW = 220;
+    root->emplace<ColorField>(Color{96, 126, 205});
+    ctx.setRoot(std::move(root));
+}
+
+static void sceneCatText(Context& ctx) {
+    auto root = std::make_unique<Box>();
+    root->axis = Axis::Column;
+    root->padding = Edges(26);
+    root->spacing = 12;
+    root->emplace<Label>("Text & surfaces", 1.8f);
+    root->emplace<Label>("Label — a single line of text", 1.4f);
+    root->emplace<Paragraph>("Paragraph wraps text across multiple lines and honors explicit "
+                             "breaks; its height grows with the content.",
+                             1.3f);
+    auto* r = row(root.get(), 14);
+    auto* c = r->emplace<Card>("Card");
+    c->prefW = 150;
+    c->prefH = 78;
+    auto* p = r->emplace<Panel>();
+    p->prefW = 150;
+    p->prefH = 78;
+    column(p, 16, 6)->emplace<Label>("Panel", 1.4f);
+    ctx.setRoot(std::move(root));
+}
+
+static void sceneCatData(Context& ctx) {
+    auto root = std::make_unique<Box>();
+    root->axis = Axis::Column;
+    root->padding = Edges(20);
+    root->spacing = 12;
+    root->emplace<Label>("Data containers", 1.8f);
+
+    auto* top = row(root.get(), 14);
+    auto* lvCol = labeledPanel(top, "ListView", 236, 178);
+    auto* lv = lvCol->emplace<ListView>();
+    lv->items = {"Alpha", "Bravo", "Charlie", "Delta", "Echo"};
+    lv->selected = 1;
+    lv->prefH = 128;
+    auto* tvCol = labeledPanel(top, "TreeView", 236, 178);
+    auto* tv = tvCol->emplace<TreeView>();
+    auto& src = tv->addRoot("src");
+    src.expanded = true;
+    src.add("main.cpp");
+    src.add("util.h");
+    tv->addRoot("README.md");
+    tv->rebuild();
+    tv->prefH = 128;
+
+    auto* bot = row(root.get(), 14);
+    auto* tbCol = labeledPanel(bot, "Table", 300, 168);
+    auto* tb = tbCol->emplace<Table>();
+    tb->columns = {{"Name", 2.0f}, {"Size", 1.0f}};
+    tb->rows = {{"main.cpp", "4.2 KB"}, {"util.h", "1.1 KB"}, {"README.md", "0.8 KB"}};
+    tb->prefH = 116;
+    auto* tabCol = labeledPanel(bot, "TabBar", 236, 168);
+    auto* tab = tabCol->emplace<TabBar>();
+    tab->tabs = {"Files", "Search", "Git"};
+    tab->active = 0;
+    ctx.setRoot(std::move(root));
+}
+
+static void sceneCatNotify(Context& ctx) {
+    auto root = std::make_unique<Box>();
+    root->axis = Axis::Column;
+    root->padding = Edges(24);
+    root->spacing = 12;
+    root->emplace<Label>("Tooltip & Toast", 1.6f);
+    ctx.setRoot(std::move(root));
+
+    auto tip = std::make_unique<Tooltip>("A hover tooltip", 0.0f);
+    tip->anchorX = 60;
+    tip->anchorY = 70;
+    ctx.addOverlay(std::move(tip));
+    ctx.addOverlay(std::make_unique<Toast>("Saved to disk", 0.0f));
+}
+
+// ---------------------------------------------------------------------------
 // Capture driver.
 // ---------------------------------------------------------------------------
 static bool capture(const std::string& path, int w, int h, const Theme& theme, const SceneFn& scene) {
@@ -285,6 +415,12 @@ int main(int argc, char** argv) {
         {"widgets-dark", 720, 560, &dark, sceneWidgets},
         {"widgets-light", 720, 560, &light, sceneWidgets},
         {"menu-dark", 720, 460, &dark, sceneMenu},
+        // Widget-catalog boards (#7)
+        {"cat-controls", 560, 430, &dark, sceneCatControls},
+        {"cat-inputs", 560, 400, &dark, sceneCatInputs},
+        {"cat-text", 560, 320, &dark, sceneCatText},
+        {"cat-data", 640, 470, &dark, sceneCatData},
+        {"cat-notify", 560, 320, &dark, sceneCatNotify},
     };
 
     int failures = 0;

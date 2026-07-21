@@ -42,3 +42,8 @@ every asset into this directory, and assembles the GIF.
 | `widgets-light.png` | Control gallery | light |
 | `menu-dark.png` | An open context menu (overlay) | dark |
 | `theme-swap.gif` | Animated dark ↔ light theme crossfade | both |
+| `cat-text.png` | Widget catalog: text & surfaces | dark |
+| `cat-controls.png` | Widget catalog: buttons & controls | dark |
+| `cat-inputs.png` | Widget catalog: text input & selection | dark |
+| `cat-data.png` | Widget catalog: data containers | dark |
+| `cat-notify.png` | Widget catalog: tooltip & toast overlays | dark |
