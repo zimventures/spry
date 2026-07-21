@@ -15,7 +15,7 @@ guides go deep on a single subsystem.
 - **[Renderer backends](renderer-backends.md)** — `SdlRenderer` vs `GlRenderer`
   and when to pick each.
 
-!!! info "Content in progress"
-    The guide pages are stubs for now — full prose lands in
-    [#6](https://github.com/zimventures/spry/issues/6). The design reference behind
-    them is the [public-API ADR](https://github.com/zimventures/spry/blob/main/docs/adr/0001-spry-public-api.md).
+Each guide carries a runnable snippet and notes what's stable vs experimental. The
+design reference behind them is the
+[public-API ADR](../adr/0001-spry-public-api.md); the API reference is
+[generated from the headers](../api/index.html).
