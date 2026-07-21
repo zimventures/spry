@@ -44,8 +44,7 @@ You rarely call these directly: the text widgets do it for you.
 See [Input, focus & keyboard nav](input.md) for how the editing widgets receive
 keystrokes, committed text, and IME composition.
 
-> 📸 **Screenshot — shaped text (ligatures & proportional metrics).** _Placeholder;
-> captured by the media pipeline ([#11](https://github.com/zimventures/spry/issues/11))._
+![Proportional, FreeType/HarfBuzz-shaped text throughout the UI](../assets/hello-dark.png)
 
 ## Stability
 

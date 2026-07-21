@@ -43,3 +43,12 @@ Spry uses HarfBuzz for text shaping (ligatures, complex-script layout).
 Spry's GL backend calls the platform's OpenGL implementation, loaded at runtime via
 `SDL_GL_GetProcAddress`. OpenGL is an API specification, not bundled code; no separate license
 notice is required.
+
+## stb_image_write — public domain (dev tool only)
+
+- Project: <https://github.com/nothings/stb>
+- License: public domain (or MIT at your option)
+- Vendored at `tools/capture/stb_image_write.h`.
+
+Used only by the optional headless docs screenshot tool (`spry_capture`, #11) to write PNGs — it
+is **not** part of the Spry library and is never linked into a consumer binary.

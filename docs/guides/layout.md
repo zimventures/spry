@@ -84,8 +84,7 @@ places it along its main axis:
 The shared value types live in `layout.h`: `Size`, `Rect` (with `contains`),
 `Edges` (margins/padding), and the `Axis` / `Align` enums.
 
-> 📸 **Screenshot — a flex row/column layout.** _Placeholder; captured by the media
-> pipeline ([#11](https://github.com/zimventures/spry/issues/11))._
+![Flex layout: a row of cards above a fixed sidebar and a grow split](../assets/layout-dark.png)
 
 ## Stability
 

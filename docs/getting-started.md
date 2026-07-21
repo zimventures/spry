@@ -70,8 +70,7 @@ The two calls that matter are **`pumpEvent`** (translate one SDL event into a `s
 and dispatch it — from the optional `<spry/sdl_host.h>`; §7 shows the manual path too) and
 **`frame`** (run one frame). Everything else is host boilerplate.
 
-> 📸 **Screenshot — blank window.** _Placeholder; captured by the media pipeline
-> ([#11](https://github.com/zimventures/spry/issues/11))._
+![The minimal "hello" app](assets/hello-dark.png)
 
 ---
 
@@ -136,8 +135,7 @@ re-measures and redraws. See
 [`examples/gl_demo.cpp`](https://github.com/zimventures/spry/blob/main/examples/gl_demo.cpp) for a
 gallery that exercises nearly every widget.
 
-> 📸 **Screenshot — a laid-out UI.** _Placeholder; captured by the media pipeline
-> ([#11](https://github.com/zimventures/spry/issues/11))._
+![A control gallery laid out with flex boxes](assets/widgets-dark.png)
 
 ---
 
@@ -163,8 +161,7 @@ may define extra custom tokens too.
 `ctx.setTheme(newTheme)` crossfades every token over a few frames — theme switching is animated
 for free.
 
-> 📸 **Screenshot — the same UI, two themes.** _Placeholder; captured by the media pipeline
-> ([#11](https://github.com/zimventures/spry/issues/11))._
+![The same UI crossfading between the dark and light themes](assets/theme-swap.gif)
 
 ---
 
@@ -184,8 +181,7 @@ There are also `easeOutCubic` / `easeOutBack` for one-shot tweens. `Card` and `T
 `Spring` internally — a good read if you're building an animated widget. (The theme crossfade is
 a time-based `easeOutCubic` tween instead of a spring.)
 
-> 🎞️ **GIF — hover lift & spring settle.** _Placeholder; captured by the media pipeline
-> ([#11](https://github.com/zimventures/spry/issues/11))._
+![An animated theme crossfade — metrics like the corner radius animate too](assets/theme-swap.gif)
 
 ---
 
@@ -256,8 +252,7 @@ same way. A widget's `onClick` can spawn an overlay via `Context::current()->add
 that's how `Combo` opens its dropdown. Hover tooltips are automatic: set `widget->tooltip = "…"`
 and `Context` shows it after a hover delay.
 
-> 📸 **Screenshot — an open menu / modal (interactive).** _Placeholder; captured by the media
-> pipeline ([#11](https://github.com/zimventures/spry/issues/11))._
+![An open context-menu overlay](assets/menu-dark.png)
 
 ---
 

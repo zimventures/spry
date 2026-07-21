@@ -1,0 +1,11 @@
+# daylight — light theme (mirrors builtinLight() in tools/capture/capture.cpp)
+color background  245 246 250
+color surface     255 255 255
+color surfaceAlt  228 231 240
+color text        26 28 36
+color textDim     110 116 132
+color accent      74 110 210
+color accentText  248 250 255
+color scrim       12 14 22 150
+metric radius     10
+metric pad        20

@@ -1,6 +1,9 @@
 build/
+build-capture/
 
 # Documentation build artifacts
+# temporary GIF frame sequence (assembled into .gif, then removed)
+docs/assets/_gifframes/
 # mkdocs build output
 site/
 # Doxygen-generated C++ reference

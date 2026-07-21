@@ -132,8 +132,7 @@ loaded by `demo.cpp` / `gl_demo.cpp` (press **T** to crossfade):
   — a warm, orange-accented theme with a rounder `radius` (`18`) specifically to
   show that **metric** tokens animate too, not just colors.
 
-> 📸 **Screenshot — the token palette / a theme swap.** _Placeholder; captured by
-> the media pipeline ([#11](https://github.com/zimventures/spry/issues/11))._
+![An animated crossfade between two token sets (dark and light)](../assets/theme-swap.gif)
 
 ## Stability
 

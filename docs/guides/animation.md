@@ -50,8 +50,7 @@ animated widget. Not everything is a spring, though: the
 [theme crossfade](theming.md) is a time-based `easeOutCubic` tween over
 `lerp`-interpolated tokens, not a `Spring`.
 
-> 🎞️ **GIF — hover lift & spring settle.** _Placeholder; captured by the media
-> pipeline ([#11](https://github.com/zimventures/spry/issues/11))._
+![An animated theme crossfade — even the corner radius eases between themes](../assets/theme-swap.gif)
 
 ## Stability
 

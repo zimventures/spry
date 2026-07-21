@@ -83,8 +83,7 @@ visible.
 helpers: `lerp(a, b, t)` to blend, and `hsv(h, s, v)` / `toHsv(...)` to convert to
 and from HSV. These back the [color picker](../widgets/index.md) widgets.
 
-> 📸 **Screenshot — the same UI in two themes.** _Placeholder; captured by the media
-> pipeline ([#11](https://github.com/zimventures/spry/issues/11))._
+![The same UI crossfading between the dark and light themes](../assets/theme-swap.gif)
 
 ## Stability
 
