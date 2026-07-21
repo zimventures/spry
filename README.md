@@ -1,5 +1,7 @@
 # Spry
 
+[![Docs](https://github.com/zimventures/spry/actions/workflows/docs.yml/badge.svg)](https://github.com/zimventures/spry/actions/workflows/docs.yml)
+
 A retained-mode, **animation-first** UI toolkit in C++20 — lightweight, themeable,
 GPU-rendered. Built for [Cleat](https://github.com/zimventures/cleat), designed
 from day one to stand alone as a permissively-licensed open-source library.

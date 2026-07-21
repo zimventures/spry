@@ -1,0 +1,97 @@
+# Builds the documentation site (MkDocs Material guides + Doxygen C++ API
+# reference) and deploys it to GitHub Pages on every push to main.
+#
+# On pull requests the site is built but NOT deployed, so a broken docs build is
+# caught before merge. Part of the docs-site epic (#1); scaffolded in #2.
+name: Docs
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'docs/**'
+      - 'include/**'
+      - 'examples/**'
+      - 'mkdocs.yml'
+      - 'Doxyfile'
+      - 'requirements-docs.txt'
+      - 'scripts/fetch-doxygen-awesome.sh'
+      - '.github/workflows/docs.yml'
+  pull_request:
+    paths:
+      - 'docs/**'
+      - 'include/**'
+      - 'examples/**'
+      - 'mkdocs.yml'
+      - 'Doxyfile'
+      - 'requirements-docs.txt'
+      - 'scripts/fetch-doxygen-awesome.sh'
+      - '.github/workflows/docs.yml'
+  workflow_dispatch:
+
+# Least-privilege by default; the deploy job needs Pages + OIDC to publish.
+permissions:
+  contents: read
+
+# One in-flight docs deploy at a time; let a newer push supersede an older one,
+# but never cancel a run that is midway through publishing.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build site
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: requirements-docs.txt
+
+      - name: Install MkDocs dependencies
+        run: pip install -r requirements-docs.txt
+
+      - name: Install Doxygen
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends doxygen
+
+      - name: Fetch doxygen-awesome-css
+        run: bash scripts/fetch-doxygen-awesome.sh
+
+      # Doxygen must run first: it writes docs/api/, which MkDocs then copies
+      # into site/api/ as static files (keeping the two surfaces cleanly linked).
+      - name: Build C++ API reference (Doxygen)
+        run: doxygen
+
+      - name: Build site (MkDocs)
+        # NOTE: strict link-checking (`--strict`) is enabled in #5, once
+        # getting-started.md's repo-relative links are normalized for the site.
+        run: mkdocs build
+
+      - name: Upload Pages artifact
+        if: github.event_name != 'pull_request'
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+  deploy:
+    name: Deploy to GitHub Pages
+    # Build validates every PR; deploy only from main (and manual dispatch).
+    if: github.event_name != 'pull_request'
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy
+        id: deployment
+        uses: actions/deploy-pages@v4
