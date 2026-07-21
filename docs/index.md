@@ -62,9 +62,11 @@ a frame loop:
 
 ```cpp
 #include <spry/spry.h>          // Context, Widget, Box, widgets, Theme, anim, input
-#include <spry/sdl_renderer.h>  // OR <spry/gl_renderer.h>
+#include <spry/sdl_renderer.h>  // one renderer backend — OR <spry/gl_renderer.h>
+#include <spry/sdl_host.h>      // optional SDL event pump: translate + dispatch input
 using namespace spry;
 
+// Build a retained widget tree once.
 auto root = std::make_unique<Box>();
 root->axis = Axis::Column;
 root->padding = Edges(24);
@@ -76,10 +78,17 @@ Context ctx;
 ctx.setRoot(std::move(root));
 ctx.setThemeImmediate(Theme::builtinDark());
 
+// Drive it each frame. (SDL window + SdlRenderer `ren` setup elided — see hello.cpp.)
 while (running) {
-    while (SDL_PollEvent(&e)) ctx.handleEvent(translate(e));  // feed input
+    SDL_Event e;
+    while (SDL_PollEvent(&e)) pumpEvent(ctx, e, win);   // translate + dispatch input
+
+    float mx, my;
+    SDL_GetMouseState(&mx, &my);
+    mouseToSpry(win, mx, my, mx, my);                   // window points → Spry pixels
+
     ren.beginFrame(ctx.displayedTheme().color("background"));
-    ctx.frame(ren, dt, mouseX, mouseY);                       // layout → hover → update → draw
+    ctx.frame(ren, dt, mx, my);                         // layout → hover → update → draw
     ren.endFrame();
 }
 ```
@@ -91,7 +100,8 @@ add_subdirectory(libs/spry)            # or vendor it however you like
 target_link_libraries(myapp PRIVATE spry)
 ```
 
-The full minimal program is [`examples/hello.cpp`](examples/index.md); the
+The full minimal program is [`examples/hello.cpp`](https://github.com/zimventures/spry/blob/main/examples/hello.cpp)
+(see the [examples gallery](examples/index.md)); the
 [Getting started](getting-started.md) tutorial builds it up one piece at a time.
 
 ## Where to next

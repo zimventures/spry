@@ -16,5 +16,6 @@ changes. Mutate a widget's fields and the next `frame()` re-measures and redraws
 
 !!! info "Catalog with screenshots coming in [#7](https://github.com/zimventures/spry/issues/7)"
     A visual catalog — each widget with a screenshot and usage snippet — lands
-    there. For now, [`gl_demo.cpp`](../examples/index.md) exercises nearly every widget,
-    and each type is in the [API reference](../api/index.html).
+    there. For now, [`gl_demo.cpp`](https://github.com/zimventures/spry/blob/main/examples/gl_demo.cpp)
+    exercises nearly every widget (see the [examples](../examples/index.md)), and each
+    type is in the [API reference](../api/index.html).
