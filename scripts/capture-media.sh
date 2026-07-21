@@ -19,10 +19,18 @@ FRAMES="$ASSETS/_gifframes"
 
 echo "==> Building spry_capture"
 cmake -B "$BUILD" -DSPRY_BUILD_CAPTURE=ON -DSPRY_BUILD_DEMO=OFF -DSPRY_BUILD_TESTS=OFF >/dev/null
-cmake --build "$BUILD" --target spry_capture
+cmake --build "$BUILD" --config Release --target spry_capture
 
-echo "==> Rendering screenshots"
-"./$BUILD/spry_capture" "$ASSETS"
+# Locate the binary — single-config generators put it in $BUILD, multi-config
+# ones (Visual Studio / Xcode) under $BUILD/<Config>/; also handle the .exe suffix.
+CAPTURE="$(find "$BUILD" -type f \( -name spry_capture -o -name spry_capture.exe \) 2>/dev/null | head -n1)"
+if [ -z "$CAPTURE" ]; then
+  echo "!! spry_capture binary not found under $BUILD" >&2
+  exit 1
+fi
+
+echo "==> Rendering screenshots ($CAPTURE)"
+"$CAPTURE" "$ASSETS"
 
 if [ -d "$FRAMES" ]; then
   if command -v ffmpeg >/dev/null 2>&1; then

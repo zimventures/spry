@@ -234,11 +234,16 @@ static int captureCrossfadeFrames(const std::string& frameDir, int w, int h, con
         };
         auto dump = [&] {
             char name[64];
-            std::snprintf(name, sizeof name, "frame_%03d.png", n++);
+            std::snprintf(name, sizeof name, "frame_%03d.png", n); // advance only on success
+            bool ok = false;
             if (SDL_LockSurface(surf)) {
-                stbi_write_png((frameDir + "/" + name).c_str(), w, h, 4, surf->pixels, surf->pitch);
+                ok = stbi_write_png((frameDir + "/" + name).c_str(), w, h, 4, surf->pixels, surf->pitch) != 0;
                 SDL_UnlockSurface(surf);
             }
+            if (ok)
+                ++n; // keep the sequence gap-free so ffmpeg's frame_%03d input works
+            else
+                std::fprintf(stderr, "  frame write failed: %s\n", name);
         };
         for (int i = 0; i < 12; ++i) { renderFrame(); }    // warm-up so layout is stable
         ctx.setTheme(light);
@@ -256,6 +261,12 @@ static int captureCrossfadeFrames(const std::string& frameDir, int w, int h, con
 
 int main(int argc, char** argv) {
     SDL_SetMainReady();
+    // Initialize video where it's available (some platforms require it before
+    // creating surfaces/renderers). On a truly headless box the init may fail —
+    // the offscreen software renderer can still work, so warn and continue.
+    if (!SDL_Init(SDL_INIT_VIDEO))
+        std::fprintf(stderr, "SDL_Init(VIDEO) failed (%s); continuing headless\n", SDL_GetError());
+
     std::string dir = argc > 1 ? argv[1] : "docs/assets";
     if (!dir.empty() && dir.back() != '/') dir += '/';
 
@@ -288,5 +299,6 @@ int main(int argc, char** argv) {
     captureCrossfadeFrames(frameDir, 720, 560, sceneWidgets);
 
     std::printf("Done: %zu ok, %d failed\n", jobs.size() - failures, failures);
+    SDL_Quit();
     return failures ? 1 : 0;
 }
