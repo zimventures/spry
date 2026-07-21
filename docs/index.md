@@ -19,6 +19,8 @@ lightweight, themeable, GPU-rendered.
 [Browse the examples](examples/index.md){ .md-button }
 [API reference](api/index.html){ .md-button }
 
+![Spry widgets — buttons, checkboxes, radios, a toggle, a slider, and a progress bar](assets/widgets-dark.png)
+
 ---
 
 ## Why Spry

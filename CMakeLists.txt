@@ -11,6 +11,7 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 option(SPRY_BUILD_DEMO "Build the spry demo/gallery" ON)
+option(SPRY_BUILD_CAPTURE "Build the headless docs screenshot tool" OFF)
 
 # The GL backend (#208) calls GL 1.1 directly; modern entry points are loaded at
 # runtime via SDL_GL_GetProcAddress.
@@ -128,6 +129,18 @@ if(SPRY_BUILD_DEMO)
     target_link_libraries(spry_hello PRIVATE spry)
     if(MINGW)
         target_link_options(spry_hello PRIVATE -static -static-libgcc -static-libstdc++)
+    endif()
+endif()
+
+# Headless docs screenshot tool (#11). Renders scenes to PNG via an offscreen SDL
+# software renderer — no window needed — so the site's media regenerates in one
+# command. Off by default; the docs media pipeline (and CI) turn it on. Links only
+# the public Spry API + SDL3, like any consumer.
+if(SPRY_BUILD_CAPTURE)
+    add_executable(spry_capture tools/capture/capture.cpp)
+    target_link_libraries(spry_capture PRIVATE spry)
+    if(MINGW)
+        target_link_options(spry_capture PRIVATE -static -static-libgcc -static-libstdc++)
     endif()
 endif()
 
