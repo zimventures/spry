@@ -1,0 +1,7 @@
+# Python dependencies for building the Spry documentation site (MkDocs side).
+# Install into a virtualenv:  pip install -r requirements-docs.txt
+# The C++ API reference is built separately with Doxygen (see docs/building-docs.md).
+#
+# Pins are exact so local builds and CI stay reproducible. Bump deliberately.
+mkdocs-material==9.7.7
+pymdown-extensions==11.0.1
