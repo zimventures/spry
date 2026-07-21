@@ -83,3 +83,10 @@ FULL_SIDEBAR           = NO
 HTML_COLORSTYLE        = LIGHT
 HTML_EXTRA_STYLESHEET  = external/doxygen-awesome-css/doxygen-awesome.css
 HTML_DYNAMIC_SECTIONS  = YES
+
+#---------------------------------------------------------------------------
+# Diagrams. Graphviz (`dot`) isn't a build dependency, so disable the dot-based
+# graphs — otherwise doxygen shells out to a missing `dot` and (under
+# WARN_AS_ERROR) fails the build. Doxygen still lists inheritance textually.
+#---------------------------------------------------------------------------
+HAVE_DOT               = NO
