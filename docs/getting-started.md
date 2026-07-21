@@ -180,8 +180,9 @@ lift.step(dt);            // call each frame
 float y = lift.value;     // eases toward target, no easing bookkeeping
 ```
 
-There are also `easeOutCubic` / `easeOutBack` for one-shot tweens. `Card`, `Toggle`, and the
-theme crossfade all use `Spring` internally — a good read if you're building an animated widget.
+There are also `easeOutCubic` / `easeOutBack` for one-shot tweens. `Card` and `Toggle` use
+`Spring` internally — a good read if you're building an animated widget. (The theme crossfade is
+a time-based `easeOutCubic` tween instead of a spring.)
 
 > 🎞️ **GIF — hover lift & spring settle.** _Placeholder; captured by the media pipeline
 > ([#11](https://github.com/zimventures/spry/issues/11))._
