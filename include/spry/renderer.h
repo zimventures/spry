@@ -18,8 +18,9 @@ namespace spry {
 
 /// A single 2D vertex: position + color (for `Renderer::fillMesh`).
 struct Vertex {
-    float x = 0, y = 0;  ///< Position, in logical pixels.
-    Color color;         ///< Vertex color.
+    float x = 0;  ///< X position, in logical pixels.
+    float y = 0;  ///< Y position, in logical pixels.
+    Color color;  ///< Vertex color.
 };
 
 /// A triangle mesh: a vertex list plus triangle indices.

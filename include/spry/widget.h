@@ -86,12 +86,12 @@ public:
     /// Append focusable descendants in tree order (for Tab navigation).
     void collectFocusable(std::vector<Widget*>& out);
 
-    /// @name Input hooks (#216)
-    /// Override to react to input; return `true` to consume the event.
-    /// @{
+    // Input hooks (#216): override to react to input; return true to consume.
+    /// Mouse pressed over this widget.
     virtual bool onMouseDown(float /*x*/, float /*y*/, int /*button*/, bool /*shift*/, bool /*ctrl*/) {
         return false;
     }
+    /// Mouse released over this widget.
     virtual bool onMouseUp(float /*x*/, float /*y*/, int /*button*/) { return false; }
     /// Mouse moved while this widget holds the press capture (drag select, #213).
     virtual void onMouseDrag(float /*x*/, float /*y*/) {}
@@ -100,12 +100,14 @@ public:
     /// Scroll wheel over this widget; `dy` is in notches (+ = up). Return `true` to
     /// consume — `Context` bubbles up the parent chain until something does (#215).
     virtual bool onWheel(float /*dx*/, float /*dy*/) { return false; }
+    /// A key was pressed while this widget is focused.
     virtual bool onKey(Key /*key*/, bool /*shift*/, bool /*ctrl*/, bool /*alt*/) { return false; }
+    /// Committed UTF-8 text was entered while this widget is focused.
     virtual void onText(const char* /*utf8*/) {}
     /// IME pre-edit (composition) text, not yet committed (#213).
     virtual void onTextEditing(const char* /*utf8*/) {}
+    /// This widget gained or lost focus.
     virtual void onFocusChanged(bool /*focused*/) {}
-    /// @}
 
     /// Mouse cursor to show while this widget is the hover/press target (#222).
     virtual Cursor cursor() const { return Cursor::Default; }

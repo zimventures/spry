@@ -7,25 +7,33 @@
 #include "text_edit.h"
 #include "widget.h"
 
-// A multi-line editable text area (#250): word-wrapped lines, hard line breaks on
-// Enter, vertical caret navigation (Up/Down, line-relative Home/End), click-to-place
-// across rows, drag + shift selection spanning rows, clipboard/undo, and a vertical
-// scroll. Shares the EditBuffer model with TextField (byte-level edits work across
-// newlines); this widget adds the 2D layout + navigation. Colours/metrics come from
-// the Theme.
+/// @file textarea.h
+/// A multi-line editable text area.
+
 namespace spry {
 
+/// @addtogroup widgets
+/// @{
+
+/// A multi-line editable text area (#250): word-wrapped lines, hard line breaks on
+/// Enter, vertical caret navigation, click-to-place across rows, drag + shift
+/// selection spanning rows, clipboard/undo, and a vertical scroll. Shares the
+/// @ref EditBuffer model with `TextField`; this widget adds the 2D layout +
+/// navigation. Colors/metrics come from the `Theme`.
 class TextArea : public Widget {
 public:
-    std::string placeholder;
-    float scale = 1.4f;
-    int visibleRows = 4;                               // height, in text rows
-    std::function<void(const std::string&)> onChange; // fired after any edit
+    std::string placeholder;  ///< Dimmed hint shown when empty.
+    float scale = 1.4f;       ///< Text scale (multiple of the base size).
+    int visibleRows = 4;      ///< Preferred height, in text rows.
+    std::function<void(const std::string&)> onChange;  ///< Fired after any edit, with the text.
 
     TextArea() { focusable = true; }
+    /// Construct with initial text.
     explicit TextArea(std::string initial) : TextArea() { edit_.setText(std::move(initial)); }
 
+    /// Replace the contents.
     void setText(const std::string& t) { edit_.setText(t); }
+    /// The current text.
     const std::string& text() const { return edit_.text(); }
 
     Size measure(Renderer& r, float availW, float availH) override;
@@ -85,5 +93,7 @@ private:
     static constexpr float kScrollW = 12.0f;  // scrollbar gutter width
     static constexpr float kMinThumb = 24.0f; // minimum thumb height
 };
+
+/// @}
 
 } // namespace spry

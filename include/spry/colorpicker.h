@@ -13,17 +13,27 @@
 // swatch button. Built for the Settings Colour type (which stores #RRGGBB) but the
 // widgets work in spry::Color; hex conversion stays in the caller. Drag either
 // region to edit; the field fires onChange live.
+/// @file colorpicker.h
+/// The color-picker widgets: the SV/hue pad, its popup, and the swatch field.
+
 namespace spry {
 
-// The interactive picker pad: an SV square (current hue) over a hue strip.
+/// @addtogroup widgets
+/// @{
+
+/// The interactive picker pad: a saturation/value square (at the current hue) over
+/// a hue strip. Drag either region to edit; fires @ref onChange live.
 class ColorPickerPad : public Widget {
 public:
-    std::function<void(Color)> onChange;
+    std::function<void(Color)> onChange;  ///< Fired live as the color is dragged.
 
     ColorPickerPad() = default;
+    /// Construct showing color `c`.
     explicit ColorPickerPad(Color c) { setColor(c); }
 
+    /// Set the displayed color.
     void setColor(Color c) { toHsv(c, h_, s_, v_); }
+    /// The currently-picked color.
     Color color() const { return hsv(h_, s_, v_); }
 
     Size measure(Renderer&, float, float) override {
@@ -122,12 +132,14 @@ private:
     Mode mode_ = Mode::None;
 };
 
-// The popup wrapping a ColorPickerPad, anchored near a point; dismisses on outside
-// click / Escape like a Menu.
+/// The popup that wraps a @ref ColorPickerPad, anchored near a point; dismisses on
+/// outside-click / Escape like a `Menu`.
 class ColorPicker : public Overlay {
 public:
-    float anchorX = 0.0f, anchorY = 0.0f;
+    float anchorX = 0.0f;  ///< Anchor X, in Spry coordinates.
+    float anchorY = 0.0f;  ///< Anchor Y, in Spry coordinates.
 
+    /// Open a picker starting at `initial`, reporting live edits to `onChange`.
     ColorPicker(Color initial, std::function<void(Color)> onChange) {
         dimBackground = false;
         dismissOnOutsideClick = true;
@@ -137,10 +149,12 @@ public:
     }
 
 protected:
+    /// Place the content near the anchor, clamped to the window.
     Rect placeContent(Rect full, Size cs) override {
         float rise = (1.0f - presence()) * 8.0f;
         return clampToWindow(full, Rect{anchorX, anchorY + rise, cs.w, cs.h});
     }
+    /// Paint the popup's surface + drop shadow.
     void paintSurface(Renderer& r, const Theme& th) override {
         Rect c = contentRect_;
         float rad = th.metric(tokens::Radius, 10.0f);
@@ -151,18 +165,20 @@ protected:
     }
 };
 
-// A swatch button showing the current colour; opens a ColorPicker on click. This
-// is the widget callers place (e.g. a Settings Colour row).
+/// A swatch button showing the current color; opens a @ref ColorPicker on click.
+/// This is the widget callers place.
 class ColorField : public Widget {
 public:
-    Color value{128, 128, 128};
-    float scale = 1.4f;
-    bool showHex = true;
-    std::function<void(Color)> onChange; // fired live as the picker is dragged
+    Color value{128, 128, 128};  ///< The current color.
+    float scale = 1.4f;          ///< Text scale for the hex label.
+    bool showHex = true;         ///< Whether to draw the `#RRGGBB` label beside the swatch.
+    std::function<void(Color)> onChange;  ///< Fired live as the picker is dragged.
 
     ColorField() { focusable = true; }
+    /// Construct showing color `c`.
     explicit ColorField(Color c) : ColorField() { value = c; }
 
+    /// The current color as a `#RRGGBB` string.
     std::string hex() const {
         char buf[8];
         std::snprintf(buf, sizeof(buf), "#%02X%02X%02X", (unsigned)value.r, (unsigned)value.g, (unsigned)value.b);
@@ -203,5 +219,7 @@ public:
                    th.color(tokens::Text, {226, 229, 242}), hex().c_str());
     }
 };
+
+/// @}
 
 } // namespace spry

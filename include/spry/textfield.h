@@ -7,24 +7,33 @@
 #include "text_edit.h"
 #include "widget.h"
 
-// A single-line editable text field (#213): caret, click-to-place, drag + shift
-// selection, double-click word select, clipboard cut/copy/paste, undo/redo, and
-// IME composition. Colours and metrics come from the active Theme. The editing
-// logic lives in EditBuffer; this widget adds hit-testing, scrolling, and paint.
+/// @file textfield.h
+/// A single-line editable text field.
+
 namespace spry {
 
+/// @addtogroup widgets
+/// @{
+
+/// A single-line editable text field (#213): caret, click-to-place, drag + shift
+/// selection, double-click word select, clipboard cut/copy/paste, undo/redo, and
+/// IME composition. Colors and metrics come from the active `Theme`. The editing
+/// logic lives in @ref EditBuffer; this widget adds hit-testing, scrolling, and paint.
 class TextField : public Widget {
 public:
-    std::string placeholder;
-    float scale = 1.4f;
-    bool masked = false; // render each character as a bullet (password fields)
-    std::function<void(const std::string&)> onChange; // fired after any edit
-    std::function<void()> onSubmit;                    // Enter pressed
+    std::string placeholder;  ///< Dimmed hint shown when the field is empty.
+    float scale = 1.4f;       ///< Text scale (multiple of the base size).
+    bool masked = false;      ///< Render each character as a bullet (password fields).
+    std::function<void(const std::string&)> onChange;  ///< Fired after any edit, with the text.
+    std::function<void()> onSubmit;                    ///< Fired when Enter is pressed.
 
     TextField() { focusable = true; }
+    /// Construct with initial text.
     explicit TextField(std::string initial) : TextField() { edit_.setText(std::move(initial)); }
 
+    /// Replace the contents.
     void setText(const std::string& t) { edit_.setText(t); }
+    /// The current text.
     const std::string& text() const { return edit_.text(); }
 
     Size measure(Renderer& r, float availW, float availH) override;
@@ -71,5 +80,7 @@ private:
     Renderer* r_ = nullptr; // last renderer seen (events need it to measure)
     static constexpr float kPad = 10.0f;
 };
+
+/// @}
 
 } // namespace spry
