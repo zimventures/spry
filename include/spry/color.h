@@ -3,20 +3,32 @@
 #include <cmath>
 #include <cstdint>
 
+/// @file color.h
+/// The `Color` value type and small color helpers.
+
 namespace spry {
 
+/// @addtogroup theme
+/// @{
+
+/// A plain 8-bit-per-channel RGBA color. Default is opaque black.
 struct Color {
-    uint8_t r = 0, g = 0, b = 0, a = 255;
+    uint8_t r = 0;    ///< Red   (0–255).
+    uint8_t g = 0;    ///< Green (0–255).
+    uint8_t b = 0;    ///< Blue  (0–255).
+    uint8_t a = 255;  ///< Alpha (0–255); 255 = opaque.
 };
 
+/// Linear interpolation between two floats: `a` at `t=0`, `b` at `t=1`.
 inline float lerpf(float a, float b, float t) { return a + (b - a) * t; }
 
+/// Per-channel linear interpolation between two colors (used by theme crossfades).
 inline Color lerp(Color a, Color b, float t) {
     return Color{(uint8_t)lerpf(a.r, b.r, t), (uint8_t)lerpf(a.g, b.g, t),
                  (uint8_t)lerpf(a.b, b.b, t), (uint8_t)lerpf(a.a, b.a, t)};
 }
 
-// HSV <-> RGB, all components in [0,1]. hsv() wraps hue and returns opaque RGB.
+/// HSV → RGB. All inputs in [0,1]; hue wraps. Returns an opaque color.
 inline Color hsv(float h, float s, float v) {
     h -= std::floor(h); // wrap to [0,1)
     s = s < 0 ? 0 : (s > 1 ? 1 : s);
@@ -39,6 +51,7 @@ inline Color hsv(float h, float s, float v) {
     return Color{(uint8_t)(r * 255 + 0.5f), (uint8_t)(g * 255 + 0.5f), (uint8_t)(b * 255 + 0.5f), 255};
 }
 
+/// RGB → HSV. Writes hue/saturation/value (each in [0,1]) to the out-params.
 inline void toHsv(Color c, float& h, float& s, float& v) {
     float r = c.r / 255.0f, g = c.g / 255.0f, b = c.b / 255.0f;
     float mx = std::max({r, g, b}), mn = std::min({r, g, b}), d = mx - mn;
@@ -56,5 +69,7 @@ inline void toHsv(Color c, float& h, float& s, float& v) {
         h = (r - g) / d + 4.0f;
     h /= 6.0f;
 }
+
+/// @}
 
 } // namespace spry

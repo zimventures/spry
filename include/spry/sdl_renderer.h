@@ -5,18 +5,27 @@
 
 #include "renderer.h"
 
-// The SDL_Renderer backend (#208). Construct it with an SDL_Renderer* the host
-// already owns. Real text uses FreeType (#212) via a private glyph-texture cache;
-// FreeType is kept out of this header (pimpl) so consumers don't pull it in.
+/// @file sdl_renderer.h
+/// The `SdlRenderer` backend — the simple, standalone path.
+/// @note Including this header pulls in `<SDL3/SDL.h>`.
+
 namespace spry {
 
+/// @addtogroup renderer
+/// @{
+
+/// The `SDL_Renderer` backend (#208): the simple, standalone path. Construct it
+/// with an `SDL_Renderer*` the host already owns. Real text uses FreeType (#212)
+/// via a private glyph-texture cache, kept out of this header (pimpl) so consumers
+/// don't pull FreeType in.
 class SdlRenderer : public Renderer {
 public:
+    /// Wrap a host-owned `SDL_Renderer*`.
     explicit SdlRenderer(SDL_Renderer* r);
     ~SdlRenderer() override;
 
-    // Load a TTF for real text. Returns false if it can't be loaded; text() then
-    // falls back to SDL's debug font.
+    /// Load a TTF for real text. Returns `false` if it can't be loaded; `text()`
+    /// then falls back to SDL's debug font.
     bool loadFont(const char* path);
 
     void beginFrame(Color clear) override;
@@ -39,5 +48,7 @@ private:
     Text* text_ = nullptr;
     std::vector<SDL_Texture*> images_; // uploaded image textures, freed in the dtor
 };
+
+/// @}
 
 } // namespace spry

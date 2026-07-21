@@ -7,17 +7,21 @@
 #include "context.h"
 #include "input.h"
 
-// Optional SDL host glue (#320). Spry's core is platform-agnostic: it consumes already-
-// translated spry::InputEvent and installs host-provided clipboard / text-input handlers. This
-// header packages the standard SDL3 wiring every SDL host would otherwise copy by hand —
-// keycode translation, the event pump (with HiDPI point->pixel scaling and Cmd->Ctrl), and the
-// clipboard + IME handlers. It is opt-in and NOT part of <spry/spry.h>: including it pulls in
-// SDL3, and a non-SDL host translates events itself. Keep this thin — it's convenience, not a
-// new layer.
+/// @file sdl_host.h
+/// Optional SDL host glue (#320). Spry's core is platform-agnostic; this header
+/// packages the standard SDL3 wiring every SDL host would otherwise copy by hand —
+/// keycode translation, the event pump (with HiDPI point→pixel scaling and
+/// Cmd→Ctrl), and the clipboard + IME handlers.
+/// @note Opt-in and **not** part of `<spry/spry.h>`: including it pulls in SDL3. A
+/// non-SDL host translates events itself.
+
 namespace spry {
 
-// Translate an SDL keycode to the spry::Key subset the toolkit acts on. Printable text arrives
-// as SDL_EVENT_TEXT_INPUT (a Text event), not through here.
+/// @addtogroup input
+/// @{
+
+/// Translate an SDL keycode to the `spry::Key` subset the toolkit acts on.
+/// Printable text arrives as `SDL_EVENT_TEXT_INPUT` (a `Text` event), not here.
 inline Key toKey(SDL_Keycode k) {
     switch (k) {
         case SDLK_TAB: return Key::Tab;
@@ -44,8 +48,9 @@ inline Key toKey(SDL_Keycode k) {
     }
 }
 
-// Scale window-point coordinates (what SDL mouse events carry) to Spry's pixel space, so
-// hit-testing lines up on HiDPI displays. On a non-HiDPI window pixels == points (scale 1).
+/// Scale window-point coordinates (what SDL mouse events carry) to Spry's pixel
+/// space via `win`, writing the result to `ox`/`oy`, so hit-testing lines up on
+/// HiDPI displays. On a non-HiDPI window, pixels == points (scale 1).
 inline void mouseToSpry(SDL_Window* win, float px, float py, float& ox, float& oy) {
     int wp = 0, hp = 0, ww = 0, hh = 0;
     SDL_GetWindowSizeInPixels(win, &wp, &hp);
@@ -54,8 +59,8 @@ inline void mouseToSpry(SDL_Window* win, float px, float py, float& ox, float& o
     oy = py * (hh > 0 ? (float)hp / hh : 1.0f);
 }
 
-// Install SDL clipboard handlers on the toolkit (global; call once). Text fields then reach the
-// system clipboard for cut/copy/paste.
+/// Install SDL clipboard handlers on the toolkit (global; call once). Text fields
+/// then reach the system clipboard for cut/copy/paste.
 inline void installSdlClipboard() {
     setClipboardHandlers(
         [] {
@@ -67,9 +72,9 @@ inline void installSdlClipboard() {
         [](const std::string& s) { SDL_SetClipboardText(s.c_str()); });
 }
 
-// Install SDL text-input / IME handling on a Context for `win` (call once). Starts/stops
-// platform text input as focus enters/leaves a text widget and tracks the caret so the IME
-// candidate window follows it (converting the caret from Spry pixels back to window points).
+/// Install SDL text-input / IME handling on `ctx` for `win` (call once).
+/// Starts/stops platform text input as focus enters/leaves a text widget and
+/// tracks the caret so the IME candidate window follows it.
 inline void installSdlTextInput(Context& ctx, SDL_Window* win) {
     ctx.setTextInputHandler([win](bool active, const Rect& caret) {
         if (!active) {
@@ -86,16 +91,16 @@ inline void installSdlTextInput(Context& ctx, SDL_Window* win) {
     });
 }
 
-// Install both the clipboard and text-input handlers.
+/// Install both the clipboard and text-input handlers (the usual one-liner setup).
 inline void installSdlHost(Context& ctx, SDL_Window* win) {
     installSdlClipboard();
     installSdlTextInput(ctx, win);
 }
 
-// Translate one SDL event into a spry::InputEvent and dispatch it to `ctx`. Returns true if the
-// event was a Spry input event (translated + dispatched), false otherwise — the host still
-// handles SDL_EVENT_QUIT, window resize, etc. itself. Mouse coordinates are scaled to Spry
-// pixels via `win`; Cmd is folded into Ctrl so editing chords work on macOS.
+/// Translate one SDL event into a `spry::InputEvent` and dispatch it to `ctx`.
+/// Returns `true` if it was a Spry input event (translated + dispatched), `false`
+/// otherwise — the host still handles `SDL_EVENT_QUIT`, resize, etc. itself. Mouse
+/// coordinates are scaled to Spry pixels via `win`; Cmd folds into Ctrl on macOS.
 inline bool pumpEvent(Context& ctx, const SDL_Event& e, SDL_Window* win) {
     InputEvent ev;
     switch (e.type) {
@@ -151,5 +156,7 @@ inline bool pumpEvent(Context& ctx, const SDL_Event& e, SDL_Window* win) {
     ctx.handleEvent(ev);
     return true;
 }
+
+/// @}
 
 } // namespace spry

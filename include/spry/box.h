@@ -3,29 +3,36 @@
 
 #include "widget.h"
 
-// Flex container (#209): arranges children along a main axis (Row/Column) with
-// fixed/auto/grow sizing, spacing, padding, and cross-axis alignment.
+/// @file box.h
+/// Flex + flow layout containers.
+
 namespace spry {
 
+/// @addtogroup widgets
+/// @{
+
+/// Flex container (#209): arranges children along a main @ref axis (Row/Column)
+/// with fixed/auto/grow sizing, spacing, padding, and cross-axis alignment.
 class Box : public Widget {
 public:
-    Axis axis = Axis::Column;
-    float spacing = 0.0f;
-    Edges padding;
-    Align cross = Align::Stretch;
+    Axis axis = Axis::Column;   ///< Main axis children are laid out along.
+    float spacing = 0.0f;       ///< Gap between children, in logical pixels.
+    Edges padding;              ///< Inset around the children.
+    Align cross = Align::Stretch;  ///< Cross-axis alignment of children.
 
     Size measure(Renderer& r, float availW, float availH) override;
     void arrange(Renderer& r, Rect rect) override;
 };
 
-// Flow container (#220): lays children left-to-right and wraps to a new line when
-// the next one would overflow the available width — for toolbars in a resizable
-// pane that can't always fit on one line. Reflows as the width changes. Children
-// keep their measured (or prefW/prefH) size; no grow/stretch.
+/// Flow container (#220): lays children left-to-right and wraps to a new line when
+/// the next one would overflow the available width — for toolbars in a resizable
+/// pane that can't always fit on one line. Reflows as the width changes. Children
+/// keep their measured (or `prefW`/`prefH`) size; no grow/stretch.
 class WrapBox : public Widget {
 public:
-    float hspace = 6.0f, vspace = 6.0f;
-    Edges padding;
+    float hspace = 6.0f;  ///< Horizontal gap between items on a line.
+    float vspace = 6.0f;  ///< Vertical gap between wrapped lines.
+    Edges padding;        ///< Inset around the children.
 
     Size measure(Renderer& r, float availW, float availH) override {
         float inner = std::max(0.0f, (availW > 0 ? availW : 1e9f) - padding.l - padding.r);
@@ -77,5 +84,7 @@ public:
         }
     }
 };
+
+/// @}
 
 } // namespace spry
