@@ -132,10 +132,10 @@ loaded by `demo.cpp` / `gl_demo.cpp` (press **T** to crossfade):
   — a warm, orange-accented theme with a rounder `radius` (`18`) specifically to
   show that **metric** tokens animate too, not just colors.
 
-<iframe class="spry-demo" src="../assets/wasm/demo.html?scene=theming"
+<iframe class="spry-demo" src="../../assets/wasm/demo.html?scene=theming"
         title="Spry live demo — two token sets crossfading (click or press T)"
         loading="lazy" sandbox="allow-scripts allow-same-origin"></iframe>
-<noscript><img class="spry-demo" src="../assets/wasm/scene-theming.png" alt="An animated crossfade between two token sets (dark and light)"></noscript>
+<noscript><img class="spry-demo" src="../../assets/wasm/scene-theming.png" alt="An animated crossfade between two token sets (dark and light)"></noscript>
 
 ## Stability
 

@@ -44,10 +44,10 @@ You rarely call these directly: the text widgets do it for you.
 See [Input, focus & keyboard nav](input.md) for how the editing widgets receive
 keystrokes, committed text, and IME composition.
 
-<iframe class="spry-demo" src="../assets/wasm/demo.html?scene=text"
+<iframe class="spry-demo" src="../../assets/wasm/demo.html?scene=text"
         title="Spry live demo — FreeType + HarfBuzz text shaping, ligatures, and wrapping"
         loading="lazy" sandbox="allow-scripts allow-same-origin"></iframe>
-<noscript><img class="spry-demo" src="../assets/wasm/scene-text.png" alt="Proportional, FreeType/HarfBuzz-shaped text throughout the UI"></noscript>
+<noscript><img class="spry-demo" src="../../assets/wasm/scene-text.png" alt="Proportional, FreeType/HarfBuzz-shaped text throughout the UI"></noscript>
 
 ## Stability
 

@@ -135,10 +135,10 @@ re-measures and redraws. See
 [`examples/gl_demo.cpp`](https://github.com/zimventures/spry/blob/main/examples/gl_demo.cpp) for a
 gallery that exercises nearly every widget.
 
-<iframe class="spry-demo" src="assets/wasm/demo.html?scene=controls"
+<iframe class="spry-demo" src="../assets/wasm/demo.html?scene=controls"
         title="Spry live demo — an interactive control gallery"
         loading="lazy" sandbox="allow-scripts allow-same-origin"></iframe>
-<noscript><img class="spry-demo" src="assets/wasm/scene-controls.png" alt="A control gallery laid out with flex boxes"></noscript>
+<noscript><img class="spry-demo" src="../assets/wasm/scene-controls.png" alt="A control gallery laid out with flex boxes"></noscript>
 
 ---
 
@@ -164,10 +164,10 @@ may define extra custom tokens too.
 `ctx.setTheme(newTheme)` crossfades every token over a few frames — theme switching is animated
 for free.
 
-<iframe class="spry-demo" src="assets/wasm/demo.html?scene=theming"
+<iframe class="spry-demo" src="../assets/wasm/demo.html?scene=theming"
         title="Spry live demo — hot-swappable themes (click or press T to crossfade)"
         loading="lazy" sandbox="allow-scripts allow-same-origin"></iframe>
-<noscript><img class="spry-demo" src="assets/wasm/scene-theming.png" alt="The same UI crossfading between the dark and light themes"></noscript>
+<noscript><img class="spry-demo" src="../assets/wasm/scene-theming.png" alt="The same UI crossfading between the dark and light themes"></noscript>
 
 ---
 
@@ -187,7 +187,10 @@ There are also `easeOutCubic` / `easeOutBack` for one-shot tweens. `Card` and `T
 `Spring` internally — a good read if you're building an animated widget. (The theme crossfade is
 a time-based `easeOutCubic` tween instead of a spring.)
 
-![An animated theme crossfade — metrics like the corner radius animate too](assets/theme-swap.gif)
+<iframe class="spry-demo" src="../assets/wasm/demo.html?scene=animation"
+        title="Spry live demo — springs and easing curves"
+        loading="lazy" sandbox="allow-scripts allow-same-origin"></iframe>
+<noscript><img class="spry-demo" src="../assets/wasm/scene-animation.png" alt="Spry animation — springs and easing curves"></noscript>
 
 ---
 
@@ -258,10 +261,10 @@ same way. A widget's `onClick` can spawn an overlay via `Context::current()->add
 that's how `Combo` opens its dropdown. Hover tooltips are automatic: set `widget->tooltip = "…"`
 and `Context` shows it after a hover delay.
 
-<iframe class="spry-demo" src="assets/wasm/demo.html?scene=overlays"
+<iframe class="spry-demo" src="../assets/wasm/demo.html?scene=overlays"
         title="Spry live demo — menus, modals, tooltips, and toasts"
         loading="lazy" sandbox="allow-scripts allow-same-origin"></iframe>
-<noscript><img class="spry-demo" src="assets/wasm/scene-overlays.png" alt="An open context-menu overlay"></noscript>
+<noscript><img class="spry-demo" src="../assets/wasm/scene-overlays.png" alt="An open context-menu overlay"></noscript>
 
 ---
 

@@ -64,15 +64,19 @@
     posterEl.src = 'scene-' + scene + '.png';
     posterEl.alt = 'Static preview of the Spry ' + scene + ' demo';
 
+    const canvasEl = document.getElementById('canvas');
+    let timer = 0; // the slow-load safety-net timeout, cleared once the demo settles
+
     // Show the fallback state: keep the poster, report why the live demo isn't running.
     let settled = false;
     function fallback(msg) {
       if (settled) return;
       settled = true;
+      clearTimeout(timer);
       statusEl.style.display = ''; // ensure the message is visible even if it was hidden
       statusEl.textContent = msg;
       statusEl.classList.add('error');
-      document.getElementById('canvas').style.display = 'none'; // reveal the poster fully
+      canvasEl.style.display = 'none'; // reveal the poster fully
     }
 
     if (typeof WebAssembly === 'undefined') {
@@ -80,17 +84,26 @@
       fallback('Live demo needs WebAssembly — showing a snapshot.');
     } else {
       var Module = {
-        canvas: document.getElementById('canvas'),
+        canvas: canvasEl,
         arguments: [scene],
         print: (t) => console.log(t),
         printErr: (t) => console.error(t),
-        onRuntimeInitialized: () => { settled = true; statusEl.style.display = 'none'; },
+        onRuntimeInitialized: () => {
+          // The demo is live — this wins even over a prior slow-load fallback, so
+          // re-show the canvas (a timeout may have hidden it) and drop the poster.
+          settled = true;
+          clearTimeout(timer);
+          statusEl.style.display = 'none';
+          statusEl.classList.remove('error');
+          canvasEl.style.display = '';
+          posterEl.style.display = 'none';
+        },
         onAbort: (what) => fallback('Live demo failed to start — showing a snapshot.'),
       };
       // Keep the canvas focused so keyboard input works after a click.
       Module.canvas.addEventListener('click', () => Module.canvas.focus());
       // Safety net: if the module never initializes (network/build issue), fall back.
-      setTimeout(() => fallback('Live demo is taking too long — showing a snapshot.'), 15000);
+      timer = setTimeout(() => fallback('Live demo is taking too long — showing a snapshot.'), 15000);
 
       const s = document.createElement('script');
       s.async = true;

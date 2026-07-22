@@ -50,10 +50,10 @@ animated widget. Not everything is a spring, though: the
 [theme crossfade](theming.md) is a time-based `easeOutCubic` tween over
 `lerp`-interpolated tokens, not a `Spring`.
 
-<iframe class="spry-demo" src="../assets/wasm/demo.html?scene=animation"
+<iframe class="spry-demo" src="../../assets/wasm/demo.html?scene=animation"
         title="Spry live demo — springs and easing curves"
         loading="lazy" sandbox="allow-scripts allow-same-origin"></iframe>
-<noscript><img class="spry-demo" src="../assets/wasm/scene-animation.png" alt="Spry animation — springs and easing curves"></noscript>
+<noscript><img class="spry-demo" src="../../assets/wasm/scene-animation.png" alt="Spry animation — springs and easing curves"></noscript>
 
 ## Stability
 
