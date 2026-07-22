@@ -1,50 +1,36 @@
 # Docs media assets
 
-Screenshots and GIFs used by the documentation site. **These files are committed**
-so the site build just consumes them — it never renders anything. To refresh them,
-regenerate with one command (see below); don't edit the images by hand.
+Media used by the documentation site. **These files are committed** so the site
+build just consumes them — it never renders anything.
 
-## How they're captured
+The docs now embed **live WASM demos** instead of static screenshots (see
+[`wasm/README.md`](wasm/README.md)). The only rendered images left are the
+**fallback stills** each demo shows while its module loads or when WebAssembly
+isn't available.
 
-Media is rendered by a small headless tool, `tools/capture/capture.cpp` (the
-`spry_capture` target), which links only the **public** Spry API + SDL3, exactly
-like a consumer:
+## What's here
 
-- It renders each scene through an **offscreen SDL software renderer** into an
-  in-memory surface — no window or display is required, so it runs in CI too.
-- Scenes are defined in `capture.cpp`; each is a real `Widget` tree driven by a
-  `Context` for a few frames so springs and overlay animations settle.
-- Screenshots are written as PNG via the vendored `stb_image_write.h`.
-- GIFs are assembled by **ffmpeg** from a frame sequence the tool dumps during an
-  animated theme crossfade.
+| Path | What it is |
+|---|---|
+| `wasm/` | The live demo module (`spry_demos.{js,wasm}`), its host page (`demo.html`), and one **fallback still per scene** (`scene-*.png`). See [`wasm/README.md`](wasm/README.md). |
+| `logo.svg` | The site logo (hand-authored; referenced from `mkdocs.yml`). |
 
-Themes: the built-in dark theme (`Theme::builtinDark()`) and a light theme
-(`builtinLight()` in the tool, mirrored by `examples/themes/daylight.theme`), so
-the docs show both.
+## Regenerating the fallback stills
 
-## Regenerating
+The `scene-*.png` stills are rendered headlessly by `tools/capture/capture.cpp`
+(the `spry_capture` target), which links only the **public** Spry API + SDL3,
+exactly like a consumer:
+
+- It renders each scene from [`examples/web/scenes.h`](https://github.com/zimventures/spry/blob/main/examples/web/scenes.h)
+  — the same builders the live demos use — through an **offscreen SDL software
+  renderer** (no window/display needed, so it runs in CI too), for a few frames so
+  springs and overlay animations settle.
+- Each still is written as PNG via the vendored `stb_image_write.h`, in the same
+  `JetBrainsMono` font the WASM module embeds, so the fallback matches the live view.
 
 ```sh
-scripts/capture-media.sh
+scripts/capture-media.sh      # builds spry_capture, renders every scene-*.png
 ```
 
-Requires a C++ toolchain + CMake (to build `spry_capture`) and **ffmpeg** (for the
-GIFs; screenshots still update without it). The script builds the tool, renders
-every asset into this directory, and assembles the GIF.
-
-## The asset set
-
-| File | Scene | Theme |
-|---|---|---|
-| `hello-dark.png` | The minimal "hello" app | dark |
-| `layout-dark.png` | Flex layout (cards + a grow split) | dark |
-| `widgets-dark.png` | Control gallery | dark |
-| `widgets-light.png` | Control gallery | light |
-| `menu-dark.png` | An open context menu (overlay) | dark |
-| `theme-swap.gif` | Animated dark ↔ light theme crossfade | both |
-| `cat-text.png` | Widget catalog: text & surfaces | dark |
-| `cat-controls.png` | Widget catalog: buttons & controls | dark |
-| `cat-inputs.png` | Widget catalog: text input & selection | dark |
-| `cat-data.png` | Widget catalog: data containers | dark |
-| `cat-modal.png` | Widget catalog: a modal dialog | dark |
-| `cat-notify.png` | Widget catalog: tooltip & toast overlays | dark |
+Requires a C++ toolchain + CMake. Regenerate after adding or changing a scene in
+`examples/web/scenes.h`, and commit the updated `scene-*.png` alongside the source.

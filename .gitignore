@@ -13,3 +13,9 @@ docs/api/
 external/
 # local docs virtualenv
 .venv-docs/
+
+# mkdocs-material social plugin build cache
+.cache/
+
+# JetBrains IDE
+.idea/
