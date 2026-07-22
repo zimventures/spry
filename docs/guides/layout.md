@@ -84,7 +84,9 @@ places it along its main axis:
 The shared value types live in `layout.h`: `Size`, `Rect` (with `contains`),
 `Edges` (margins/padding), and the `Axis` / `Align` enums.
 
-![Flex layout: a row of cards above a fixed sidebar and a grow split](../assets/layout-dark.png)
+<iframe class="spry-demo" src="../assets/wasm/demo.html?scene=layout"
+        title="Spry live demo — the flex Box: rows, columns, grow, and alignment"
+        loading="lazy" sandbox="allow-scripts allow-same-origin"></iframe>
 
 ## Stability
 

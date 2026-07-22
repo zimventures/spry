@@ -17,7 +17,9 @@ tree with `parent->emplace<T>(args…)` (see [Layout](../guides/layout.md)).
 
 ## Text & surfaces
 
-![Label, Paragraph, a Card, a Panel, and an Image rendered in the dark theme](../assets/cat-text.png)
+<iframe class="spry-demo" src="../assets/wasm/demo.html?scene=text"
+        title="Spry live demo — text & shaping: Label, Paragraph, ligatures, and wrapping"
+        loading="lazy" sandbox="allow-scripts allow-same-origin"></iframe>
 
 **`Label`** — a single line of text, sized to its content. `text`, `scale`.
 
@@ -57,7 +59,9 @@ modulates it. Shown as the gradient square above.
 
 ## Buttons & controls
 
-![Buttons (incl. a focus ring), checkboxes, radio buttons, a toggle, a slider, and a progress bar](../assets/cat-controls.png)
+<iframe class="spry-demo" src="../assets/wasm/demo.html?scene=controls"
+        title="Spry live demo — buttons, checkboxes, radio buttons, a toggle, a slider, and a progress bar"
+        loading="lazy" sandbox="allow-scripts allow-same-origin"></iframe>
 
 **`Button`** — click, or Enter/Space when focused. Brightens on **hover**, darkens
 on **press**, shows a **focus ring** for keyboard nav. Pass the callback to the
@@ -99,7 +103,9 @@ s->onChange = [](float v) { /* … */ };
 
 ## Text input & selection
 
-![A TextField, a placeholder TextField, a TextArea, a Combo, a ColorField, and a ColorPickerPad](../assets/cat-inputs.png)
+<iframe class="spry-demo" src="../assets/wasm/demo.html?scene=textinput"
+        title="Spry live demo — text input: TextField, a masked field, and a multi-line TextArea"
+        loading="lazy" sandbox="allow-scripts allow-same-origin"></iframe>
 
 **`TextField`** — single-line editing (selection, clipboard, undo). `placeholder`,
 `onChange(text)`, `onSubmit()` (Enter). Construct with initial text.
@@ -134,7 +140,9 @@ cf->onChange = [](Color c) { /* … */ };
 
 ## Data containers
 
-![ListView, TreeView, a ScrollView, a sortable Table, and a TabBar](../assets/cat-data.png)
+<iframe class="spry-demo" src="../assets/wasm/demo.html?scene=data"
+        title="Spry live demo — data widgets: ListView, TreeView, a sortable Table, and a TabBar"
+        loading="lazy" sandbox="allow-scripts allow-same-origin"></iframe>
 
 All the list-like widgets share a virtualized base (`VirtualList`): they render only
 visible rows, support keyboard navigation and `multiSelect`, and expose `selected` +
@@ -194,7 +202,9 @@ Push one with `ctx.addOverlay(...)` (a widget's `onClick` can do this via
 `Context::current()->addOverlay(...)`). See [Input](../guides/input.md#the-sdl-host-helper)
 and [Getting started §8](../getting-started.md#8-overlays-menus-modals-tooltips-toasts).
 
-![A Tooltip bubble and a Toast notification](../assets/cat-notify.png)
+<iframe class="spry-demo" src="../assets/wasm/demo.html?scene=overlays"
+        title="Spry live demo — overlays: context menu, modal dialog, tooltip, and toasts"
+        loading="lazy" sandbox="allow-scripts allow-same-origin"></iframe>
 
 **`Menu`** — a popup list of `MenuItem`s at an anchor point. `anchorX`/`anchorY`,
 `addItem(label, action)`.
