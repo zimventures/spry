@@ -517,6 +517,16 @@ int main(int argc, char** argv) {
          [](Context& c) { c.setRoot(demos::buildText()); }, true},
         {"wasm/scene-data", 900, 560, &dark,
          [](Context& c) { c.setRoot(demos::buildData()); }, true},
+        // The overlays scene spawns its overlays on click; the live still would
+        // otherwise show only the trigger buttons. Open a representative context
+        // menu (via the same shared builder the button uses) so the fallback still
+        // depicts the scene's signature interaction — as the old menu-dark.png did.
+        {"wasm/scene-overlays", 900, 560, &dark,
+         [](Context& c) {
+             c.setRoot(demos::buildOverlays());
+             c.addOverlay(demos::buildDemoMenu(150.0f, 150.0f));
+         },
+         true},
     };
 
     int failures = 0;

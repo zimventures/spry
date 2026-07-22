@@ -399,6 +399,98 @@ inline std::unique_ptr<Widget> buildData() {
     return root;
 }
 
+// ── overlays: menu, modal, tooltip, toast (#36) ──
+// Shared context-menu builder so the live trigger button and the fallback-still
+// capture job construct the identical menu (anchored at ax,ay).
+inline std::unique_ptr<Menu> buildDemoMenu(float ax, float ay) {
+    auto menu = std::make_unique<Menu>();
+    menu->anchorX = ax;
+    menu->anchorY = ay;
+    menu->minWidth = 168;
+    menu->addItem("Rename", [] {});
+    menu->addItem("Duplicate", [] {});
+    menu->addItem("Move to…", [] {});
+    menu->addItem("Delete", [] {
+        if (auto* c = Context::current())
+            c->addOverlay(std::make_unique<Toast>("Deleted 1 item"));
+    });
+    return menu;
+}
+
+inline std::unique_ptr<Widget> buildOverlays() {
+    auto root = std::make_unique<Box>();
+    root->axis = Axis::Column;
+    root->padding = Edges(26);
+    root->spacing = 14;
+    root->emplace<Label>("Overlays — menu · modal · tooltip · toast", 2.0f);
+    auto* hint = root->emplace<Label>(
+        "each animates open & close · dismiss via outside-click or Esc", 1.4f);
+    hint->role = "textDim";
+
+    // Trigger buttons. Overlays are spawned at click time via Context::current(),
+    // which is valid during input dispatch (a Button's onClick).
+    auto* btns = root->emplace<Box>();
+    btns->axis = Axis::Row;
+    btns->spacing = 12;
+    btns->prefH = 44;
+
+    auto* menuBtn = btns->emplace<Button>("Context menu  ▾");
+    menuBtn->onClickCb = [menuBtn] {
+        if (auto* c = Context::current())
+            c->addOverlay(buildDemoMenu(menuBtn->rect.x, menuBtn->rect.y + menuBtn->rect.h + 4.0f));
+    };
+
+    btns->emplace<Button>("Open dialog", [] {
+        auto* c = Context::current();
+        if (!c) return;
+        auto modal = std::make_unique<Modal>();
+        Modal* m = modal.get();
+        auto body = std::make_unique<Box>();
+        body->axis = Axis::Column;
+        body->padding = Edges(24);
+        body->spacing = 14;
+        body->prefW = 320;
+        body->emplace<Label>("Delete file?", 1.7f);
+        body->emplace<Paragraph>("This removes the file from the server. It can't be undone.", 1.3f);
+        auto* row = body->emplace<Box>();
+        row->axis = Axis::Row;
+        row->spacing = 10;
+        row->cross = Align::Center;
+        row->emplace<Widget>()->grow = 1.0f; // push buttons to the right
+        row->emplace<Button>("Cancel", [m] { m->requestClose(); });
+        auto* del = row->emplace<Button>("Delete", [m] {
+            m->requestClose();
+            if (auto* c2 = Context::current())
+                c2->addOverlay(std::make_unique<Toast>("File deleted"));
+        });
+        del->grow = 0.0f;
+        modal->setContent(std::move(body));
+        c->addOverlay(std::move(modal));
+    });
+
+    btns->emplace<Button>("Show toast", [] {
+        if (auto* c = Context::current())
+            c->addOverlay(std::make_unique<Toast>("Saved to disk"));
+    });
+
+    // A hover target carrying a tooltip (Context shows it on hover, #214).
+    auto* panel = root->emplace<Panel>();
+    panel->grow = 1.0f;
+    auto* pbox = panel->emplace<Box>();
+    pbox->axis = Axis::Column;
+    pbox->padding = Edges(20);
+    pbox->spacing = 8;
+    pbox->cross = Align::Start;
+    auto* hoverCard = pbox->emplace<Card>("Hover me for a tooltip");
+    hoverCard->prefW = 240;
+    hoverCard->prefH = 64;
+    hoverCard->tooltip = "Tooltips are overlays too — anchored, animated, auto-dismissing.";
+    auto* note = pbox->emplace<Label>("Click a button above, or hover the card. Click a toast repeatedly to stack them.", 1.3f);
+    note->role = "textDim";
+
+    return root;
+}
+
 /// The scene registry. Additional scenes are appended here by their tickets
 /// (#31–#37).
 inline const std::vector<Scene>& registry() {
@@ -409,6 +501,7 @@ inline const std::vector<Scene>& registry() {
         {"animation", "Animation — springs", &buildAnimation, true},
         {"text", "Text — shaping", &buildText, true},
         {"data", "Data — list · table · tree · tabs", &buildData, true},
+        {"overlays", "Overlays — menu · modal · tooltip · toast", &buildOverlays, true},
     };
     return r;
 }
