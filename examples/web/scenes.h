@@ -290,6 +290,42 @@ inline std::unique_ptr<Widget> buildAnimation() {
     return root;
 }
 
+// ── text: FreeType + HarfBuzz shaping (#33) ──
+inline std::unique_ptr<Widget> buildText() {
+    auto root = std::make_unique<Box>();
+    root->axis = Axis::Column;
+    root->padding = Edges(24);
+    root->spacing = 14;
+    root->emplace<Label>("Text — FreeType + HarfBuzz shaping", 2.0f);
+    auto* hint = root->emplace<Label>("scale the sample and type below — ligatures & metrics shape live", 1.4f);
+    hint->role = "textDim";
+
+    auto* panel = root->emplace<Panel>();
+    auto* pbox = panel->emplace<Box>();
+    pbox->axis = Axis::Column;
+    pbox->padding = Edges(18);
+    pbox->spacing = 14;
+    pbox->cross = Align::Start;
+    auto* sample = pbox->emplace<Label>("-> => != == >= <= |> <| :: www  fi ff ffi", 2.0f);
+    auto* scaleRow = pbox->emplace<Box>();
+    scaleRow->axis = Axis::Row;
+    scaleRow->spacing = 12;
+    scaleRow->cross = Align::Center;
+    scaleRow->emplace<Label>("scale", 1.2f);
+    auto* sl = scaleRow->emplace<Slider>(0.9f, 3.2f, 2.0f);
+    sl->prefW = 280;
+    sl->onChange = [sample](float v) { sample->scale = v; };
+
+    root->emplace<Paragraph>(
+        "Paragraph word-wraps to the available width, with proportional metrics from FreeType and "
+        "shaping from HarfBuzz — not fixed-cell blitting. Its height grows with the wrapped line count.",
+        1.3f);
+
+    auto* tf = root->emplace<TextField>(std::string("Type here — watch it shape: -> => www"));
+    tf->prefW = 480;
+    return root;
+}
+
 /// The scene registry. Additional scenes are appended here by their tickets
 /// (#31–#37).
 inline const std::vector<Scene>& registry() {
@@ -298,6 +334,7 @@ inline const std::vector<Scene>& registry() {
         {"controls", "Buttons & controls", &buildControls, true},
         {"layout", "Layout — the flex Box", &buildLayout, true},
         {"animation", "Animation — springs", &buildAnimation, true},
+        {"text", "Text — shaping", &buildText, true},
     };
     return r;
 }
