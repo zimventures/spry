@@ -53,8 +53,10 @@
 
   <script>
     // Pick the scene from ?scene=<id> and pass it to main() via Module.arguments.
-    const scene = (new URLSearchParams(location.search).get('scene') || 'theming')
-                    .replace(/[^a-z0-9_-]/gi, ''); // sanitize before using in a path
+    // Sanitize before using it in a path, and re-apply the default if sanitizing
+    // emptied it (e.g. ?scene=!!!), so the poster/module never get an empty id.
+    const scene = ((new URLSearchParams(location.search).get('scene') || 'theming')
+                    .replace(/[^a-z0-9_-]/gi, '')) || 'theming';
     const statusEl = document.getElementById('status');
     const posterEl = document.getElementById('poster');
 
@@ -67,6 +69,7 @@
     function fallback(msg) {
       if (settled) return;
       settled = true;
+      statusEl.style.display = ''; // ensure the message is visible even if it was hidden
       statusEl.textContent = msg;
       statusEl.classList.add('error');
       document.getElementById('canvas').style.display = 'none'; // reveal the poster fully
