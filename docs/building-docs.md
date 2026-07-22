@@ -60,11 +60,15 @@ Cairo libraries**:
 
 CI installs the Linux libs automatically. Cards regenerate on every build.
 
-## Screenshots & GIFs
+## Live demos & fallback stills
 
-Site media under `docs/assets/` is captured by a small headless tool — see
-[docs/assets/README.md](https://github.com/zimventures/spry/blob/main/docs/assets/README.md)
-and `scripts/capture-media.sh`. The site build only *consumes* the committed media.
+The docs embed **live WASM demos** rather than static screenshots — see
+[docs/assets/wasm/README.md](https://github.com/zimventures/spry/blob/main/docs/assets/wasm/README.md)
+for the embed pattern and how the module is built and shipped. Each demo falls back
+to a committed still (`docs/assets/wasm/scene-*.png`) rendered by a small headless
+tool; regenerate them with `scripts/capture-media.sh` (see
+[docs/assets/README.md](https://github.com/zimventures/spry/blob/main/docs/assets/README.md)).
+The site build only *consumes* the committed media.
 
 ## Versioning
 
