@@ -161,6 +161,135 @@ inline std::unique_ptr<Widget> buildLayout() {
     return root;
 }
 
+// ── animation: springs (drag + kick) and easings (#32) ──
+// A draggable 2D Spring, a kick() velocity pulse, an easeOutCubic-vs-easeOutBack
+// track, and a hover-lift Card — the pieces of anim.h, made tangible.
+class SpringPad : public Widget {
+public:
+    Spring sx, sy;             // 2D position springs (value chases target)
+    float stiffness = 200.0f;
+    float damping = 16.0f;
+
+    Size measure(Renderer&, float availW, float) override {
+        // Honor explicit prefs (like other leaf widgets); else fill width with a
+        // modest height that grow=1 expands (so siblings aren't starved).
+        return Size{prefW >= 0 ? prefW : (availW > 0 ? availW : 480.0f), prefH >= 0 ? prefH : 200.0f};
+    }
+    void arrange(Renderer& r, Rect rc) override {
+        Widget::arrange(r, rc);
+        if (!inited_) { // center the dot on first layout
+            sx.value = sx.target = rc.w * 0.5f;
+            sy.value = sy.target = rc.h * 0.5f;
+            inited_ = true;
+        }
+    }
+    void update(float dt) override {
+        sx.stiffness = sy.stiffness = stiffness;
+        sx.damping = sy.damping = damping;
+        sx.step(dt);
+        sy.step(dt);
+    }
+    bool onMouseDown(float x, float y, int, bool, bool) override {
+        setTarget(x, y);
+        return true;
+    }
+    void onMouseDrag(float x, float y) override { setTarget(x, y); } // capture continues off-widget
+    void kick() {
+        sx.kick(-360.0f); // a velocity pulse — the dot lurches, then springs back
+        sy.kick(-240.0f);
+    }
+    void paint(Renderer& r, const Theme& th) override {
+        float rad = th.metric(tokens::Radius, 8.0f);
+        r.fillRoundedRect(rect.x + rect.w * 0.5f, rect.y + rect.h * 0.5f, rect.w, rect.h, rad,
+                          th.color(tokens::SurfaceAlt, {32, 34, 48}), th.color(tokens::Surface, {40, 43, 62}));
+        Color acc = th.color(tokens::Accent, {96, 126, 205});
+        Color ring{acc.r, acc.g, acc.b, 110};
+        r.fillRoundedRect(rect.x + sx.target, rect.y + sy.target, 12, 12, 6, ring, ring); // target
+        r.fillRoundedRect(rect.x + sx.value, rect.y + sy.value, 22, 22, 11, acc, acc);    // the dot
+    }
+
+private:
+    static float clamp(float v, float hi) { return v < 0 ? 0 : (v > hi ? hi : v); }
+    void setTarget(float x, float y) { // clamp inside the pad (drag capture runs off-widget)
+        sx.target = clamp(x - rect.x, rect.w);
+        sy.target = clamp(y - rect.y, rect.h);
+    }
+    bool inited_ = false;
+};
+
+// One-shot easing tracks: press Play and a dot tweens across using easeOutCubic
+// (top) and easeOutBack (bottom, overshoots).
+class EasingRow : public Widget {
+public:
+    Size measure(Renderer&, float, float) override {
+        // Modest preferred width so grow=1 (not the preferred size) fills the row,
+        // leaving room for the Play button beside it.
+        return Size{prefW >= 0 ? prefW : 260.0f, 64.0f};
+    }
+    void update(float dt) override {
+        if (t_ < 1.0f) t_ = std::min(1.0f, t_ + dt * 1.4f);
+    }
+    void play() { t_ = 0.0f; }
+    void paint(Renderer& r, const Theme& th) override {
+        Color track = th.color(tokens::SurfaceAlt, {32, 34, 48});
+        Color acc = th.color(tokens::Accent, {96, 126, 205});
+        Color txt = th.color(tokens::TextDim, {140, 144, 160});
+        float gutter = 108.0f;
+        float x0 = rect.x + gutter, w = rect.w - gutter - 46.0f; // headroom for easeOutBack overshoot
+        const char* labels[2] = {"easeOutCubic", "easeOutBack"};
+        for (int i = 0; i < 2; ++i) {
+            float ry = rect.y + 14.0f + i * 28.0f;
+            r.fillRect(x0, ry + 6.0f, w, 3.0f, track);
+            float e = i == 0 ? easeOutCubic(t_) : easeOutBack(t_);
+            r.fillRoundedRect(x0 + e * w, ry + 7.0f, 15, 15, 7.5f, acc, acc);
+            r.text(rect.x, ry, 1.1f, txt, labels[i]);
+        }
+    }
+
+private:
+    float t_ = 1.0f;
+};
+
+inline std::unique_ptr<Widget> buildAnimation() {
+    auto root = std::make_unique<Box>();
+    root->axis = Axis::Column;
+    root->padding = Edges(22);
+    root->spacing = 12;
+    root->emplace<Label>("Animation — springs & easing", 2.0f);
+    auto* hint = root->emplace<Label>("drag the pad, press Kick, Play the easings, and hover the card", 1.4f);
+    hint->role = "textDim";
+
+    auto* pad = root->emplace<SpringPad>();
+    pad->grow = 1.0f;
+
+    auto* springRow = root->emplace<Box>();
+    springRow->axis = Axis::Row;
+    springRow->spacing = 12;
+    springRow->cross = Align::Center;
+    springRow->emplace<Label>("stiffness", 1.3f);
+    auto* stf = springRow->emplace<Slider>(20.0f, 500.0f, pad->stiffness);
+    stf->prefW = 170;
+    stf->onChange = [pad](float v) { pad->stiffness = v; };
+    springRow->emplace<Label>("damping", 1.3f);
+    auto* dmp = springRow->emplace<Slider>(2.0f, 40.0f, pad->damping);
+    dmp->prefW = 150;
+    dmp->onChange = [pad](float v) { pad->damping = v; };
+    springRow->emplace<Button>("Kick", [pad] { pad->kick(); });
+
+    auto* easeRow = root->emplace<Box>();
+    easeRow->axis = Axis::Row;
+    easeRow->spacing = 12;
+    easeRow->cross = Align::Center;
+    auto* ease = easeRow->emplace<EasingRow>();
+    ease->grow = 1.0f;
+    easeRow->emplace<Button>("Play", [ease] { ease->play(); });
+
+    auto* card = root->emplace<Card>("hover me — the Card lifts on a Spring");
+    card->prefH = 56;
+
+    return root;
+}
+
 /// The scene registry. Additional scenes are appended here by their tickets
 /// (#31–#37).
 inline const std::vector<Scene>& registry() {
@@ -168,6 +297,7 @@ inline const std::vector<Scene>& registry() {
         {"theming", "Layout & theming", &buildTheming, false},
         {"controls", "Buttons & controls", &buildControls, true},
         {"layout", "Layout — the flex Box", &buildLayout, true},
+        {"animation", "Animation — springs", &buildAnimation, true},
     };
     return r;
 }
