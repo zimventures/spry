@@ -505,6 +505,8 @@ int main(int argc, char** argv) {
         // WASM demo fallback stills (#40): rendered from the same scenes.h builders
         // the live demos use, in the same JetBrainsMono font (mono=true), so the
         // no-JS/no-WASM fallback matches the live view — ligatures and all.
+        {"wasm/scene-hello", 900, 560, &dark,
+         [](Context& c) { c.setRoot(demos::buildHello()); }, true},
         {"wasm/scene-theming", 900, 560, &dark,
          [](Context& c) { c.setRoot(demos::buildTheming()); }, true},
         {"wasm/scene-controls", 900, 560, &dark,

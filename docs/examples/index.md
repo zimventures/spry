@@ -46,7 +46,10 @@ with the `pumpEvent` / `frame` loop. This is the reference for the public-API co
 — **start here**, and follow the [Getting started](../getting-started.md) tutorial,
 which builds it up one piece at a time.
 
-![The hello.cpp app: a heading, a panel, and a button](../assets/hello-dark.png)
+<iframe class="spry-demo" src="../assets/wasm/demo.html?scene=hello"
+        title="Spry live demo — the hello.cpp app: a heading, a panel, and a counter button"
+        loading="lazy" sandbox="allow-scripts allow-same-origin"></iframe>
+<noscript><img class="spry-demo" src="../assets/wasm/scene-hello.png" alt="The hello.cpp app: a heading, a panel, and a button"></noscript>
 
 ```sh
 cmake --build build --target spry_hello && ./build/spry_hello
@@ -65,7 +68,10 @@ Layout and theming on the SDL backend: flex `Box` rows/columns, `Label` roles, `
 crossfade between them. The animated theme transition (below) is its signature; see the
 [Theming guide](../guides/theming.md) and [theme-token reference](../guides/theme-tokens.md).
 
-![An animated theme crossfade, as demo.cpp performs on pressing T](../assets/theme-swap.gif)
+<iframe class="spry-demo" src="../assets/wasm/demo.html?scene=theming"
+        title="Spry live demo — demo.cpp: layout, cards, and hot-swappable themes (click or press T)"
+        loading="lazy" sandbox="allow-scripts allow-same-origin"></iframe>
+<noscript><img class="spry-demo" src="../assets/wasm/scene-theming.png" alt="The demo.cpp UI — a themed layout of cards and a content panel"></noscript>
 
 ```sh
 cmake --build build --target spry_demo && ./build/spry_demo

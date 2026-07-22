@@ -70,7 +70,10 @@ The two calls that matter are **`pumpEvent`** (translate one SDL event into a `s
 and dispatch it — from the optional `<spry/sdl_host.h>`; §7 shows the manual path too) and
 **`frame`** (run one frame). Everything else is host boilerplate.
 
-![The minimal "hello" app](assets/hello-dark.png)
+<iframe class="spry-demo" src="../assets/wasm/demo.html?scene=hello"
+        title="Spry live demo — the smallest app: a heading, a panel, and a counter button"
+        loading="lazy" sandbox="allow-scripts allow-same-origin"></iframe>
+<noscript><img class="spry-demo" src="../assets/wasm/scene-hello.png" alt="The minimal hello app: a heading, a panel, and a button"></noscript>
 
 ---
 
@@ -167,7 +170,7 @@ for free.
 <iframe class="spry-demo" src="../assets/wasm/demo.html?scene=theming"
         title="Spry live demo — hot-swappable themes (click or press T to crossfade)"
         loading="lazy" sandbox="allow-scripts allow-same-origin"></iframe>
-<noscript><img class="spry-demo" src="../assets/wasm/scene-theming.png" alt="The same UI crossfading between the dark and light themes"></noscript>
+<noscript><img class="spry-demo" src="../assets/wasm/scene-theming.png" alt="The demo UI in the dark theme — cards and a content panel"></noscript>
 
 ---
 
