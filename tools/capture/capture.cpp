@@ -531,6 +531,8 @@ int main(int argc, char** argv) {
          true},
         {"wasm/scene-textinput", 900, 560, &dark,
          [](Context& c) { c.setRoot(demos::buildTextInput()); }, true},
+        {"wasm/scene-gallery", 900, 560, &dark,
+         [](Context& c) { c.setRoot(demos::buildGallery()); }, true},
     };
 
     int failures = 0;

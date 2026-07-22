@@ -91,7 +91,13 @@ The full interactive gallery on the OpenGL backend: `TabBar`, `Table`, `TreeView
 It's the reference for embedding Spry in a GL host. The controls and data widgets it
 exercises are catalogued in [Widgets](../widgets/index.md).
 
-![The kind of control gallery gl_demo.cpp presents](../assets/widgets-dark.png)
+The live gallery below shows the same widget set across tabs, rendered here through the
+`SdlRenderer` → WebGL path (the `gl_demo.cpp` source targets an OpenGL host):
+
+<iframe class="spry-demo" src="../assets/wasm/demo.html?scene=gallery"
+        title="Spry live demo — the full widget gallery: controls, data, text, and overlays across tabs"
+        loading="lazy" sandbox="allow-scripts allow-same-origin"></iframe>
+<noscript><img class="spry-demo" src="../assets/wasm/scene-gallery.png" alt="The control gallery gl_demo.cpp presents: controls, data widgets, text input, and overlays"></noscript>
 
 ```sh
 cmake --build build --target spry_gl_demo && ./build/spry_gl_demo
