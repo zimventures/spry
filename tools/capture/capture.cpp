@@ -491,6 +491,7 @@ int main(int argc, char** argv) {
 
     int failures = 0;
     std::printf("Capturing %zu screenshots into %s\n", jobs.size(), dir.c_str());
+    SDL_CreateDirectory((dir + "wasm").c_str()); // some jobs write into a wasm/ subdir
     for (const auto& j : jobs)
         if (!capture(dir + j.name + ".png", j.w, j.h, *j.theme, j.scene)) ++failures;
 
