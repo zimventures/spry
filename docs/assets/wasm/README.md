@@ -9,8 +9,8 @@ committed** — the site build only serves them, it never builds anything.
 | File | What it is |
 |---|---|
 | `spry_demos.js` + `spry_demos.wasm` | One shared module serving **every** demo scene. The SDL/FreeType/HarfBuzz core + all scenes download once. |
-| `demo.html` | The host page the docs `<iframe>` loads. Reads `?scene=<id>`, passes it to `main()` as `argv[1]`, and shows the scene's fallback still until the module runs (and if it can't). |
-| `scene-*.png` | A still of each scene, rendered by `spry_capture`. Used as the no-JS / no-WASM fallback **and** as the poster shown while the module loads. |
+| `demo.html` | The host page the docs `<iframe>` loads. Reads `?scene=<id>`, passes it to `main()` as `argv[1]`, and shows a loading status until the module runs. (A poster/fallback path is added in #40.) |
+| `scene-*.png` | A still of each scene, rendered by `spry_capture`. Kept as the source for the no-JS / no-WASM fallback that the embeds wire up in #40. |
 
 The scenes themselves live in
 [`examples/web/scenes.h`](https://github.com/zimventures/spry/blob/main/examples/web/scenes.h)
@@ -37,8 +37,9 @@ Why commit rather than build in CI:
 
 If the module count ever grows enough that committing becomes unwieldy, the
 alternative is a CI job (e.g. `mymindstorm/setup-emsdk` + a cached WASM build) that
-stages the output into the site and `.gitignore`s `docs/assets/wasm/*.{js,wasm}`.
-That trade wasn't worth it for a single, rarely-changing module.
+stages the output into the site and adds the two generated artifacts —
+`spry_demos.js` and `spry_demos.wasm` — to `.gitignore`. That trade wasn't worth it
+for a single, rarely-changing module.
 
 ## Rebuilding
 
