@@ -362,16 +362,16 @@ inline std::unique_ptr<Widget> buildData() {
         tree->rebuild();
     }
 
-    // Right: a TabBar switching the main area between a sortable Table and a ListView.
-    auto* main = body->emplace<Box>();
-    main->axis = Axis::Column;
-    main->spacing = 10;
-    main->grow = 1.0f;
+    // Right: a TabBar switching the pane between a sortable Table and a ListView.
+    auto* rightPane = body->emplace<Box>();
+    rightPane->axis = Axis::Column;
+    rightPane->spacing = 10;
+    rightPane->grow = 1.0f;
 
-    auto* tabs = main->emplace<TabBar>();
+    auto* tabs = rightPane->emplace<TabBar>();
     tabs->tabs = {"Table", "List"};
 
-    auto* table = main->emplace<Table>();
+    auto* table = rightPane->emplace<Table>();
     table->grow = 1.0f;
     table->columns = {{"Host", 2.2f}, {"Port", 1.0f}, {"Conns", 1.0f}, {"Status", 1.4f}};
     const char* hosts[] = {"alpha", "bravo", "charlie", "delta", "echo", "foxtrot",
@@ -384,7 +384,7 @@ inline std::unique_ptr<Widget> buildData() {
     }
     table->sortCol = 0;
 
-    auto* list = main->emplace<ListView>();
+    auto* list = rightPane->emplace<ListView>();
     list->grow = 1.0f;
     list->visible = false; // Table shows first; the tab toggles which is visible.
     for (int i = 1; i <= 40; ++i)
@@ -408,7 +408,7 @@ inline const std::vector<Scene>& registry() {
         {"layout", "Layout — the flex Box", &buildLayout, true},
         {"animation", "Animation — springs", &buildAnimation, true},
         {"text", "Text — shaping", &buildText, true},
-        {"data", "Data — list · table · tree", &buildData, true},
+        {"data", "Data — list · table · tree · tabs", &buildData, true},
     };
     return r;
 }
