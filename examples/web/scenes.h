@@ -326,6 +326,79 @@ inline std::unique_ptr<Widget> buildText() {
     return root;
 }
 
+// ── data: virtualized data containers — list, table, tree, tabs (#35) ──
+inline std::unique_ptr<Widget> buildData() {
+    auto root = std::make_unique<Box>();
+    root->axis = Axis::Column;
+    root->padding = Edges(24);
+    root->spacing = 12;
+    root->emplace<Label>("Data widgets — list · table · tree · tabs", 2.0f);
+    auto* hint = root->emplace<Label>(
+        "click rows · sort headers · toggle tree · switch tabs · scroll · virtualized",
+        1.3f);
+    hint->role = "textDim";
+
+    auto* body = root->emplace<Box>();
+    body->axis = Axis::Row;
+    body->spacing = 16;
+    body->grow = 1.0f;
+
+    // Left: a hierarchical TreeView (click the disclosure triangle to expand).
+    auto* tree = body->emplace<TreeView>();
+    tree->prefW = 240;
+    {
+        auto& prod = tree->addRoot("Production");
+        prod.expanded = true;
+        auto& web = prod.add("web");
+        web.expanded = true;
+        web.add("api-gateway");
+        web.add("auth-service");
+        prod.add("db-primary");
+        prod.add("cache");
+        auto& stg = tree->addRoot("Staging");
+        stg.add("web-canary");
+        stg.add("db-replica");
+        tree->addRoot("Archive");
+        tree->rebuild();
+    }
+
+    // Right: a TabBar switching the main area between a sortable Table and a ListView.
+    auto* main = body->emplace<Box>();
+    main->axis = Axis::Column;
+    main->spacing = 10;
+    main->grow = 1.0f;
+
+    auto* tabs = main->emplace<TabBar>();
+    tabs->tabs = {"Table", "List"};
+
+    auto* table = main->emplace<Table>();
+    table->grow = 1.0f;
+    table->columns = {{"Host", 2.2f}, {"Port", 1.0f}, {"Conns", 1.0f}, {"Status", 1.4f}};
+    const char* hosts[] = {"alpha", "bravo", "charlie", "delta", "echo", "foxtrot",
+                           "golf", "hotel", "india", "juliet", "kilo", "lima"};
+    for (int i = 0; i < (int)(sizeof(hosts) / sizeof(hosts[0])); ++i) {
+        table->rows.push_back({std::string(hosts[i]) + ".example.net",
+                               std::to_string(2200 + i * 7),
+                               std::to_string((i * 37) % 100),
+                               (i % 3 == 0) ? "online" : (i % 3 == 1) ? "idle" : "draining"});
+    }
+    table->sortCol = 0;
+
+    auto* list = main->emplace<ListView>();
+    list->grow = 1.0f;
+    list->visible = false; // Table shows first; the tab toggles which is visible.
+    for (int i = 1; i <= 40; ++i)
+        list->items.push_back("session #" + std::to_string(i) + " — sftp://host-" +
+                              std::to_string(1000 + i));
+
+    tabs->onChange = [table, list](int i) {
+        table->visible = (i == 0);
+        list->visible = (i == 1);
+    };
+
+    return root;
+}
+
 /// The scene registry. Additional scenes are appended here by their tickets
 /// (#31–#37).
 inline const std::vector<Scene>& registry() {
@@ -335,6 +408,7 @@ inline const std::vector<Scene>& registry() {
         {"layout", "Layout — the flex Box", &buildLayout, true},
         {"animation", "Animation — springs", &buildAnimation, true},
         {"text", "Text — shaping", &buildText, true},
+        {"data", "Data — list · table · tree", &buildData, true},
     };
     return r;
 }

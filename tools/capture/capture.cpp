@@ -515,6 +515,8 @@ int main(int argc, char** argv) {
          [](Context& c) { c.setRoot(demos::buildAnimation()); }, true},
         {"wasm/scene-text", 900, 560, &dark,
          [](Context& c) { c.setRoot(demos::buildText()); }, true},
+        {"wasm/scene-data", 900, 560, &dark,
+         [](Context& c) { c.setRoot(demos::buildData()); }, true},
     };
 
     int failures = 0;
