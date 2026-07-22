@@ -161,6 +161,85 @@ inline std::unique_ptr<Widget> buildLayout() {
     return root;
 }
 
+// ── animation: a draggable Spring visualizer (#32) ──
+// Click/drag in the pad to set a target; a dot springs toward it each frame. The
+// sliders tune stiffness/damping so the reader feels the spring model directly.
+class SpringPad : public Widget {
+public:
+    Spring sx, sy;                  // 2D position springs (value chases target)
+    float stiffness = 200.0f;
+    float damping = 16.0f;
+
+    Size measure(Renderer&, float availW, float) override {
+        // A modest preferred height; grow=1 expands it, so don't claim all availH
+        // (that would starve non-grow siblings like the sliders below).
+        return Size{availW > 0 ? availW : 480.0f, 200.0f};
+    }
+    void arrange(Renderer& r, Rect rc) override {
+        Widget::arrange(r, rc);
+        if (!inited_) { // center the dot on first layout
+            sx.value = sx.target = rc.w * 0.5f;
+            sy.value = sy.target = rc.h * 0.5f;
+            inited_ = true;
+        }
+    }
+    void update(float dt) override {
+        sx.stiffness = sy.stiffness = stiffness;
+        sx.damping = sy.damping = damping;
+        sx.step(dt);
+        sy.step(dt);
+    }
+    bool onMouseDown(float x, float y, int, bool, bool) override {
+        sx.target = x - rect.x;
+        sy.target = y - rect.y;
+        return true;
+    }
+    void onMouseDrag(float x, float y) override {
+        sx.target = x - rect.x;
+        sy.target = y - rect.y;
+    }
+    void paint(Renderer& r, const Theme& th) override {
+        float rad = th.metric(tokens::Radius, 8.0f);
+        r.fillRoundedRect(rect.x + rect.w * 0.5f, rect.y + rect.h * 0.5f, rect.w, rect.h, rad,
+                          th.color(tokens::SurfaceAlt, {32, 34, 48}), th.color(tokens::Surface, {40, 43, 62}));
+        Color acc = th.color(tokens::Accent, {96, 126, 205});
+        Color ring{acc.r, acc.g, acc.b, 110};
+        r.fillRoundedRect(rect.x + sx.target, rect.y + sy.target, 12, 12, 6, ring, ring); // target
+        r.fillRoundedRect(rect.x + sx.value, rect.y + sy.value, 22, 22, 11, acc, acc);    // the dot
+    }
+
+private:
+    bool inited_ = false;
+};
+
+inline std::unique_ptr<Widget> buildAnimation() {
+    auto root = std::make_unique<Box>();
+    root->axis = Axis::Column;
+    root->padding = Edges(22);
+    root->spacing = 12;
+    root->emplace<Label>("Animation — springs", 2.0f);
+    auto* hint = root->emplace<Label>("click/drag in the pad — the dot springs to the point; tune the springs", 1.4f);
+    hint->role = "textDim";
+
+    auto* pad = root->emplace<SpringPad>();
+    pad->grow = 1.0f;
+
+    auto* sliders = root->emplace<Box>();
+    sliders->axis = Axis::Row;
+    sliders->spacing = 12;
+    sliders->cross = Align::Center;
+    sliders->emplace<Label>("stiffness", 1.3f);
+    auto* stf = sliders->emplace<Slider>(20.0f, 500.0f, pad->stiffness);
+    stf->prefW = 200;
+    stf->onChange = [pad](float v) { pad->stiffness = v; };
+    sliders->emplace<Label>("damping", 1.3f);
+    auto* dmp = sliders->emplace<Slider>(2.0f, 40.0f, pad->damping);
+    dmp->prefW = 200;
+    dmp->onChange = [pad](float v) { pad->damping = v; };
+
+    return root;
+}
+
 /// The scene registry. Additional scenes are appended here by their tickets
 /// (#31–#37).
 inline const std::vector<Scene>& registry() {
@@ -168,6 +247,7 @@ inline const std::vector<Scene>& registry() {
         {"theming", "Layout & theming", &buildTheming, false},
         {"controls", "Buttons & controls", &buildControls, true},
         {"layout", "Layout — the flex Box", &buildLayout, true},
+        {"animation", "Animation — springs", &buildAnimation, true},
     };
     return r;
 }
