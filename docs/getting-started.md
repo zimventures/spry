@@ -135,7 +135,10 @@ re-measures and redraws. See
 [`examples/gl_demo.cpp`](https://github.com/zimventures/spry/blob/main/examples/gl_demo.cpp) for a
 gallery that exercises nearly every widget.
 
-![A control gallery laid out with flex boxes](assets/widgets-dark.png)
+<iframe class="spry-demo" src="assets/wasm/demo.html?scene=controls"
+        title="Spry live demo — an interactive control gallery"
+        loading="lazy" sandbox="allow-scripts allow-same-origin"></iframe>
+<noscript><img class="spry-demo" src="assets/wasm/scene-controls.png" alt="A control gallery laid out with flex boxes"></noscript>
 
 ---
 
@@ -161,7 +164,10 @@ may define extra custom tokens too.
 `ctx.setTheme(newTheme)` crossfades every token over a few frames — theme switching is animated
 for free.
 
-![The same UI crossfading between the dark and light themes](assets/theme-swap.gif)
+<iframe class="spry-demo" src="assets/wasm/demo.html?scene=theming"
+        title="Spry live demo — hot-swappable themes (click or press T to crossfade)"
+        loading="lazy" sandbox="allow-scripts allow-same-origin"></iframe>
+<noscript><img class="spry-demo" src="assets/wasm/scene-theming.png" alt="The same UI crossfading between the dark and light themes"></noscript>
 
 ---
 
@@ -252,7 +258,10 @@ same way. A widget's `onClick` can spawn an overlay via `Context::current()->add
 that's how `Combo` opens its dropdown. Hover tooltips are automatic: set `widget->tooltip = "…"`
 and `Context` shows it after a hover delay.
 
-![An open context-menu overlay](assets/menu-dark.png)
+<iframe class="spry-demo" src="assets/wasm/demo.html?scene=overlays"
+        title="Spry live demo — menus, modals, tooltips, and toasts"
+        loading="lazy" sandbox="allow-scripts allow-same-origin"></iframe>
+<noscript><img class="spry-demo" src="assets/wasm/scene-overlays.png" alt="An open context-menu overlay"></noscript>
 
 ---
 

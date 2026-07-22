@@ -83,7 +83,10 @@ visible.
 helpers: `lerp(a, b, t)` to blend, and `hsv(h, s, v)` / `toHsv(...)` to convert to
 and from HSV. These back the [color picker](../widgets/index.md) widgets.
 
-![The same UI crossfading between the dark and light themes](../assets/theme-swap.gif)
+<iframe class="spry-demo" src="../assets/wasm/demo.html?scene=theming"
+        title="Spry live demo — hot-swappable themes (click or press T to crossfade)"
+        loading="lazy" sandbox="allow-scripts allow-same-origin"></iframe>
+<noscript><img class="spry-demo" src="../assets/wasm/scene-theming.png" alt="The same UI crossfading between the dark and light themes"></noscript>
 
 ## Stability
 
