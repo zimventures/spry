@@ -582,6 +582,43 @@ inline std::unique_ptr<Widget> buildTextInput() {
     return root;
 }
 
+// ── gallery: the full tabbed control gallery (the live stand-in for gl_demo) ──
+// Composes the four category scenes under a TabBar, mirroring gl_demo's tabbed
+// layout. Each tab's panel is a full category demo; visibility toggles between them.
+inline std::unique_ptr<Widget> buildGallery() {
+    auto root = std::make_unique<Box>();
+    root->axis = Axis::Column;
+    root->spacing = 0;
+
+    auto* bar = root->emplace<Box>();
+    bar->axis = Axis::Row;
+    bar->padding = Edges(20, 10);
+    bar->spacing = 16;
+    bar->cross = Align::Center;
+    bar->emplace<Label>("Widget gallery", 1.6f);
+    auto* tabs = bar->emplace<TabBar>();
+    tabs->tabs = {"Controls", "Data", "Text", "Overlays"};
+
+    // One panel per tab, in the same order as tabs->tabs; only the active one is
+    // visible (layout skips the rest). Deriving everything from this vector keeps
+    // the panels and the tab switching in sync as categories are added or removed.
+    std::vector<Widget*> panels = {
+        root->add(buildControls()),
+        root->add(buildData()),
+        root->add(buildTextInput()),
+        root->add(buildOverlays()),
+    };
+    for (std::size_t i = 0; i < panels.size(); ++i) {
+        panels[i]->grow = 1.0f;
+        panels[i]->visible = (i == 0);
+    }
+    tabs->onChange = [panels](int active) {
+        for (std::size_t i = 0; i < panels.size(); ++i)
+            panels[i]->visible = ((int)i == active);
+    };
+    return root;
+}
+
 /// The scene registry. Additional scenes are appended here by their tickets
 /// (#31–#37).
 inline const std::vector<Scene>& registry() {
@@ -595,6 +632,7 @@ inline const std::vector<Scene>& registry() {
         {"data", "Data — list · table · tree · tabs", &buildData, true},
         {"overlays", "Overlays — menu · modal · tooltip · toast", &buildOverlays, true},
         {"textinput", "Text input — TextField & TextArea", &buildTextInput, true},
+        {"gallery", "Widget gallery — the full control set", &buildGallery, true},
     };
     return r;
 }
