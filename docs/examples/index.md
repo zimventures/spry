@@ -15,7 +15,7 @@ UI adapted for the browser in
 [`examples/web/web_demo.cpp`](https://github.com/zimventures/spry/blob/main/examples/web/web_demo.cpp),
 on the `SdlRenderer` backend (which SDL renders via WebGL), built with Emscripten.
 
-<iframe src="../assets/wasm/demo.html" title="Spry live WebAssembly demo" loading="lazy"
+<iframe src="../assets/wasm/demo.html?scene=theming" title="Spry live WebAssembly demo" loading="lazy"
         sandbox="allow-scripts allow-same-origin"
         style="width:100%; aspect-ratio:900/560; border:1px solid var(--md-default-fg-color--lightest); border-radius:8px; background:#111217;"></iframe>
 

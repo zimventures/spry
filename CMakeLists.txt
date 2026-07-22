@@ -109,21 +109,22 @@ if(NOT EMSCRIPTEN)
     target_link_libraries(spry PUBLIC OpenGL::GL)
 endif()
 
-# ---- WASM demo (Emscripten only) -------------------------------------------
-# Compiles the SdlRenderer web demo to WebAssembly, embedding the font + themes
-# into the module's virtual filesystem. Output: spry_web_demo.js + .wasm. Build
-# via scripts/build-web.sh (which runs emcmake).
+# ---- WASM demos (Emscripten only) ------------------------------------------
+# Compiles the SdlRenderer web demos to a single WebAssembly module (scenes picked
+# at runtime by id — see examples/web/scenes.h), embedding the font + themes into
+# the module's virtual filesystem. Output: spry_demos.js + .wasm. Build via
+# scripts/build-web.sh (which runs emcmake).
 if(EMSCRIPTEN)
-    add_executable(spry_web_demo examples/web/web_demo.cpp)
-    target_link_libraries(spry_web_demo PRIVATE spry)
+    add_executable(spry_demos examples/web/web_demos.cpp)
+    target_link_libraries(spry_demos PRIVATE spry)
     # SHELL: keeps each "--embed-file <src>@<dst>" as one un-deduplicated fragment
     # (CMake would otherwise collapse the repeated --embed-file flags).
-    target_link_options(spry_web_demo PRIVATE
+    target_link_options(spry_demos PRIVATE
         -sALLOW_MEMORY_GROWTH=1
         -sMAX_WEBGL_VERSION=2
         "SHELL:--embed-file ${CMAKE_CURRENT_SOURCE_DIR}/examples/themes@/themes"
         "SHELL:--embed-file ${CMAKE_CURRENT_SOURCE_DIR}/examples/web/JetBrainsMono-Regular.ttf@/font.ttf")
-    set_target_properties(spry_web_demo PROPERTIES SUFFIX ".js")
+    set_target_properties(spry_demos PROPERTIES SUFFIX ".js")
 endif()
 
 if(SPRY_BUILD_DEMO)

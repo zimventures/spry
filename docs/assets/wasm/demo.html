@@ -30,16 +30,19 @@
   <div id="status">loading the WebAssembly module…</div>
 
   <script>
+    // Pick the scene from ?scene=<id> and pass it to main() via Module.arguments.
+    const scene = new URLSearchParams(location.search).get('scene') || 'theming';
     const statusEl = document.getElementById('status');
     var Module = {
       canvas: document.getElementById('canvas'),
+      arguments: [scene],
       print: (t) => console.log(t),
       printErr: (t) => console.error(t),
       onRuntimeInitialized: () => { statusEl.style.display = 'none'; },
-      // Keep the canvas focused so keyboard (T) works after a click.
     };
+    // Keep the canvas focused so keyboard input works after a click.
     Module.canvas.addEventListener('click', () => Module.canvas.focus());
   </script>
-  <script async src="spry_web_demo.js"></script>
+  <script async src="spry_demos.js"></script>
 </body>
 </html>
