@@ -43,7 +43,21 @@ static Theme builtinLight() {
     return t;
 }
 
-static bool loadAnyFont(SdlRenderer& ren) {
+static bool loadAnyFont(SdlRenderer& ren, bool mono = false) {
+    // The WASM demos embed JetBrainsMono-Regular.ttf and load it for every scene,
+    // so their fallback stills (docs/assets/wasm/scene-*.png) must render in the
+    // same font to match the live browser demos exactly — including the programming
+    // ligatures the text scene showcases. For a mono job JetBrainsMono is therefore
+    // the *only* acceptable font: if it can't be loaded, fail rather than silently
+    // falling back to a host font (which would defeat the flag). Non-WASM stills use
+    // the host UI font.
+    if (mono) {
+        if (ren.loadFont("examples/web/JetBrainsMono-Regular.ttf"))
+            return true;
+        std::fprintf(stderr, "  loadAnyFont: mono job but examples/web/JetBrainsMono-Regular.ttf "
+                             "could not be loaded (run from the repo root)\n");
+        return false;
+    }
     const char* fonts[] = {
         "C:/Windows/Fonts/segoeui.ttf",
         "C:/Windows/Fonts/consola.ttf",
@@ -359,7 +373,8 @@ static void sceneCatNotify(Context& ctx) {
 // ---------------------------------------------------------------------------
 // Capture driver.
 // ---------------------------------------------------------------------------
-static bool capture(const std::string& path, int w, int h, const Theme& theme, const SceneFn& scene) {
+static bool capture(const std::string& path, int w, int h, const Theme& theme, const SceneFn& scene,
+                    bool mono = false) {
     SDL_Surface* surf = SDL_CreateSurface(w, h, SDL_PIXELFORMAT_RGBA32);
     if (!surf) {
         std::fprintf(stderr, "  SDL_CreateSurface: %s\n", SDL_GetError());
@@ -373,7 +388,12 @@ static bool capture(const std::string& path, int w, int h, const Theme& theme, c
     }
     {
         SdlRenderer ren(sr);
-        loadAnyFont(ren);
+        if (!loadAnyFont(ren, mono)) {
+            std::printf("  %-40s %s\n", path.c_str(), "FAILED (no font)");
+            SDL_DestroyRenderer(sr);
+            SDL_DestroySurface(surf);
+            return false;
+        }
         Context ctx;
         scene(ctx);
         ctx.setThemeImmediate(theme);
@@ -467,6 +487,7 @@ int main(int argc, char** argv) {
         int w, h;
         const Theme* theme;
         SceneFn scene;
+        bool mono = false; // render in JetBrainsMono (the font the WASM demos embed)
     };
     std::vector<Job> jobs = {
         {"hello-dark", 720, 460, &dark, sceneHello},
@@ -482,22 +503,25 @@ int main(int argc, char** argv) {
         {"cat-modal", 620, 400, &dark, sceneCatModal},
         {"cat-notify", 560, 320, &dark, sceneCatNotify},
         // WASM demo fallback stills (#40): rendered from the same scenes.h builders
-        // the live demos use, so the no-JS/no-WASM fallback matches the live view.
+        // the live demos use, in the same JetBrainsMono font (mono=true), so the
+        // no-JS/no-WASM fallback matches the live view — ligatures and all.
         {"wasm/scene-theming", 900, 560, &dark,
-         [](Context& c) { c.setRoot(demos::buildTheming()); }},
+         [](Context& c) { c.setRoot(demos::buildTheming()); }, true},
         {"wasm/scene-controls", 900, 560, &dark,
-         [](Context& c) { c.setRoot(demos::buildControls()); }},
+         [](Context& c) { c.setRoot(demos::buildControls()); }, true},
         {"wasm/scene-layout", 900, 560, &dark,
-         [](Context& c) { c.setRoot(demos::buildLayout()); }},
+         [](Context& c) { c.setRoot(demos::buildLayout()); }, true},
         {"wasm/scene-animation", 900, 560, &dark,
-         [](Context& c) { c.setRoot(demos::buildAnimation()); }},
+         [](Context& c) { c.setRoot(demos::buildAnimation()); }, true},
+        {"wasm/scene-text", 900, 560, &dark,
+         [](Context& c) { c.setRoot(demos::buildText()); }, true},
     };
 
     int failures = 0;
     std::printf("Capturing %zu screenshots into %s\n", jobs.size(), dir.c_str());
     SDL_CreateDirectory((dir + "wasm").c_str()); // some jobs write into a wasm/ subdir
     for (const auto& j : jobs)
-        if (!capture(dir + j.name + ".png", j.w, j.h, *j.theme, j.scene)) ++failures;
+        if (!capture(dir + j.name + ".png", j.w, j.h, *j.theme, j.scene, j.mono)) ++failures;
 
     // GIF frame sequence (assembled into a .gif by the ffmpeg step). Frames go in a
     // subdir the media script feeds to ffmpeg and then deletes.
