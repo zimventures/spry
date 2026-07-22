@@ -491,6 +491,71 @@ inline std::unique_ptr<Widget> buildOverlays() {
     return root;
 }
 
+// ── textinput: live text editing — TextField & TextArea (#37) ──
+// Count Unicode codepoints (not bytes), so IME / non-ASCII input reports the
+// character count a reader expects: every UTF-8 lead byte is a non-continuation
+// byte ((b & 0xC0) != 0x80).
+inline std::size_t utf8Count(const std::string& s) {
+    std::size_t n = 0;
+    for (unsigned char b : s)
+        if ((b & 0xC0) != 0x80) ++n;
+    return n;
+}
+
+inline std::unique_ptr<Widget> buildTextInput() {
+    auto root = std::make_unique<Box>();
+    root->axis = Axis::Column;
+    root->padding = Edges(26);
+    root->spacing = 14;
+    root->emplace<Label>("Text input — TextField & TextArea", 2.0f);
+    auto* hint = root->emplace<Label>(
+        "click to focus · type · drag/shift to select · double-click a word · Ctrl+C/V", 1.3f);
+    hint->role = "textDim";
+
+    auto* status = root->emplace<Label>("0 characters — start typing", 1.4f);
+    status->colorOverride = Color{120, 200, 150};
+
+    // Single-line fields: a name and a masked password, side by side.
+    auto* fieldRow = root->emplace<Box>();
+    fieldRow->axis = Axis::Row;
+    fieldRow->spacing = 16;
+    fieldRow->cross = Align::Center;
+    fieldRow->prefH = 44;
+
+    fieldRow->emplace<Label>("Name", 1.4f);
+    auto* name = fieldRow->emplace<TextField>();
+    name->placeholder = "Jane Developer";
+    name->prefW = 340;
+
+    fieldRow->emplace<Label>("PIN", 1.4f);
+    auto* pin = fieldRow->emplace<TextField>();
+    pin->placeholder = "••••";
+    pin->masked = true;
+    pin->prefW = 140;
+
+    // Multi-line editor.
+    auto* area = root->emplace<TextArea>(std::string(
+        "TextArea is the multi-line editor: wrapping, vertical caret nav, click-to-place,\n"
+        "drag + shift selection across rows, undo, and a scrollbar.\n\n"
+        "Both widgets share the headless EditBuffer — the same editing core the desktop\n"
+        "build uses. Try selecting a word and typing over it."));
+    area->visibleRows = 6;
+    area->grow = 1.0f;
+
+    // Live mirror: codepoint count across both single-line fields + the area.
+    auto update = [status, name, pin, area] {
+        std::size_t n = utf8Count(name->text()) + utf8Count(pin->text()) + utf8Count(area->text());
+        status->text = n == 0 ? "0 characters — start typing"
+                              : std::to_string(n) + " characters — real input across the WASM boundary";
+    };
+    name->onChange = [update](const std::string&) { update(); };
+    pin->onChange = [update](const std::string&) { update(); };
+    area->onChange = [update](const std::string&) { update(); };
+    update(); // reflect the pre-filled TextArea immediately, not a stale "0"
+
+    return root;
+}
+
 /// The scene registry. Additional scenes are appended here by their tickets
 /// (#31–#37).
 inline const std::vector<Scene>& registry() {
@@ -502,6 +567,7 @@ inline const std::vector<Scene>& registry() {
         {"text", "Text — shaping", &buildText, true},
         {"data", "Data — list · table · tree · tabs", &buildData, true},
         {"overlays", "Overlays — menu · modal · tooltip · toast", &buildOverlays, true},
+        {"textinput", "Text input — TextField & TextArea", &buildTextInput, true},
     };
     return r;
 }
