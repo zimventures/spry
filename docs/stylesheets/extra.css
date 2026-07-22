@@ -1,0 +1,26 @@
+/* Spry docs — custom styles. */
+
+/* Live WASM demo embeds (#40). A single class every embed shares, so the demos
+   look consistent everywhere and the per-page markup stays a one-liner. The
+   iframe loads assets/wasm/demo.html?scene=<id>, which shows the scene's captured
+   still as a poster while the module downloads — and keeps it as the fallback if
+   WebAssembly can't run — so the box is never empty. */
+.spry-demo {
+  display: block;
+  width: 100%;
+  aspect-ratio: 900 / 560;
+  border: 1px solid var(--md-default-fg-color--lightest);
+  border-radius: 8px;
+  background: #111217; /* matches the demo canvas, so letterboxing is seamless */
+}
+
+/* An optional caption under a demo, when wrapped in <figure class="spry-demo-fig">. */
+.spry-demo-fig {
+  margin: 1em 0;
+}
+.spry-demo-fig figcaption {
+  margin-top: 0.5em;
+  font-size: 0.8rem;
+  color: var(--md-default-fg-color--light);
+  text-align: center;
+}

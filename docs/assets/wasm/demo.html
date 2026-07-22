@@ -6,9 +6,23 @@
   <title>Spry — live WASM demo</title>
   <style>
     html, body { margin: 0; height: 100%; background: #111217; overflow: hidden; }
-    body { display: grid; place-items: center; }
-    /* The SDL canvas. Fixed render size (matches the window), scaled to fit. */
+    #stage {
+      position: absolute; inset: 0;
+      display: grid; place-items: center;
+    }
+    /* The scene's captured still, shown behind the canvas: it's the poster while
+       the module downloads, and the graceful fallback if WASM can't run at all. */
+    #poster {
+      position: absolute; inset: 0;
+      width: 100%; height: 100%;
+      object-fit: contain;
+      background: #111217;
+    }
+    /* The SDL canvas. Fixed render size (matches the window), scaled to fit. It
+       sits above the poster and is transparent until the module paints, so the
+       poster shows through until (and unless) the demo starts. */
     #canvas {
+      position: relative;
       display: block;
       width: 100%;
       max-width: 900px;
@@ -22,27 +36,68 @@
       position: fixed; inset: auto 0 8px 0; text-align: center;
       font: 13px/1.4 system-ui, sans-serif; color: #8c90a0;
     }
+    #status.error { color: #c9713a; }
   </style>
 </head>
 <body>
-  <canvas id="canvas" tabindex="0" width="900" height="560"
-          oncontextmenu="event.preventDefault()"></canvas>
+  <div id="stage">
+    <!-- Poster src + alt are set from ?scene below (the scene id lives in the URL,
+         so the poster can only be selected once script runs). For pages that must
+         work with JavaScript fully disabled, add a <noscript> <img> at the embed
+         site, where the scene is known at authoring time — see the wasm README. -->
+    <img id="poster" alt="" src="">
+    <canvas id="canvas" tabindex="0" width="900" height="560"
+            oncontextmenu="event.preventDefault()"></canvas>
+  </div>
   <div id="status">loading the WebAssembly module…</div>
 
   <script>
     // Pick the scene from ?scene=<id> and pass it to main() via Module.arguments.
-    const scene = new URLSearchParams(location.search).get('scene') || 'theming';
+    // Sanitize before using it in a path, and re-apply the default if sanitizing
+    // emptied it (e.g. ?scene=!!!), so the poster/module never get an empty id.
+    const scene = ((new URLSearchParams(location.search).get('scene') || 'theming')
+                    .replace(/[^a-z0-9_-]/gi, '')) || 'theming';
     const statusEl = document.getElementById('status');
-    var Module = {
-      canvas: document.getElementById('canvas'),
-      arguments: [scene],
-      print: (t) => console.log(t),
-      printErr: (t) => console.error(t),
-      onRuntimeInitialized: () => { statusEl.style.display = 'none'; },
-    };
-    // Keep the canvas focused so keyboard input works after a click.
-    Module.canvas.addEventListener('click', () => Module.canvas.focus());
+    const posterEl = document.getElementById('poster');
+
+    // Point the poster at this scene's captured still (same directory).
+    posterEl.src = 'scene-' + scene + '.png';
+    posterEl.alt = 'Static preview of the Spry ' + scene + ' demo';
+
+    // Show the fallback state: keep the poster, report why the live demo isn't running.
+    let settled = false;
+    function fallback(msg) {
+      if (settled) return;
+      settled = true;
+      statusEl.style.display = ''; // ensure the message is visible even if it was hidden
+      statusEl.textContent = msg;
+      statusEl.classList.add('error');
+      document.getElementById('canvas').style.display = 'none'; // reveal the poster fully
+    }
+
+    if (typeof WebAssembly === 'undefined') {
+      // No WebAssembly at all: the poster is the whole experience.
+      fallback('Live demo needs WebAssembly — showing a snapshot.');
+    } else {
+      var Module = {
+        canvas: document.getElementById('canvas'),
+        arguments: [scene],
+        print: (t) => console.log(t),
+        printErr: (t) => console.error(t),
+        onRuntimeInitialized: () => { settled = true; statusEl.style.display = 'none'; },
+        onAbort: (what) => fallback('Live demo failed to start — showing a snapshot.'),
+      };
+      // Keep the canvas focused so keyboard input works after a click.
+      Module.canvas.addEventListener('click', () => Module.canvas.focus());
+      // Safety net: if the module never initializes (network/build issue), fall back.
+      setTimeout(() => fallback('Live demo is taking too long — showing a snapshot.'), 15000);
+
+      const s = document.createElement('script');
+      s.async = true;
+      s.src = 'spry_demos.js';
+      s.onerror = () => fallback('Live demo couldn’t load — showing a snapshot.');
+      document.body.appendChild(s);
+    }
   </script>
-  <script async src="spry_demos.js"></script>
 </body>
 </html>

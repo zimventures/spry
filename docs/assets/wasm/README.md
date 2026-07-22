@@ -9,8 +9,38 @@ committed** — the site build only serves them, it never builds anything.
 | File | What it is |
 |---|---|
 | `spry_demos.js` + `spry_demos.wasm` | One shared module serving **every** demo scene. The SDL/FreeType/HarfBuzz core + all scenes download once. |
-| `demo.html` | The host page the docs `<iframe>` loads. Reads `?scene=<id>`, passes it to `main()` as `argv[1]`, and shows a loading status until the module runs. (A poster/fallback path is added in #40.) |
-| `scene-*.png` | A still of each scene, rendered by `spry_capture`. Kept as the source for the no-JS / no-WASM fallback that the embeds wire up in #40. |
+| `demo.html` | The host page the docs `<iframe>` loads. Reads `?scene=<id>`, passes it to `main()` as `argv[1]`, and shows the scene's still (`scene-<id>.png`) as a **poster** behind the canvas — while the module downloads, and as the **fallback** if WebAssembly is unavailable, the script fails to load, or startup times out. |
+| `scene-*.png` | A still of each scene, rendered by `spry_capture`. Serves as the poster / no-JS / no-WASM fallback (see below) and as the source image for social cards. |
+
+## Embedding a demo in a page (#40)
+
+Every embed follows one pattern — a lazy `<iframe>` with the shared `.spry-demo`
+class (styled in `docs/stylesheets/extra.css`), pointed at a scene:
+
+```html
+<iframe class="spry-demo" src="../assets/wasm/demo.html?scene=<id>"
+        title="Spry live demo — <description>" loading="lazy"
+        sandbox="allow-scripts allow-same-origin"></iframe>
+```
+
+- **Lazy-load** — `loading="lazy"` defers the whole module until the iframe scrolls
+  into view, so a page with several demos doesn't download megabytes up front.
+- **Fallback** — `demo.html` itself shows `scene-<id>.png` as a poster and keeps it
+  if WebAssembly is unavailable, the script fails to load, or startup times out, so
+  the box is never empty. Keep descriptive prose next to each embed — a `<canvas>`
+  isn't screen-reader accessible, so the surrounding text and the poster's `alt`
+  carry the meaning.
+- **No-JS (optional)** — the poster is selected by script (the scene id is in the
+  URL), so a browser with JavaScript fully disabled shows an empty frame. For a page
+  that must survive that, add a `<noscript>` static image at the embed site, where
+  the scene is known: `<noscript><img class="spry-demo" src="../assets/wasm/scene-<id>.png" alt="…"></noscript>`.
+- **Scene ids** — the `id` values registered in
+  [`examples/web/scenes.h`](https://github.com/zimventures/spry/blob/main/examples/web/scenes.h):
+  `theming`, `controls`, `layout`, `animation`, `text`, `data`, `overlays`,
+  `textinput`.
+
+Wrap it in `<figure class="spry-demo-fig">…<figcaption>…</figcaption></figure>` for a
+caption.
 
 The scenes themselves live in
 [`examples/web/scenes.h`](https://github.com/zimventures/spry/blob/main/examples/web/scenes.h)
