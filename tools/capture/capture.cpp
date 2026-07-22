@@ -527,6 +527,8 @@ int main(int argc, char** argv) {
              c.addOverlay(demos::buildDemoMenu(150.0f, 150.0f));
          },
          true},
+        {"wasm/scene-textinput", 900, 560, &dark,
+         [](Context& c) { c.setRoot(demos::buildTextInput()); }, true},
     };
 
     int failures = 0;
