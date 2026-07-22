@@ -47,9 +47,17 @@ static bool loadAnyFont(SdlRenderer& ren, bool mono = false) {
     // The WASM demos embed JetBrainsMono-Regular.ttf and load it for every scene,
     // so their fallback stills (docs/assets/wasm/scene-*.png) must render in the
     // same font to match the live browser demos exactly — including the programming
-    // ligatures the text scene showcases. Non-WASM stills keep the host UI font.
-    if (mono && ren.loadFont("examples/web/JetBrainsMono-Regular.ttf"))
-        return true;
+    // ligatures the text scene showcases. For a mono job JetBrainsMono is therefore
+    // the *only* acceptable font: if it can't be loaded, fail rather than silently
+    // falling back to a host font (which would defeat the flag). Non-WASM stills use
+    // the host UI font.
+    if (mono) {
+        if (ren.loadFont("examples/web/JetBrainsMono-Regular.ttf"))
+            return true;
+        std::fprintf(stderr, "  loadAnyFont: mono job but examples/web/JetBrainsMono-Regular.ttf "
+                             "could not be loaded (run from the repo root)\n");
+        return false;
+    }
     const char* fonts[] = {
         "C:/Windows/Fonts/segoeui.ttf",
         "C:/Windows/Fonts/consola.ttf",
@@ -380,7 +388,12 @@ static bool capture(const std::string& path, int w, int h, const Theme& theme, c
     }
     {
         SdlRenderer ren(sr);
-        loadAnyFont(ren, mono);
+        if (!loadAnyFont(ren, mono)) {
+            std::printf("  %-40s %s\n", path.c_str(), "FAILED (no font)");
+            SDL_DestroyRenderer(sr);
+            SDL_DestroySurface(surf);
+            return false;
+        }
         Context ctx;
         scene(ctx);
         ctx.setThemeImmediate(theme);
