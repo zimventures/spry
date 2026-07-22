@@ -1,5 +1,6 @@
 build/
 build-capture/
+build-web/
 
 # Documentation build artifacts
 # temporary GIF frame sequence (assembled into .gif, then removed)

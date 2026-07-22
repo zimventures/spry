@@ -44,6 +44,16 @@ Spry's GL backend calls the platform's OpenGL implementation, loaded at runtime 
 `SDL_GL_GetProcAddress`. OpenGL is an API specification, not bundled code; no separate license
 notice is required.
 
+## JetBrains Mono — SIL Open Font License 1.1 (WASM demos only)
+
+- Project: <https://github.com/JetBrains/JetBrainsMono>
+- License: SIL OFL 1.1 (`examples/web/JetBrainsMono-OFL.txt`)
+- Copyright © 2020 The JetBrains Mono Project Authors.
+
+Bundled at `examples/web/JetBrainsMono-Regular.ttf` and embedded into the WebAssembly
+demo modules so text renders in the browser (no system fonts). It is **not** part of
+the Spry library and is not shipped with a native consumer binary.
+
 ## stb_image_write — public domain (dev tool only)
 
 - Project: <https://github.com/nothings/stb>
