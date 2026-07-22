@@ -23,6 +23,8 @@
 #include <string>
 #include <vector>
 
+#include "../../examples/web/scenes.h" // the WASM demo scenes — captured as fallbacks
+
 using namespace spry;
 
 // ---------------------------------------------------------------------------
@@ -479,6 +481,12 @@ int main(int argc, char** argv) {
         {"cat-data", 760, 470, &dark, sceneCatData},
         {"cat-modal", 620, 400, &dark, sceneCatModal},
         {"cat-notify", 560, 320, &dark, sceneCatNotify},
+        // WASM demo fallback stills (#40): rendered from the same scenes.h builders
+        // the live demos use, so the no-JS/no-WASM fallback matches the live view.
+        {"wasm/scene-theming", 900, 560, &dark,
+         [](Context& c) { c.setRoot(demos::buildTheming()); }},
+        {"wasm/scene-controls", 900, 560, &dark,
+         [](Context& c) { c.setRoot(demos::buildControls()); }},
     };
 
     int failures = 0;
