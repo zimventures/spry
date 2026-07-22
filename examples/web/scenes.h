@@ -492,6 +492,16 @@ inline std::unique_ptr<Widget> buildOverlays() {
 }
 
 // ── textinput: live text editing — TextField & TextArea (#37) ──
+// Count Unicode codepoints (not bytes), so IME / non-ASCII input reports the
+// character count a reader expects: every UTF-8 lead byte is a non-continuation
+// byte ((b & 0xC0) != 0x80).
+inline std::size_t utf8Count(const std::string& s) {
+    std::size_t n = 0;
+    for (unsigned char b : s)
+        if ((b & 0xC0) != 0x80) ++n;
+    return n;
+}
+
 inline std::unique_ptr<Widget> buildTextInput() {
     auto root = std::make_unique<Box>();
     root->axis = Axis::Column;
@@ -532,14 +542,16 @@ inline std::unique_ptr<Widget> buildTextInput() {
     area->visibleRows = 6;
     area->grow = 1.0f;
 
-    // Live mirror: character count across both single-line fields + the area.
+    // Live mirror: codepoint count across both single-line fields + the area.
     auto update = [status, name, pin, area] {
-        std::size_t n = name->text().size() + pin->text().size() + area->text().size();
-        status->text = std::to_string(n) + " characters — real input across the WASM boundary";
+        std::size_t n = utf8Count(name->text()) + utf8Count(pin->text()) + utf8Count(area->text());
+        status->text = n == 0 ? "0 characters — start typing"
+                              : std::to_string(n) + " characters — real input across the WASM boundary";
     };
     name->onChange = [update](const std::string&) { update(); };
     pin->onChange = [update](const std::string&) { update(); };
     area->onChange = [update](const std::string&) { update(); };
+    update(); // reflect the pre-filled TextArea immediately, not a stale "0"
 
     return root;
 }
