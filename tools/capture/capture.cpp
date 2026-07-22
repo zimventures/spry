@@ -487,6 +487,8 @@ int main(int argc, char** argv) {
          [](Context& c) { c.setRoot(demos::buildTheming()); }},
         {"wasm/scene-controls", 900, 560, &dark,
          [](Context& c) { c.setRoot(demos::buildControls()); }},
+        {"wasm/scene-layout", 900, 560, &dark,
+         [](Context& c) { c.setRoot(demos::buildLayout()); }},
     };
 
     int failures = 0;
