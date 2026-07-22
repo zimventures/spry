@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Spry — live WASM demo</title>
+  <style>
+    html, body { margin: 0; height: 100%; background: #111217; overflow: hidden; }
+    body { display: grid; place-items: center; }
+    /* The SDL canvas. Fixed render size (matches the window), scaled to fit. */
+    #canvas {
+      display: block;
+      width: 100%;
+      max-width: 900px;
+      height: auto;
+      aspect-ratio: 900 / 560;
+      border: 0;
+      outline: none;           /* no focus ring on click */
+      touch-action: none;      /* let the canvas handle pointer/touch */
+    }
+    #status {
+      position: fixed; inset: auto 0 8px 0; text-align: center;
+      font: 13px/1.4 system-ui, sans-serif; color: #8c90a0;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="canvas" tabindex="0" width="900" height="560"
+          oncontextmenu="event.preventDefault()"></canvas>
+  <div id="status">loading the WebAssembly module…</div>
+
+  <script>
+    const statusEl = document.getElementById('status');
+    var Module = {
+      canvas: document.getElementById('canvas'),
+      print: (t) => console.log(t),
+      printErr: (t) => console.error(t),
+      onRuntimeInitialized: () => { statusEl.style.display = 'none'; },
+      // Keep the canvas focused so keyboard (T) works after a click.
+    };
+    Module.canvas.addEventListener('click', () => Module.canvas.focus());
+  </script>
+  <script async src="spry_web_demo.js"></script>
+</body>
+</html>

@@ -14,8 +14,12 @@ option(SPRY_BUILD_DEMO "Build the spry demo/gallery" ON)
 option(SPRY_BUILD_CAPTURE "Build the headless docs screenshot tool" OFF)
 
 # The GL backend (#208) calls GL 1.1 directly; modern entry points are loaded at
-# runtime via SDL_GL_GetProcAddress.
-find_package(OpenGL REQUIRED)
+# runtime via SDL_GL_GetProcAddress. The Emscripten/WASM build omits the GL backend
+# entirely (it uses only the SdlRenderer path, which SDL renders via WebGL), so it
+# needs no system OpenGL package.
+if(NOT EMSCRIPTEN)
+    find_package(OpenGL REQUIRED)
+endif()
 
 # SDL3: fetched when building standalone; reused when a parent already provides it.
 if(NOT TARGET SDL3::SDL3)
@@ -70,14 +74,21 @@ if(_spry_built_harfbuzz)
     foreach(_hb harfbuzz harfbuzz-subset)
         if(TARGET ${_hb})
             target_compile_options(${_hb} PRIVATE -O2)
+            # Under Emscripten's clang, HarfBuzz's hb.hh promotes warnings to errors
+            # via `#pragma GCC diagnostic error` (e.g. -Wunused-template), which
+            # command-line -Wno flags can't override. HB_NO_PRAGMA_GCC_DIAGNOSTIC
+            # turns off that in-source diagnostic block so third-party warning noise
+            # doesn't block the WASM build.
+            if(EMSCRIPTEN)
+                target_compile_definitions(${_hb} PRIVATE HB_NO_PRAGMA_GCC_DIAGNOSTIC)
+            endif()
         endif()
     endforeach()
 endif()
 
-add_library(spry STATIC
+set(_spry_sources
     src/geometry.cpp
     src/sdl_renderer.cpp
-    src/gl_renderer.cpp
     src/widget.cpp
     src/box.cpp
     src/theme.cpp
@@ -85,10 +96,35 @@ add_library(spry STATIC
     src/text_edit.cpp
     src/textfield.cpp
     src/textarea.cpp)
+# The OpenGL backend is desktop-only; the WASM build leaves it out.
+if(NOT EMSCRIPTEN)
+    list(APPEND _spry_sources src/gl_renderer.cpp)
+endif()
+add_library(spry STATIC ${_spry_sources})
 target_include_directories(spry PUBLIC include)
 # harfbuzz-subset: in a Debug build the core harfbuzz lib leaves undefined refs to
 # subset symbols that live in this companion lib, so link both.
-target_link_libraries(spry PUBLIC SDL3::SDL3 freetype harfbuzz harfbuzz-subset OpenGL::GL)
+target_link_libraries(spry PUBLIC SDL3::SDL3 freetype harfbuzz harfbuzz-subset)
+if(NOT EMSCRIPTEN)
+    target_link_libraries(spry PUBLIC OpenGL::GL)
+endif()
+
+# ---- WASM demo (Emscripten only) -------------------------------------------
+# Compiles the SdlRenderer web demo to WebAssembly, embedding the font + themes
+# into the module's virtual filesystem. Output: spry_web_demo.js + .wasm. Build
+# via scripts/build-web.sh (which runs emcmake).
+if(EMSCRIPTEN)
+    add_executable(spry_web_demo examples/web/web_demo.cpp)
+    target_link_libraries(spry_web_demo PRIVATE spry)
+    # SHELL: keeps each "--embed-file <src>@<dst>" as one un-deduplicated fragment
+    # (CMake would otherwise collapse the repeated --embed-file flags).
+    target_link_options(spry_web_demo PRIVATE
+        -sALLOW_MEMORY_GROWTH=1
+        -sMAX_WEBGL_VERSION=2
+        "SHELL:--embed-file ${CMAKE_CURRENT_SOURCE_DIR}/examples/themes@/themes"
+        "SHELL:--embed-file ${CMAKE_CURRENT_SOURCE_DIR}/examples/web/JetBrainsMono-Regular.ttf@/font.ttf")
+    set_target_properties(spry_web_demo PROPERTIES SUFFIX ".js")
+endif()
 
 if(SPRY_BUILD_DEMO)
     # When consumed as a subproject (Cleat), the demos are configured but kept out

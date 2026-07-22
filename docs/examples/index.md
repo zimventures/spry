@@ -6,6 +6,17 @@ copy-a-starting-point program; the source below is transcluded straight from
 [`examples/`](https://github.com/zimventures/spry/tree/main/examples), so it never
 drifts.
 
+## Try it live
+
+The demo below is the **real Spry toolkit compiled to WebAssembly**, running in your
+browser — not a video or a screenshot. Hover the cards to see the spring animations,
+and **click** (or press **T**) to crossfade between themes. It's the same
+[`demo.cpp`](#demo) source, on the `SdlRenderer` backend (which SDL renders via
+WebGL), built with Emscripten.
+
+<iframe src="../assets/wasm/demo.html" title="Spry live WebAssembly demo" loading="lazy"
+        style="width:100%; aspect-ratio:900/560; border:1px solid var(--md-default-fg-color--lightest); border-radius:8px; background:#111217;"></iframe>
+
 | Example | Target | Backend | Start here? |
 |---|---|---|---|
 | [hello.cpp](#hello) | `spry_hello` | SDL | **Yes** — the minimal app |
