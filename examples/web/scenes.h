@@ -66,11 +66,62 @@ inline std::unique_ptr<Widget> buildTheming() {
     return root;
 }
 
-/// The scene registry. Additional scenes (layout, animation, widgets, …) are
-/// appended here by their tickets (#31–#37).
+// ── controls: a fully-interactive gallery of the basic controls (#34) ──
+inline std::unique_ptr<Widget> buildControls() {
+    auto root = std::make_unique<Box>();
+    root->axis = Axis::Column;
+    root->padding = Edges(26);
+    root->spacing = 14;
+    root->emplace<Label>("Buttons & controls", 2.0f);
+    auto* status = root->emplace<Label>("interact with the controls — they're live", 1.4f);
+    status->role = "textDim";
+
+    auto* buttons = root->emplace<Box>();
+    buttons->axis = Axis::Row;
+    buttons->spacing = 12;
+    buttons->emplace<Button>("Primary", [status] { status->text = "Primary clicked"; });
+    buttons->emplace<Button>("Secondary", [status] { status->text = "Secondary clicked"; });
+
+    auto* chk = root->emplace<Checkbox>("Enable feature", true);
+    chk->onChange = [status](bool on) { status->text = std::string("Checkbox: ") + (on ? "on" : "off"); };
+
+    // Radio group — selecting one clears the others (the group is caller-managed).
+    auto* radioRow = root->emplace<Box>();
+    radioRow->axis = Axis::Row;
+    radioRow->spacing = 18;
+    auto group = std::make_shared<std::vector<RadioButton*>>();
+    for (const char* name : {"Small", "Medium", "Large"}) {
+        auto* rb = radioRow->emplace<RadioButton>(name, group->empty()); // first is selected
+        group->push_back(rb);
+        rb->onSelect = [group, rb, status, name] {
+            for (RadioButton* o : *group) o->selected = (o == rb);
+            status->text = std::string("Selected: ") + name;
+        };
+    }
+
+    auto* tg = root->emplace<Toggle>("Dark mode", true);
+    tg->onChange = [status](bool on) { status->text = std::string("Toggle: ") + (on ? "on" : "off"); };
+
+    // The slider drives the progress bar live.
+    auto* slider = root->emplace<Slider>(0.0f, 100.0f, 65.0f);
+    slider->prefW = 300;
+    auto* progress = root->emplace<ProgressBar>();
+    progress->value = 0.65f;
+    progress->prefW = 300;
+    slider->onChange = [progress, status](float v) {
+        progress->value = v / 100.0f;
+        status->text = "Slider: " + std::to_string((int)v);
+    };
+
+    return root;
+}
+
+/// The scene registry. Additional scenes (layout, animation, …) are appended here
+/// by their tickets (#31–#37).
 inline const std::vector<Scene>& registry() {
     static const std::vector<Scene> r = {
         {"theming", "Layout & theming", &buildTheming, false},
+        {"controls", "Buttons & controls", &buildControls, true},
     };
     return r;
 }
