@@ -599,22 +599,22 @@ inline std::unique_ptr<Widget> buildGallery() {
     auto* tabs = bar->emplace<TabBar>();
     tabs->tabs = {"Controls", "Data", "Text", "Overlays"};
 
-    // One panel per tab; only the active one is visible (layout skips the rest).
-    Widget* panels[] = {
+    // One panel per tab, in the same order as tabs->tabs; only the active one is
+    // visible (layout skips the rest). Deriving everything from this vector keeps
+    // the panels and the tab switching in sync as categories are added or removed.
+    std::vector<Widget*> panels = {
         root->add(buildControls()),
         root->add(buildData()),
         root->add(buildTextInput()),
         root->add(buildOverlays()),
     };
-    for (int i = 0; i < 4; ++i) {
+    for (std::size_t i = 0; i < panels.size(); ++i) {
         panels[i]->grow = 1.0f;
         panels[i]->visible = (i == 0);
     }
-    tabs->onChange = [p0 = panels[0], p1 = panels[1], p2 = panels[2], p3 = panels[3]](int i) {
-        p0->visible = (i == 0);
-        p1->visible = (i == 1);
-        p2->visible = (i == 2);
-        p3->visible = (i == 3);
+    tabs->onChange = [panels](int active) {
+        for (std::size_t i = 0; i < panels.size(); ++i)
+            panels[i]->visible = ((int)i == active);
     };
     return root;
 }
