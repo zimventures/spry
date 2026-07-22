@@ -116,12 +116,55 @@ inline std::unique_ptr<Widget> buildControls() {
     return root;
 }
 
-/// The scene registry. Additional scenes (layout, animation, …) are appended here
-/// by their tickets (#31–#37).
+// ── layout: an interactive flex playground (#31) ──
+inline std::unique_ptr<Widget> buildLayout() {
+    auto root = std::make_unique<Box>();
+    root->axis = Axis::Column;
+    root->padding = Edges(22);
+    root->spacing = 12;
+    root->emplace<Label>("Layout — the flex Box", 2.0f);
+    auto* hint = root->emplace<Label>("flip the controls and watch the tree re-lay-out", 1.4f);
+    hint->role = "textDim";
+
+    // A control row, then the container the controls manipulate.
+    auto* controls = root->emplace<Box>();
+    controls->axis = Axis::Row;
+    controls->spacing = 12;
+
+    auto* demo = root->emplace<Box>();
+    demo->grow = 1.0f;
+    demo->axis = Axis::Row;
+    demo->spacing = 12;
+    demo->padding = Edges(6);
+    Card* first = nullptr;
+    for (const char* n : {"A", "B", "C"}) {
+        auto* c = demo->emplace<Card>(n);
+        c->prefW = 130;
+        c->prefH = 90;
+        if (!first) first = c;
+    }
+
+    auto* axis = controls->emplace<Toggle>("Column", false);
+    axis->onChange = [demo](bool on) { demo->axis = on ? Axis::Column : Axis::Row; };
+    auto* grow = controls->emplace<Toggle>("A grows", false);
+    grow->onChange = [first](bool on) { if (first) first->grow = on ? 1.0f : 0.0f; };
+    auto* cross = controls->emplace<Combo>(
+        std::vector<std::string>{"cross: Stretch", "cross: Start", "cross: Center", "cross: End"}, 0);
+    cross->prefW = 190;
+    cross->onChange = [demo](int i, const std::string&) {
+        demo->cross = i == 1 ? Align::Start : i == 2 ? Align::Center : i == 3 ? Align::End : Align::Stretch;
+    };
+
+    return root;
+}
+
+/// The scene registry. Additional scenes are appended here by their tickets
+/// (#31–#37).
 inline const std::vector<Scene>& registry() {
     static const std::vector<Scene> r = {
         {"theming", "Layout & theming", &buildTheming, false},
         {"controls", "Buttons & controls", &buildControls, true},
+        {"layout", "Layout — the flex Box", &buildLayout, true},
     };
     return r;
 }
