@@ -33,4 +33,4 @@ scripts/capture-media.sh      # builds spry_capture, renders every scene-*.png
 ```
 
 Requires a C++ toolchain + CMake. Regenerate after adding or changing a scene in
-`scenes.h`, and commit the updated `scene-*.png` alongside the source.
+`examples/web/scenes.h`, and commit the updated `scene-*.png` alongside the source.

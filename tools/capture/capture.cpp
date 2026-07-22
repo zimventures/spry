@@ -163,8 +163,11 @@ int main(int argc, char** argv) {
     };
 
     int failures = 0;
-    std::printf("Capturing %zu screenshots into %s\n", jobs.size(), dir.c_str());
-    SDL_CreateDirectory((dir + "wasm").c_str()); // some jobs write into a wasm/ subdir
+    std::printf("Rendering %zu fallback stills into %s\n", jobs.size(), dir.c_str());
+    // Every still lands in the wasm/ subdir; create it up front so a failure here is
+    // reported as the real cause rather than a generic per-file "FAILED".
+    if (!SDL_CreateDirectory((dir + "wasm").c_str())) // succeeds if it already exists
+        std::fprintf(stderr, "  could not create %swasm/ (%s)\n", dir.c_str(), SDL_GetError());
     for (const auto& j : jobs)
         if (!capture(dir + j.name + ".png", j.w, j.h, *j.theme, j.scene, j.mono)) ++failures;
 
