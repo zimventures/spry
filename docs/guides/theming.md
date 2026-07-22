@@ -86,7 +86,7 @@ and from HSV. These back the [color picker](../widgets/index.md) widgets.
 <iframe class="spry-demo" src="../../assets/wasm/demo.html?scene=theming"
         title="Spry live demo — hot-swappable themes (click or press T to crossfade)"
         loading="lazy" sandbox="allow-scripts allow-same-origin"></iframe>
-<noscript><img class="spry-demo" src="../../assets/wasm/scene-theming.png" alt="The same UI crossfading between the dark and light themes"></noscript>
+<noscript><img class="spry-demo" src="../../assets/wasm/scene-theming.png" alt="The demo UI in the dark theme — cards and a content panel"></noscript>
 
 ## Stability
 

@@ -71,7 +71,7 @@ crossfade between them. The animated theme transition (below) is its signature; 
 <iframe class="spry-demo" src="../assets/wasm/demo.html?scene=theming"
         title="Spry live demo — demo.cpp: layout, cards, and hot-swappable themes (click or press T)"
         loading="lazy" sandbox="allow-scripts allow-same-origin"></iframe>
-<noscript><img class="spry-demo" src="../assets/wasm/scene-theming.png" alt="An animated theme crossfade, as demo.cpp performs on pressing T"></noscript>
+<noscript><img class="spry-demo" src="../assets/wasm/scene-theming.png" alt="The demo.cpp UI — a themed layout of cards and a content panel"></noscript>
 
 ```sh
 cmake --build build --target spry_demo && ./build/spry_demo
