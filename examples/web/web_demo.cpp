@@ -3,7 +3,9 @@
 // only differences are the browser main loop (emscripten_set_main_loop) and loading
 // the font + themes from the embedded filesystem instead of disk. Build: see
 // scripts/build-web.sh. Also compiles natively (for testing) via the #else branch.
+#define SDL_MAIN_HANDLED
 #include <SDL3/SDL.h>
+#include <SDL3/SDL_main.h>
 #ifdef __EMSCRIPTEN__
 #include <emscripten.h>
 #endif
@@ -60,11 +62,14 @@ static std::unique_ptr<Widget> buildUI() {
 }
 
 struct App {
-    SdlRenderer* ren = nullptr;
+    SDL_Window* win = nullptr;
+    SDL_Renderer* sdl = nullptr;
+    SdlRenderer* ren = nullptr; // heap-owned so cleanup order is explicit (see main)
     Context* ctx = nullptr;
     Uint64 last = 0;
     Theme midnight, ember;
     bool onEmber = false;
+    bool running = true;
 };
 static App g;
 
@@ -76,11 +81,23 @@ static void swapTheme() {
 static void frame() {
     SDL_Event e;
     while (SDL_PollEvent(&e)) {
-        if (e.type == SDL_EVENT_KEY_DOWN && e.key.key == SDLK_T)
-            swapTheme();
+        if (e.type == SDL_EVENT_QUIT)
+            g.running = false;
+        if (e.type == SDL_EVENT_KEY_DOWN) {
+            if (e.key.key == SDLK_ESCAPE)
+                g.running = false;
+            if (e.key.key == SDLK_T)
+                swapTheme();
+        }
         if (e.type == SDL_EVENT_MOUSE_BUTTON_DOWN)
             swapTheme(); // click to swap — no keyboard focus needed in an iframe
     }
+#ifdef __EMSCRIPTEN__
+    if (!g.running) {
+        emscripten_cancel_main_loop();
+        return;
+    }
+#endif
     Uint64 now = SDL_GetTicks();
     float dt = std::min((now - g.last) / 1000.0f, 0.05f);
     g.last = now;
@@ -94,35 +111,40 @@ static void frame() {
 }
 
 int main(int, char**) {
+    SDL_SetMainReady();
     if (!SDL_Init(SDL_INIT_VIDEO))
         return 1;
-    SDL_Window* win = SDL_CreateWindow("Spry web demo", 900, 560, 0);
-    SDL_Renderer* sdl = win ? SDL_CreateRenderer(win, nullptr) : nullptr;
-    if (!win || !sdl)
+    g.win = SDL_CreateWindow("Spry web demo", 900, 560, 0);
+    g.sdl = g.win ? SDL_CreateRenderer(g.win, nullptr) : nullptr;
+    if (!g.win || !g.sdl)
         return 1;
 
-    static SdlRenderer ren(sdl); // static: outlives main() once the loop takes over
-    g.ren = &ren;
-    ren.loadFont("/font.ttf"); // embedded into the WASM filesystem at build time
+    g.ren = new SdlRenderer(g.sdl);
+    g.ren->loadFont("/font.ttf"); // embedded into the WASM filesystem at build time
 
     g.midnight = Theme::builtinDark();
     Theme::loadFromFile("/themes/midnight.theme", g.midnight);
     g.ember = Theme::builtinDark();
     Theme::loadFromFile("/themes/ember.theme", g.ember);
 
-    static Context ctx;
-    g.ctx = &ctx;
-    ctx.setRoot(buildUI());
-    ctx.setThemeImmediate(g.midnight);
+    g.ctx = new Context();
+    g.ctx->setRoot(buildUI());
+    g.ctx->setThemeImmediate(g.midnight);
     g.last = SDL_GetTicks();
 
 #ifdef __EMSCRIPTEN__
     emscripten_set_main_loop(frame, 0, 1); // browser drives the loop
 #else
-    while (true) {
+    while (g.running) {
         frame();
         SDL_Delay(16);
     }
+    // Native cleanup (destroy the renderer wrapper before the SDL renderer it uses).
+    delete g.ctx;
+    delete g.ren;
+    SDL_DestroyRenderer(g.sdl);
+    SDL_DestroyWindow(g.win);
+    SDL_Quit();
 #endif
     return 0;
 }

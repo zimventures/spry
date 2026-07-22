@@ -1,0 +1,5 @@
+# Generated Emscripten output for the WASM docs demos — committed so the site is
+# live without a WASM build in CI, but treated as binary/generated so it doesn't
+# create diff noise or merge conflicts. (Regenerate with scripts/build-web.sh.)
+docs/assets/wasm/*.js  -diff linguist-generated
+docs/assets/wasm/*.wasm binary linguist-generated
