@@ -123,7 +123,7 @@ inline std::unique_ptr<Widget> buildLayout() {
     root->padding = Edges(22);
     root->spacing = 12;
     root->emplace<Label>("Layout — the flex Box", 2.0f);
-    auto* hint = root->emplace<Label>("flip the controls and watch the tree re-lay-out", 1.4f);
+    auto* hint = root->emplace<Label>("flip the controls and watch the tree re-lay out", 1.4f);
     hint->role = "textDim";
 
     // A control row, then the container the controls manipulate.
@@ -144,8 +144,11 @@ inline std::unique_ptr<Widget> buildLayout() {
         if (!first) first = c;
     }
 
-    auto* axis = controls->emplace<Toggle>("Column", false);
-    axis->onChange = [demo](bool on) { demo->axis = on ? Axis::Column : Axis::Row; };
+    auto* axis = controls->emplace<Toggle>("Row layout", false); // label tracks the current axis
+    axis->onChange = [demo, axis](bool on) {
+        demo->axis = on ? Axis::Column : Axis::Row;
+        axis->label = on ? "Column layout" : "Row layout";
+    };
     auto* grow = controls->emplace<Toggle>("A grows", false);
     grow->onChange = [first](bool on) { if (first) first->grow = on ? 1.0f : 0.0f; };
     auto* cross = controls->emplace<Combo>(
