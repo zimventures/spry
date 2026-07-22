@@ -23,6 +23,32 @@ struct Scene {
     bool interactive;
 };
 
+// ── hello: the smallest app — heading + panel + a counter button (#41 follow-up) ──
+// Mirrors examples/hello.cpp so the Getting-started tutorial's first screen is live.
+inline std::unique_ptr<Widget> buildHello() {
+    auto root = std::make_unique<Box>();
+    root->axis = Axis::Column;
+    root->padding = Edges(26);
+    root->spacing = 16;
+    root->emplace<Label>("Hello, Spry", 2.4f);
+
+    auto* panel = root->emplace<Panel>();
+    panel->grow = 1.0f;
+    auto* pbox = panel->emplace<Box>();
+    pbox->axis = Axis::Column;
+    pbox->padding = Edges(18);
+    pbox->spacing = 12;
+    pbox->cross = Align::Start;
+    auto* counter = pbox->emplace<Label>("Clicked 0 times", 1.6f);
+    auto clicks = std::make_shared<int>(0); // outlives the builder; owned by the callback
+    auto* button = pbox->emplace<Button>("Click me", [counter, clicks] {
+        ++*clicks;
+        counter->text = "Clicked " + std::to_string(*clicks) + (*clicks == 1 ? " time" : " times");
+    });
+    button->prefW = 140;
+    return root;
+}
+
 // ── theming: the layout + theming showcase (hover the cards, click/T to swap) ──
 inline std::unique_ptr<Widget> buildTheming() {
     auto root = std::make_unique<Box>();
@@ -482,7 +508,7 @@ inline std::unique_ptr<Widget> buildOverlays() {
     pbox->spacing = 8;
     pbox->cross = Align::Start;
     auto* hoverCard = pbox->emplace<Card>("Hover me for a tooltip");
-    hoverCard->prefW = 240;
+    hoverCard->prefW = 320; // wide enough that the label fits inside the card
     hoverCard->prefH = 64;
     hoverCard->tooltip = "Tooltips are overlays too — anchored, animated, auto-dismissing.";
     auto* note = pbox->emplace<Label>("Click a button above, or hover the card. Click a toast repeatedly to stack them.", 1.3f);
@@ -560,6 +586,7 @@ inline std::unique_ptr<Widget> buildTextInput() {
 /// (#31–#37).
 inline const std::vector<Scene>& registry() {
     static const std::vector<Scene> r = {
+        {"hello", "Hello, Spry — the smallest app", &buildHello, true},
         {"theming", "Layout & theming", &buildTheming, false},
         {"controls", "Buttons & controls", &buildControls, true},
         {"layout", "Layout — the flex Box", &buildLayout, true},

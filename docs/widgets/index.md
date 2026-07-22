@@ -212,9 +212,8 @@ and [Getting started §8](../getting-started.md#8-overlays-menus-modals-tooltips
 <noscript><img class="spry-demo" src="../assets/wasm/scene-overlays.png" alt="A context menu, a modal dialog, a tooltip, and a toast"></noscript>
 
 **`Menu`** — a popup list of `MenuItem`s at an anchor point. `anchorX`/`anchorY`,
-`addItem(label, action)`.
-
-![An open context menu](../assets/menu-dark.png)
+`addItem(label, action)`. Spawn one with the **Context menu** button in the live
+demo above.
 
 ```cpp
 auto menu = std::make_unique<Menu>();
@@ -225,9 +224,8 @@ ctx.addOverlay(std::move(menu));
 ```
 
 **`Modal`** — centered content (set via `setContent(...)`) that dims the background
-with the `scrim` token; dismiss on outside-click / Escape (configurable).
-
-![A modal dialog centered over a dimmed page](../assets/cat-modal.png)
+with the `scrim` token; dismiss on outside-click / Escape (configurable). Open one
+with **Open dialog** in the live demo above.
 
 **`Tooltip`** — a small bubble shown at an anchor. Hover tooltips are automatic: set
 any widget's `tooltip` field and `Context` shows one after a hover delay.
