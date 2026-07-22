@@ -11,11 +11,12 @@ drifts.
 The demo below is the **real Spry toolkit compiled to WebAssembly**, running in your
 browser — not a video or a screenshot. Hover the cards to see the spring animations,
 and **click** (or press **T**) to crossfade between themes. It's the [`demo.cpp`](#demo)
-UI adapted for the browser in
-[`examples/web/web_demo.cpp`](https://github.com/zimventures/spry/blob/main/examples/web/web_demo.cpp),
+UI adapted for the browser as the `theming` scene in
+[`examples/web/scenes.h`](https://github.com/zimventures/spry/blob/main/examples/web/scenes.h)
+(driven by [`web_demos.cpp`](https://github.com/zimventures/spry/blob/main/examples/web/web_demos.cpp)),
 on the `SdlRenderer` backend (which SDL renders via WebGL), built with Emscripten.
 
-<iframe src="../assets/wasm/demo.html" title="Spry live WebAssembly demo" loading="lazy"
+<iframe src="../assets/wasm/demo.html?scene=theming" title="Spry live WebAssembly demo" loading="lazy"
         sandbox="allow-scripts allow-same-origin"
         style="width:100%; aspect-ratio:900/560; border:1px solid var(--md-default-fg-color--lightest); border-radius:8px; background:#111217;"></iframe>
 

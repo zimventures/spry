@@ -25,11 +25,11 @@ echo "==> Configuring (Emscripten)"
 emcmake cmake -B "$BUILD" -DCMAKE_BUILD_TYPE=Release \
   -DSPRY_BUILD_DEMO=OFF -DSPRY_BUILD_TESTS=OFF >/dev/null
 
-echo "==> Building spry_web_demo"
-cmake --build "$BUILD" --target spry_web_demo
+echo "==> Building spry_demos"
+cmake --build "$BUILD" --target spry_demos
 
 echo "==> Staging into $OUT/"
 mkdir -p "$OUT"
-cp "$BUILD/spry_web_demo.js" "$BUILD/spry_web_demo.wasm" "$OUT/"
+cp "$BUILD/spry_demos.js" "$BUILD/spry_demos.wasm" "$OUT/"
 
-echo "==> Done: $OUT/spry_web_demo.{js,wasm}  (host page: $OUT/demo.html)"
+echo "==> Done: $OUT/spry_demos.{js,wasm}  (host page: $OUT/demo.html?scene=<id>)"
