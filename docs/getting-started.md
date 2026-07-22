@@ -138,6 +138,7 @@ gallery that exercises nearly every widget.
 <iframe class="spry-demo" src="assets/wasm/demo.html?scene=controls"
         title="Spry live demo — an interactive control gallery"
         loading="lazy" sandbox="allow-scripts allow-same-origin"></iframe>
+<noscript><img class="spry-demo" src="assets/wasm/scene-controls.png" alt="A control gallery laid out with flex boxes"></noscript>
 
 ---
 
@@ -166,6 +167,7 @@ for free.
 <iframe class="spry-demo" src="assets/wasm/demo.html?scene=theming"
         title="Spry live demo — hot-swappable themes (click or press T to crossfade)"
         loading="lazy" sandbox="allow-scripts allow-same-origin"></iframe>
+<noscript><img class="spry-demo" src="assets/wasm/scene-theming.png" alt="The same UI crossfading between the dark and light themes"></noscript>
 
 ---
 
@@ -259,6 +261,7 @@ and `Context` shows it after a hover delay.
 <iframe class="spry-demo" src="assets/wasm/demo.html?scene=overlays"
         title="Spry live demo — menus, modals, tooltips, and toasts"
         loading="lazy" sandbox="allow-scripts allow-same-origin"></iframe>
+<noscript><img class="spry-demo" src="assets/wasm/scene-overlays.png" alt="An open context-menu overlay"></noscript>
 
 ---
 

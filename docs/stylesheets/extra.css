@@ -12,6 +12,7 @@
   border: 1px solid var(--md-default-fg-color--lightest);
   border-radius: 8px;
   background: #111217; /* matches the demo canvas, so letterboxing is seamless */
+  object-fit: contain; /* for the <noscript> <img> fallback (ignored by <iframe>) */
 }
 
 /* An optional caption under a demo, when wrapped in <figure class="spry-demo-fig">. */

@@ -22,6 +22,7 @@ lightweight, themeable, GPU-rendered.
 <iframe class="spry-demo" src="assets/wasm/demo.html?scene=controls"
         title="Spry live demo — buttons, checkboxes, radios, a toggle, a slider, and a progress bar"
         loading="lazy" sandbox="allow-scripts allow-same-origin"></iframe>
+<noscript><img class="spry-demo" src="assets/wasm/scene-controls.png" alt="Spry widgets — buttons, checkboxes, radios, a toggle, a slider, and a progress bar"></noscript>
 
 ---
 

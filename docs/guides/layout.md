@@ -87,6 +87,7 @@ The shared value types live in `layout.h`: `Size`, `Rect` (with `contains`),
 <iframe class="spry-demo" src="../assets/wasm/demo.html?scene=layout"
         title="Spry live demo — the flex Box: rows, columns, grow, and alignment"
         loading="lazy" sandbox="allow-scripts allow-same-origin"></iframe>
+<noscript><img class="spry-demo" src="../assets/wasm/scene-layout.png" alt="Flex layout: a row of cards above a fixed sidebar and a grow split"></noscript>
 
 ## Stability
 

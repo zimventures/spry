@@ -53,6 +53,7 @@ animated widget. Not everything is a spring, though: the
 <iframe class="spry-demo" src="../assets/wasm/demo.html?scene=animation"
         title="Spry live demo — springs and easing curves"
         loading="lazy" sandbox="allow-scripts allow-same-origin"></iframe>
+<noscript><img class="spry-demo" src="../assets/wasm/scene-animation.png" alt="Spry animation — springs and easing curves"></noscript>
 
 ## Stability
 
