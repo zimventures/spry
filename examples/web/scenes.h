@@ -501,7 +501,7 @@ inline const std::vector<Scene>& registry() {
         {"animation", "Animation — springs", &buildAnimation, true},
         {"text", "Text — shaping", &buildText, true},
         {"data", "Data — list · table · tree · tabs", &buildData, true},
-        {"overlays", "Overlays — menu · modal · toast", &buildOverlays, true},
+        {"overlays", "Overlays — menu · modal · tooltip · toast", &buildOverlays, true},
     };
     return r;
 }
