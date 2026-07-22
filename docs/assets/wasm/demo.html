@@ -84,7 +84,11 @@
         arguments: [scene],
         print: (t) => console.log(t),
         printErr: (t) => console.error(t),
-        onRuntimeInitialized: () => { settled = true; statusEl.style.display = 'none'; },
+        onRuntimeInitialized: () => {
+          settled = true;
+          statusEl.style.display = 'none';
+          posterEl.style.display = 'none'; // the live canvas takes over; hide the poster
+        },
         onAbort: (what) => fallback('Live demo failed to start — showing a snapshot.'),
       };
       // Keep the canvas focused so keyboard input works after a click.
