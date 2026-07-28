@@ -277,6 +277,31 @@ public:
         }
     }
 
+    /// Whether anything in the scene is still visually in motion (#57): springs
+    /// mid-flight anywhere in the tree or overlays (via @ref Widget::animating),
+    /// overlays opening / closing / auto-closing, the theme transition, or a
+    /// tooltip pending on a resting pointer (it opens with no further input).
+    /// Hosts that render on demand call this after @ref frame() and keep
+    /// presenting frames until it returns false.
+    ///
+    /// Deliberately excludes the text-caret blink: a focused field repaints on a
+    /// fixed 1 s period (0.5 s on / 0.5 s off), which a host schedules as a
+    /// deadline via `focused()->wantsTextInput()` instead of rendering
+    /// continuously.
+    bool animationsActive() const {
+        if (trans_ < 1.0f)
+            return true; // theme crossfade in flight
+        if (tipTarget_ && !tip_ && !tipTarget_->tooltip.empty())
+            return true; // tooltip delay counting down toward an input-less open
+        if (root_ && root_->animating())
+            return true;
+        for (const auto& o : overlays_) {
+            if (o->animating())
+                return true;
+        }
+        return false;
+    }
+
     /// Last pointer X seen by @ref handleEvent — the anchor point for a popover
     /// opened from a widget's `onClick` (which runs during event dispatch).
     float lastPointerX() const { return lastPointerX_; }

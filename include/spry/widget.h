@@ -76,6 +76,19 @@ public:
 
     /// Advance per-frame animation/state by `dt` seconds.
     virtual void update(float dt);
+    /// Whether this widget or any visible descendant has an animation in flight
+    /// (#57). Widgets that own animation state (a `Spring`, a countdown) override
+    /// this and OR their own motion into the recursion — see Card / Button /
+    /// Toggle / Slider / TabBar / Overlay. `Context::animationsActive()`
+    /// aggregates it so hosts that render on demand know when to keep
+    /// presenting frames and when the scene has settled.
+    virtual bool animating() const {
+        for (const auto& c : children_) {
+            if (c->visible && c->animating())
+                return true;
+        }
+        return false;
+    }
     /// Draw this widget and its subtree.
     virtual void draw(Renderer& r, const Theme& theme);
     /// Self-paint hook for leaf widgets (default no-op).

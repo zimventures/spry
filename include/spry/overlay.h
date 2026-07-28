@@ -72,6 +72,18 @@ public:
         content_->arrange(r, contentRect_);
     }
 
+    /// Overlays are in motion while opening/closing, while the presence spring
+    /// hasn't settled, and while an auto-close countdown runs — the countdown
+    /// fires with no input, so an on-demand host must keep frames coming (#57).
+    bool animating() const override {
+        if (phase_ == Phase::Opening || phase_ == Phase::Closing)
+            return true;
+        if (!appear_.settled())
+            return true;
+        if (phase_ == Phase::Open && autoClose > 0.0f)
+            return true;
+        return Widget::animating();
+    }
     void update(float dt) override {
         appear_.target = (phase_ == Phase::Closing || phase_ == Phase::Closed) ? 0.0f : 1.0f;
         appear_.step(dt);
@@ -279,6 +291,7 @@ public:
     }
 
     bool stacked() const override { return true; }
+    bool animating() const override { return !slot_.settled() || Overlay::animating(); }
     void update(float dt) override {
         slot_.target = (float)stackIndex * kSlotH; // ease toward this toast's slot
         slot_.step(dt);

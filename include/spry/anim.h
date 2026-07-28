@@ -30,8 +30,24 @@ struct Spring {
     float stiffness = 260.0f;  ///< Higher = snaps to the target faster.
     float damping = 18.0f;     ///< Higher = less overshoot / oscillation.
 
-    /// Advance the spring by `dt` seconds (internally sub-stepped ×4).
+    /// True once the spring has effectively reached its target — within `eps` on
+    /// both position and velocity (#57). @ref step() snaps and stops once settled,
+    /// and widgets that own springs report `!settled()` from their `animating()`
+    /// override so hosts rendering on demand know when motion has finished.
+    bool settled(float eps = 0.001f) const {
+        return std::fabs(target - value) <= eps && std::fabs(vel) <= eps;
+    }
+
+    /// Advance the spring by `dt` seconds (internally sub-stepped ×4). Once
+    /// @ref settled(), snaps exactly to the target and holds still — a damped
+    /// spring only reaches its target asymptotically, and the snap gives
+    /// `animating()` queries a definite end instead of a decaying tail (#57).
     void step(float dt) {
+        if (settled()) {
+            value = target;
+            vel = 0.0f;
+            return;
+        }
         const int n = 4;
         float h = dt / n;
         for (int i = 0; i < n; ++i) {

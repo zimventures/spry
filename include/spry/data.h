@@ -657,6 +657,7 @@ public:
         }
         return false;
     }
+    bool animating() const override { return !indX_.settled() || !indW_.settled() || Widget::animating(); }
     void update(float dt) override {
         indX_.step(dt);
         indW_.step(dt);
