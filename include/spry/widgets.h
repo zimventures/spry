@@ -208,6 +208,7 @@ public:
     Spring lift;        ///< Hover-lift animation state.
     /// Construct a card labelled `l`.
     explicit Card(std::string l) : label(std::move(l)) {}
+    bool animating() const override { return !lift.settled() || Widget::animating(); }
     void update(float dt) override {
         lift.target = hovered ? 1.0f : 0.0f;
         lift.step(dt);
@@ -256,6 +257,7 @@ public:
     }
     Role accessibleRole() const override { return Role::Button; }
     std::string accessibleLabel() const override { return label; }
+    bool animating() const override { return !press.settled() || Widget::animating(); }
     void update(float dt) override {
         press.target = pressed ? 1.0f : 0.0f;
         press.step(dt);
@@ -388,6 +390,7 @@ public:
     }
     Role accessibleRole() const override { return Role::Checkbox; }
     std::string accessibleLabel() const override { return label; }
+    bool animating() const override { return !knob.settled() || Widget::animating(); }
     void update(float dt) override {
         knob.target = on ? 1.0f : 0.0f;
         knob.step(dt);
@@ -455,6 +458,7 @@ public:
             default: return false;
         }
     }
+    bool animating() const override { return !thumb.settled() || Widget::animating(); }
     void update(float dt) override {
         thumb.target = fraction();
         thumb.step(dt);
