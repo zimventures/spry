@@ -235,11 +235,13 @@ void SdlRenderer::drawImage(ImageHandle img, const Rect& dst, Color mod) {
 void SdlRenderer::freeImage(ImageHandle img) {
     if (!img) return;
     SDL_Texture* tex = (SDL_Texture*)(std::uintptr_t)img;
-    // Only destroy textures we handed out: erasing from images_ both keeps the dtor
-    // from double-freeing and makes a stale or foreign handle a harmless no-op.
+    // Only destroy textures we handed out: the lookup both keeps the dtor from
+    // double-freeing and makes a stale or foreign handle a harmless no-op. Order in
+    // images_ carries no meaning, so swap the tail down rather than shifting.
     auto it = std::find(images_.begin(), images_.end(), tex);
     if (it == images_.end()) return;
-    images_.erase(it);
+    *it = images_.back();
+    images_.pop_back();
     SDL_DestroyTexture(tex);
 }
 

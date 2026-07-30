@@ -466,11 +466,13 @@ void GlRenderer::drawImage(ImageHandle img, const Rect& dst, Color mod) {
 void GlRenderer::freeImage(ImageHandle img) {
     if (!img) return;
     GLuint tex = (GLuint)img;
-    // Only delete textures we handed out: erasing from images both keeps teardown
-    // from double-deleting and makes a stale or foreign handle a harmless no-op.
+    // Only delete textures we handed out: the lookup both keeps teardown from
+    // double-deleting and makes a stale or foreign handle a harmless no-op. Order in
+    // images carries no meaning, so swap the tail down rather than shifting.
     auto it = std::find(d_->images.begin(), d_->images.end(), tex);
     if (it == d_->images.end()) return;
-    d_->images.erase(it);
+    *it = d_->images.back();
+    d_->images.pop_back();
     glDeleteTextures(1, &tex);
 }
 

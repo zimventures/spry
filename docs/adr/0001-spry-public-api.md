@@ -147,6 +147,11 @@ scratch):
 - **Semver once extracted.** After the public-repo split (#224), breaking changes to public
   types bump the major version. The #207 follow-ups have landed: the SDL input-pump helper
   (`sdl_host.h`, #320) and the theme-token registry (`theme_tokens.h`, #321).
+- **Backend interface additions are additive.** A new `Renderer` method ships with a default
+  implementation, so an existing backend keeps compiling and simply doesn't support it (the
+  base no-ops, or returns 0 for a handle). The added virtual does change the vtable, but Spry
+  is a `STATIC` library that every consumer builds from source — there is no shared-library or
+  plugin boundary to break, so this is a source-compatibility question, not an ABI one.
 - **The umbrella header is the contract.** If it's not reachable from `<spry/spry.h>` (or a
   backend header), it isn't public.
 
