@@ -196,7 +196,8 @@ if(SPRY_BUILD_TESTS)
     endif()
     enable_testing()
     add_executable(spry_tests tests/test_input.cpp tests/test_text_edit.cpp tests/test_widgets.cpp
-                              tests/test_data.cpp tests/test_theme.cpp tests/test_anim_active.cpp)
+                              tests/test_data.cpp tests/test_theme.cpp tests/test_anim_active.cpp
+                              tests/test_image.cpp)
     target_link_libraries(spry_tests PRIVATE spry Catch2::Catch2WithMain)
     if(MINGW)
         target_link_options(spry_tests PRIVATE -static -static-libgcc -static-libstdc++)

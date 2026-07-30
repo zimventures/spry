@@ -1,5 +1,6 @@
 #include "spry/sdl_renderer.h"
 
+#include <algorithm>
 #include <cmath>
 #include <cstdint>
 #include <cstring>
@@ -229,6 +230,19 @@ void SdlRenderer::drawImage(ImageHandle img, const Rect& dst, Color mod) {
     SDL_SetTextureAlphaMod(tex, c.a);
     SDL_FRect d{dst.x, dst.y, dst.w, dst.h};
     SDL_RenderTexture(r_, tex, nullptr, &d);
+}
+
+void SdlRenderer::freeImage(ImageHandle img) {
+    if (!img) return;
+    SDL_Texture* tex = (SDL_Texture*)(std::uintptr_t)img;
+    // Only destroy textures we handed out: the lookup both keeps the dtor from
+    // double-freeing and makes a stale or foreign handle a harmless no-op. Order in
+    // images_ carries no meaning, so swap the tail down rather than shifting.
+    auto it = std::find(images_.begin(), images_.end(), tex);
+    if (it == images_.end()) return;
+    *it = images_.back();
+    images_.pop_back();
+    SDL_DestroyTexture(tex);
 }
 
 Size SdlRenderer::measureText(float scale, const char* s) {
