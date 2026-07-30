@@ -49,6 +49,7 @@ public:
     Size measureText(float scale, const char* s) override;
     ImageHandle loadImage(const unsigned char* rgba, int w, int h) override;
     void drawImage(ImageHandle img, const Rect& dst, Color mod) override;
+    void freeImage(ImageHandle img) override;
 
 protected:
     void applyClip(const Rect* r) override;

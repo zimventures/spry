@@ -38,6 +38,7 @@ public:
     Size measureText(float scale, const char* s) override;
     ImageHandle loadImage(const unsigned char* rgba, int w, int h) override;
     void drawImage(ImageHandle img, const Rect& dst, Color mod) override;
+    void freeImage(ImageHandle img) override;
 
 protected:
     void applyClip(const Rect* r) override;
@@ -46,7 +47,7 @@ private:
     SDL_Renderer* r_;
     struct Text; // FreeType font + glyph-texture cache (pimpl)
     Text* text_ = nullptr;
-    std::vector<SDL_Texture*> images_; // uploaded image textures, freed in the dtor
+    std::vector<SDL_Texture*> images_; // uploaded image textures, freed by freeImage() or the dtor
 };
 
 /// @}

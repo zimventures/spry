@@ -4,6 +4,7 @@
 #include <SDL3/SDL_opengl.h>
 #include <SDL3/SDL_opengl_glext.h>
 
+#include <algorithm>
 #include <cmath>
 #include <cstdint>
 #include <cstring>
@@ -125,7 +126,7 @@ struct GlRenderer::Impl {
     int fboW = 0, fboH = 0;
     GLint uViewport = -1, uTex = -1, uScale = -1, uImage = -1;
     float contentScale = 1.0f;  // logical -> device px (HiDPI)
-    std::vector<GLuint> images; // uploaded image textures, freed at teardown
+    std::vector<GLuint> images; // uploaded image textures, freed by freeImage() or at teardown
 
     FT_Library lib = nullptr;
     FT_Face face = nullptr;
@@ -460,6 +461,17 @@ void GlRenderer::drawImage(ImageHandle img, const Rect& dst, Color mod) {
     glUniform1i(d_->uImage, 1); // sample full RGBA for this draw...
     d_->draw(v, idx, (GLuint)img);
     glUniform1i(d_->uImage, 0); // ...then restore the coverage path for fills/text
+}
+
+void GlRenderer::freeImage(ImageHandle img) {
+    if (!img) return;
+    GLuint tex = (GLuint)img;
+    // Only delete textures we handed out: erasing from images both keeps teardown
+    // from double-deleting and makes a stale or foreign handle a harmless no-op.
+    auto it = std::find(d_->images.begin(), d_->images.end(), tex);
+    if (it == d_->images.end()) return;
+    d_->images.erase(it);
+    glDeleteTextures(1, &tex);
 }
 
 Size GlRenderer::measureText(float scale, const char* s) {

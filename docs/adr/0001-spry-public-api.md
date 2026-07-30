@@ -118,7 +118,7 @@ state — there are no global side-tables.
 
 `spry::Renderer` is the abstract 2D drawing interface the widgets emit to: `beginFrame` /
 `endFrame` / `outputSize`, `fillRect` / `fillRoundedRect` / `fillMesh` / `text` / `measureText`,
-optional `loadImage` / `drawImage`, and base-provided clip and opacity stacks (backends
+optional `loadImage` / `drawImage` / `freeImage`, and base-provided clip and opacity stacks (backends
 implement only `applyClip`). Supporting types: `Color`, `Vertex`, `Mesh`, `ImageHandle` (opaque),
 and the monospace text-metric helpers (`kTextBasePx`, `textCellW`, `textLineH`).
 

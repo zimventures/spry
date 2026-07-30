@@ -71,14 +71,21 @@ public:
     virtual Size measureText(float scale, const char* s) = 0;
 
     /// Upload tightly-packed RGBA8 pixels (`w*h*4` bytes, straight alpha) to a GPU
-    /// texture and return an opaque handle; draw it later with @ref drawImage.
-    /// Backends own the texture and free it at teardown (no per-image free — hold
-    /// and reuse the handle). Returns 0 on bad input or an unsupported (e.g.
-    /// headless) backend, in which case @ref drawImage is a no-op.
+    /// texture and return an opaque handle; draw it later with @ref drawImage. Hold
+    /// and reuse the handle across frames rather than re-uploading, and release it
+    /// with @ref freeImage when it has a bounded lifetime. Returns 0 on bad input
+    /// or an unsupported (e.g. headless) backend, in which case @ref drawImage is a
+    /// no-op.
     virtual ImageHandle loadImage(const unsigned char* /*rgba*/, int /*w*/, int /*h*/) { return 0; }
     /// Draw a previously-loaded image into `dst`. `mod` modulates it (white =
     /// as-is); the active @ref opacity folds into its alpha.
     virtual void drawImage(ImageHandle /*img*/, const Rect& /*dst*/, Color /*mod*/) {}
+    /// Release a texture from @ref loadImage. Backends still free whatever is live
+    /// at teardown, so this is only needed for images with a bounded lifetime — a
+    /// preview pane, say, that would otherwise pile up a texture per file viewed.
+    /// @note The handle dangles afterwards: drop it (or reset it to 0) and never
+    /// draw it again. Passing 0, or an already-freed handle, does nothing.
+    virtual void freeImage(ImageHandle /*img*/) {}
 
     /// Push a clip rectangle (intersected with the current clip). Widgets that
     /// scroll content push a clip, draw, then @ref popClip. Backends apply the top
