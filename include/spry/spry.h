@@ -12,6 +12,7 @@
 #include "layout.h"
 #include "overlay.h"
 #include "renderer.h"
+#include "reorderable.h"
 #include "text_edit.h"
 #include "textarea.h"
 #include "textfield.h"

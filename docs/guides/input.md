@@ -26,6 +26,31 @@ ctx.handleEvent(ev);
 widget's `onClick` when a press and release land on the same widget. Widgets react
 by overriding `onClick`, `onKey(Key, shift, ctrl, alt)`, and `onWheel(dx, dy)`.
 
+`button` is **0 for left, 1 for right, 2 for middle** — the host translates the
+platform's own numbering (SDL's 1/2/3) into this one. Guarding on the wrong value
+gives a widget that ignores every press while still receiving drags, which reads
+like a layout bug rather than a mix-up.
+
+## Hit-testing: which widget gets the press
+
+`hitTest()` returns the **deepest** widget under the pointer, so a press on a label
+inside a row lands on the label — not the row. When a container needs the press
+that lands on its own decoration (a draggable row, a clickable card), the
+decoration opts out:
+
+```cpp
+label->interactive = false;   // the pointer passes through to the parent
+```
+
+Only that widget steps aside; its children are still tested, so a button nested
+inside inert decoration keeps its clicks. `ReorderableList::addRow()` applies this
+for you to everything in a row that is neither `focusable` nor carrying a
+`tooltip`.
+
+Hover is set on the deepest widget alone, for the same reason. A container that
+highlights itself asks `hoveredWithin()` instead of `hovered`, or the highlight
+drops out whenever the pointer crosses one of its children.
+
 ## Focus & keyboard navigation
 
 A widget opts into keyboard focus by setting `focusable = true`. `Context` then:

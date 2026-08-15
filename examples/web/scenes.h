@@ -358,9 +358,9 @@ inline std::unique_ptr<Widget> buildData() {
     root->axis = Axis::Column;
     root->padding = Edges(24);
     root->spacing = 12;
-    root->emplace<Label>("Data widgets — list · table · tree · tabs", 2.0f);
+    root->emplace<Label>("Data widgets — list · table · tree · tabs · reorder", 2.0f);
     auto* hint = root->emplace<Label>(
-        "click rows · sort headers · toggle tree · switch tabs · scroll · virtualized",
+        "click rows · sort headers · toggle tree · switch tabs · drag to reorder",
         1.3f);
     hint->role = "textDim";
 
@@ -395,7 +395,7 @@ inline std::unique_ptr<Widget> buildData() {
     rightPane->grow = 1.0f;
 
     auto* tabs = rightPane->emplace<TabBar>();
-    tabs->tabs = {"Table", "List"};
+    tabs->tabs = {"Table", "List", "Reorder"};
 
     auto* table = rightPane->emplace<Table>();
     table->grow = 1.0f;
@@ -417,9 +417,43 @@ inline std::unique_ptr<Widget> buildData() {
         list->items.push_back("session #" + std::to_string(i) + " — sftp://host-" +
                               std::to_string(1000 + i));
 
-    tabs->onChange = [table, list](int i) {
+    // A ReorderableList: rows are widgets, so they can hold a label and a button,
+    // and they are dragged to reorder. The model below is the source of truth — the
+    // list reports the move and this rebuilds from it.
+    auto* order = rightPane->emplace<ReorderableList>();
+    order->grow = 1.0f;
+    order->visible = false;
+    auto steps = std::make_shared<std::vector<std::string>>(
+        std::vector<std::string>{"checkout", "restore deps", "build", "test", "package", "deploy"});
+    auto rebuildOrder = std::make_shared<std::function<void()>>();
+    *rebuildOrder = [order, steps, rebuildOrder]() {
+        order->clearChildren();
+        for (std::size_t i = 0; i < steps->size(); ++i) {
+            auto* row = order->emplaceRow<Box>();
+            row->axis = Axis::Row;
+            row->cross = Align::Center;
+            row->padding = Edges(10, 6, 10, 6);
+            row->spacing = 8;
+            row->emplace<Label>(std::to_string(i + 1) + ".", 1.3f)->role = "textDim";
+            row->emplace<Label>((*steps)[i], 1.4f);
+            row->emplace<Widget>()->grow = 1.0f;
+            // Focusable, so it keeps its own clicks while the rest of the row drags.
+            row->emplace<Button>("Run", [] {});
+        }
+    };
+    order->onReorder = [steps, rebuildOrder](int from, int to) {
+        if (from < 0 || to < 0 || from >= (int)steps->size() || to >= (int)steps->size()) return;
+        auto moved = (*steps)[static_cast<std::size_t>(from)];
+        steps->erase(steps->begin() + from);
+        steps->insert(steps->begin() + to, moved);
+        (*rebuildOrder)();
+    };
+    (*rebuildOrder)();
+
+    tabs->onChange = [table, list, order](int i) {
         table->visible = (i == 0);
         list->visible = (i == 1);
+        order->visible = (i == 2);
     };
 
     return root;
@@ -629,7 +663,7 @@ inline const std::vector<Scene>& registry() {
         {"layout", "Layout — the flex Box", &buildLayout, true},
         {"animation", "Animation — springs", &buildAnimation, true},
         {"text", "Text — shaping", &buildText, true},
-        {"data", "Data — list · table · tree · tabs", &buildData, true},
+        {"data", "Data — list · table · tree · tabs · reorder", &buildData, true},
         {"overlays", "Overlays — menu · modal · tooltip · toast", &buildOverlays, true},
         {"textinput", "Text input — TextField & TextArea", &buildTextInput, true},
         {"gallery", "Widget gallery — the full control set", &buildGallery, true},

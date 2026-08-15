@@ -50,7 +50,17 @@ Widget* Widget::hitTest(float x, float y) {
     for (auto it = children_.rbegin(); it != children_.rend(); ++it) {
         if (Widget* h = (*it)->hitTest(x, y)) return h;
     }
-    return this;
+    // Not interactive: step aside so the search continues in the parent's remaining
+    // children and, failing those, lands on the parent itself.
+    return interactive ? this : nullptr;
+}
+
+bool Widget::hoveredWithin() const {
+    if (hovered) return true;
+    for (auto& c : children_) {
+        if (c->hoveredWithin()) return true;
+    }
+    return false;
 }
 
 void Widget::collectFocusable(std::vector<Widget*>& out) {
