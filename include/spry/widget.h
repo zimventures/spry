@@ -48,6 +48,13 @@ public:
     bool pressed = false;    ///< Set by `Context`: this widget holds the press capture.
     bool focused = false;    ///< Set by `Context`: this widget has keyboard focus.
     bool focusable = false;  ///< Opt in to click-focus + Tab navigation.
+    /// Opt **out** of hit-testing: the pointer passes through to whatever is behind,
+    /// which in practice is this widget's parent. Inert decoration inside an
+    /// interactive container — a row's labels, its spacers — sets this so the
+    /// container receives presses that land on them. Descendants are still tested;
+    /// only this widget steps aside. A child that wants hover, a tooltip, a press or
+    /// a drag must leave it `true`.
+    bool interactive = true;
 
     /// Adopt `child` as the last child; returns the raw pointer.
     Widget* add(std::unique_ptr<Widget> child);
@@ -94,13 +101,21 @@ public:
     /// Self-paint hook for leaf widgets (default no-op).
     virtual void paint(Renderer&, const Theme&) {}
 
-    /// Deepest visible widget at (`x`,`y`), or `nullptr`.
+    /// Deepest visible, `interactive` widget at (`x`,`y`), or `nullptr`.
     Widget* hitTest(float x, float y);
+    /// True when the pointer is over this widget **or any descendant**.
+    ///
+    /// `hovered` is set on the deepest widget alone, so a container that highlights
+    /// itself needs this: asking `hovered` loses the highlight the moment the
+    /// pointer crosses one of its children.
+    bool hoveredWithin() const;
     /// Append focusable descendants in tree order (for Tab navigation).
     void collectFocusable(std::vector<Widget*>& out);
 
     // Input hooks (#216): override to react to input; return true to consume.
-    /// Mouse pressed over this widget.
+    /// Mouse pressed over this widget. `button` is 0 for left, 1 for right and 2 for
+    /// middle — the host translates the platform's own numbering (SDL's 1/2/3) into
+    /// this one.
     virtual bool onMouseDown(float /*x*/, float /*y*/, int /*button*/, bool /*shift*/, bool /*ctrl*/) {
         return false;
     }

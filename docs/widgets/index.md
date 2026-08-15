@@ -10,7 +10,7 @@ tree with `parent->emplace<T>(args…)` (see [Layout](../guides/layout.md)).
 - :material-format-text:{ .lg .middle } **[Text & surfaces](#text-surfaces)** — `Label`, `Paragraph`, `Panel`, `Card`, `ProgressBar`, `Image`
 - :material-gesture-tap-button:{ .lg .middle } **[Buttons & controls](#buttons-controls)** — `Button`, `Checkbox`, `RadioButton`, `Toggle`, `Slider`
 - :material-form-textbox:{ .lg .middle } **[Text input & selection](#text-input-selection)** — `TextField`, `TextArea`, `Combo`, `ColorField`
-- :material-table:{ .lg .middle } **[Data containers](#data-containers)** — `ListView`, `Table`, `TreeView`, `ScrollView`, `TabBar`
+- :material-table:{ .lg .middle } **[Data containers](#data-containers)** — `ListView`, `Table`, `TreeView`, `ReorderableList`, `ScrollView`, `TabBar`
 - :material-layers-triple:{ .lg .middle } **[Overlays](#overlays)** — `Menu`, `Modal`, `Tooltip`, `Toast`
 
 </div>
@@ -188,6 +188,28 @@ tree->rebuild();
 auto* tabs = box->emplace<TabBar>();
 tabs->tabs = {"Files", "Search", "Git"};
 tabs->onChange = [](int i) { /* … */ };
+```
+
+**`ReorderableList`** — a vertical list of rows built from **widgets** (rather than
+drawn strings, which is what the `VirtualList` family above does), with zebra
+striping, a hover highlight and drag-to-reorder. `addRow()` / `emplaceRow<T>()`,
+`onReorder(from, to)`.
+
+The list never reorders its own children: it reports the move on **drop** and the
+caller rebuilds from its model. `addRow()` also marks the row's decoration
+non-interactive so a press anywhere on the row starts a drag, while anything
+`focusable` or carrying a `tooltip` keeps its own input — see
+[hit-testing](../guides/input.md#hit-testing-which-widget-gets-the-press).
+
+```cpp
+auto* list = box->emplace<ReorderableList>();
+list->onReorder = [&](int from, int to) { model.move(from, to); rebuild(); };
+for (const auto& item : model) {
+    auto* row = list->emplaceRow<Box>();
+    row->axis = Axis::Row;
+    row->emplace<Label>(item.name);       // inert: a press here drags the row
+    row->emplace<Button>("Edit", ...);    // focusable: keeps its own clicks
+}
 ```
 
 **`ScrollView`** — a fixed viewport that scrolls arbitrary content. `setContent(...)`;
