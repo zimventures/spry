@@ -43,9 +43,10 @@ label->interactive = false;   // the pointer passes through to the parent
 ```
 
 Only that widget steps aside; its children are still tested, so a button nested
-inside inert decoration keeps its clicks. `ReorderableList::addRow()` applies this
-for you to everything in a row that is neither `focusable` nor carrying a
-`tooltip`.
+inside inert decoration keeps its clicks. `ReorderableList` applies this each
+layout to everything in a row that is neither `focusable` nor carrying a
+`tooltip` — at layout rather than on adoption, because a row is normally adopted
+empty and populated afterwards.
 
 Hover is set on the deepest widget alone, for the same reason. A container that
 highlights itself asks `hoveredWithin()` instead of `hovered`, or the highlight

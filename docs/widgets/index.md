@@ -196,7 +196,7 @@ striping, a hover highlight and drag-to-reorder. `addRow()` / `emplaceRow<T>()`,
 `onReorder(from, to)`.
 
 The list never reorders its own children: it reports the move on **drop** and the
-caller rebuilds from its model. `addRow()` also marks the row's decoration
+caller rebuilds from its model. Each layout it marks the row's decoration
 non-interactive so a press anywhere on the row starts a drag, while anything
 `focusable` or carrying a `tooltip` keeps its own input — see
 [hit-testing](../guides/input.md#hit-testing-which-widget-gets-the-press).

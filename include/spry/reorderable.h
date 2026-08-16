@@ -40,8 +40,11 @@ class ReorderableList : public Box {
 public:
     bool striped = true;          ///< Tint alternate rows.
     bool highlightHovered = true; ///< Light the row under the pointer.
-    /// Adopted rows have their inert descendants marked non-interactive (see
-    /// `addRow`). Clear it to manage `Widget::interactive` yourself.
+    /// Each layout, a row's descendants are marked non-interactive **except** those
+    /// that are `focusable` or carry a `tooltip`, so a press anywhere else on the row
+    /// starts a drag. Clear it to manage `Widget::interactive` yourself — which is
+    /// also the escape hatch for a row child that needs hover or presses without
+    /// being focusable.
     bool markRowsInert = true;
 
     /// Fired on drop with the row's old and new index. Never fired for a drag that
@@ -53,19 +56,9 @@ public:
         spacing = 6.0f;
     }
 
-    /// Adopt `row` as the next row.
-    ///
-    /// With `markRowsInert` set (the default), the row and its descendants are made
-    /// non-interactive **except** those that are `focusable` or carry a `tooltip` —
-    /// buttons and the like keep their own input. That is what lets a press on a
-    /// row's label start a drag rather than dying on the label. A child that needs
-    /// hover or presses for another reason can set `interactive = true` back
-    /// afterwards.
-    Widget* addRow(std::unique_ptr<Widget> row) {
-        Widget* raw = add(std::move(row));
-        if (markRowsInert && raw) markInert(*raw);
-        return raw;
-    }
+    /// Adopt `row` as the next row. See `markRowsInert` for how a row's own children
+    /// are kept from swallowing the drag.
+    Widget* addRow(std::unique_ptr<Widget> row) { return add(std::move(row)); }
 
     /// Construct a `T` row in place (forwarding `args`) and return it.
     template <class T, class... Args>
@@ -81,6 +74,17 @@ public:
     int draggedRow() const { return dragging_ ? pressRow_ : -1; }
 
     void arrange(Renderer& r, Rect rc) override {
+        // Applied here rather than in addRow(): the natural way to build a row is to
+        // adopt it and *then* populate it — `emplaceRow<Box>()` hands back an empty
+        // row — so marking at adoption time would mark nothing and every child would
+        // swallow the drag. Layout runs after the tree is built, and again whenever
+        // it changes, so this is the point where a row's children are all present.
+        if (markRowsInert) {
+            for (auto& c : children_) {
+                if (c->visible) markInert(*c);
+            }
+        }
+
         Box::arrange(r, rc);
 
         // Remembered before the dragged row is displaced: the drop target is decided
