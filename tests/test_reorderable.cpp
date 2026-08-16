@@ -261,7 +261,8 @@ TEST_CASE("a dragged row's children move with it") {
     REQUIRE(inner->rect.y > restY); // the whole subtree is displaced, not just the row
 }
 
-TEST_CASE("addRow makes a row's decoration inert but leaves its controls alone") {
+TEST_CASE("a row's decoration is inert but its controls keep their input") {
+    StubRenderer r;
     ReorderableList list;
     auto row = std::make_unique<Box>();
     auto* label = row->emplace<Box>(); // decoration
@@ -271,6 +272,7 @@ TEST_CASE("addRow makes a row's decoration inert but leaves its controls alone")
     tipped->tooltip = "explain";
 
     Widget* adopted = list.addRow(std::move(row));
+    layout(list, r);
 
     REQUIRE_FALSE(adopted->interactive);
     REQUIRE_FALSE(label->interactive);
@@ -278,13 +280,45 @@ TEST_CASE("addRow makes a row's decoration inert but leaves its controls alone")
     REQUIRE(tipped->interactive); // keeps its hover, or the tooltip never shows
 }
 
+TEST_CASE("a row populated after it was adopted is still inert") {
+    // emplaceRow() hands back an empty row and the caller fills it in — the natural
+    // way to build one. Marking at adoption time would mark nothing, and every child
+    // added afterwards would swallow the drag.
+    StubRenderer r;
+    ReorderableList list;
+    auto* row = list.emplaceRow<Box>();
+    auto* label = row->emplace<Box>();
+    auto* button = row->emplace<Box>();
+    button->focusable = true;
+
+    layout(list, r);
+
+    REQUIRE_FALSE(label->interactive);
+    REQUIRE(button->interactive);
+}
+
+TEST_CASE("a press on a row's decoration resolves to the list") {
+    // The point of all the marking: hitTest has to hand the press to the list, or
+    // the drag never starts.
+    StubRenderer r;
+    ReorderableList list;
+    auto* row = list.emplaceRow<Box>();
+    row->prefH = 30.0f;
+    auto* label = row->emplace<Box>();
+    label->prefH = 30.0f;
+    layout(list, r);
+
+    REQUIRE(list.hitTest(10.0f, 15.0f) == &list);
+}
+
 TEST_CASE("markRowsInert can be turned off") {
+    StubRenderer r;
     ReorderableList list;
     list.markRowsInert = false;
-    auto row = std::make_unique<Box>();
+    auto* row = list.emplaceRow<Box>();
     auto* label = row->emplace<Box>();
 
-    list.addRow(std::move(row));
+    layout(list, r);
     REQUIRE(label->interactive);
 }
 
