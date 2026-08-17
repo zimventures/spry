@@ -242,6 +242,37 @@ TEST_CASE("Table sorts by a clicked column, numerically, toggling direction") {
     REQUIRE(t->dataRow(0) == 0); // bob / 30
 }
 
+TEST_CASE("Table re-sorts when its cells change in place") {
+    // A live table (a monitoring view refilled every poll) keeps its row count and
+    // changes its values. Without dataChanged() the order map survives, so the table
+    // goes on displaying the order those rows had when they meant something else.
+    StubRenderer r;
+    Context ctx;
+    auto tb = std::make_unique<Table>();
+    Table* t = tb.get();
+    t->columns = {{"Name", 1.0f}, {"Size", 1.0f}};
+    t->rows = {{"bob", "30"}, {"amy", "10"}, {"cy", "20"}};
+    ctx.setRoot(std::move(tb));
+    ctx.frame(r, 0.016f, -1, -1);
+
+    float hx = t->rect.x + t->rect.w * 0.75f; // "Size"
+    clickAt(ctx, hx, t->rect.y + 10.0f);
+    REQUIRE(t->dataRow(0) == 1); // amy / 10 sorts first
+
+    // Same three rows, different sizes: amy is now the largest.
+    t->rows = {{"bob", "20"}, {"amy", "99"}, {"cy", "30"}};
+    t->dataChanged();
+    ctx.frame(r, 0.016f, -1, -1);
+    REQUIRE(t->dataRow(0) == 0); // bob / 20
+    REQUIRE(t->dataRow(2) == 1); // amy / 99 last
+
+    // And it stays a no-op on an unsorted table.
+    t->sortCol = -1;
+    t->dataChanged();
+    ctx.frame(r, 0.016f, -1, -1);
+    REQUIRE(t->dataRow(0) == 0);
+}
+
 TEST_CASE("TreeView expands/collapses and selects") {
     StubRenderer r;
     Context ctx;
