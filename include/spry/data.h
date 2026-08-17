@@ -299,6 +299,15 @@ public:
         return (displayRow >= 0 && displayRow < (int)order_.size()) ? order_[displayRow] : displayRow;
     }
 
+    /// Tell the table its cells changed in place.
+    ///
+    /// The sort order is otherwise only re-evaluated when the row *count* changes, so
+    /// a live table refilled with the same number of rows keeps the order it had when
+    /// those rows held different values — sort a monitoring table by status, watch a
+    /// status change, and the sort is silently wrong. Call this after assigning
+    /// @ref rows. A no-op when the table is unsorted.
+    void dataChanged() { order_.clear(); }
+
 protected:
     int rowCount() const override {
         syncOrder();
