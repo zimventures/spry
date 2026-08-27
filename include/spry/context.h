@@ -76,7 +76,7 @@ public:
     /// The host reads this each frame and applies the platform cursor (#222).
     Cursor cursor() const {
         Widget* w = pressed_ ? pressed_ : hovered_;
-        return w ? w->cursor() : Cursor::Default;
+        return w ? w->cursorAt(mouseX_, mouseY_) : Cursor::Default;
     }
     /// True while a widget holds the pointer (e.g. mid-drag on a slider). Lets a
     /// host defer a tree rebuild until the interaction finishes.
@@ -241,6 +241,8 @@ public:
     /// update, and draw the tree and overlays. `mouseX`/`mouseY` are the pointer in
     /// Spry pixels (must match the space @ref handleEvent received).
     void frame(Renderer& r, float dt, float mouseX, float mouseY) {
+        mouseX_ = mouseX;
+        mouseY_ = mouseY;
         if (!root_) return;
         trans_ = std::min(1.0f, trans_ + dt * 4.0f);
         displayed_ = trans_ >= 1.0f ? to_ : lerp(from_, to_, easeOutCubic(trans_));
@@ -428,6 +430,10 @@ private:
     std::vector<std::unique_ptr<Overlay>> overlays_;
     Widget* hovered_ = nullptr;
     Widget* pressed_ = nullptr;
+    // Remembered each frame so cursor() can be asked between events — the host
+    // reads it once per frame, not from inside an event handler.
+    float mouseX_ = -1.0f;
+    float mouseY_ = -1.0f;
     Widget* focused_ = nullptr;
     float lastPointerX_ = 0.0f, lastPointerY_ = 0.0f; // last pointer position (for anchored popovers)
     Theme from_, to_, displayed_;

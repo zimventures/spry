@@ -335,6 +335,89 @@ TEST_CASE("Table resizing never squeezes a column below the minimum") {
     REQUIRE(leftPx >= t->minColumnWidth - 0.5f);
 }
 
+TEST_CASE("Table asks for a resize cursor only over a boundary") {
+    StubRenderer r;
+    Context ctx;
+    auto tb = evenTable();
+    Table* t = tb.get();
+    ctx.setRoot(std::move(tb));
+    ctx.frame(r, 0.016f, -1, -1);
+
+    const float bx = t->rect.x + boundaryX(*t);
+    const float hy = t->rect.y + 10.0f;
+
+    REQUIRE(t->cursorAt(bx, hy) == Cursor::ResizeH);
+    // Away from the boundary, and anywhere in the body, it is an ordinary pointer —
+    // a resize cursor over cells would promise something the table will not do.
+    REQUIRE(t->cursorAt(t->rect.x + 20.0f, hy) == Cursor::Default);
+    REQUIRE(t->cursorAt(bx, t->rect.y + 60.0f) == Cursor::Default); // well into the body
+}
+
+TEST_CASE("Table keeps the resize cursor for the whole drag") {
+    // Context asks the *pressed* widget while the pointer is held, so the cursor has
+    // to survive the drag wandering off the divider it began on — which is where a
+    // drag spends most of its life.
+    StubRenderer r;
+    Context ctx;
+    auto tb = evenTable();
+    Table* t = tb.get();
+    ctx.setRoot(std::move(tb));
+    ctx.frame(r, 0.016f, -1, -1);
+
+    const float bx = t->rect.x + boundaryX(*t);
+    const float hy = t->rect.y + 10.0f;
+
+    InputEvent d;
+    d.type = InputEvent::MouseDown;
+    d.x = bx;
+    d.y = hy;
+    ctx.handleEvent(d);
+
+    InputEvent m;
+    m.type = InputEvent::MouseMove;
+    m.x = bx + 40.0f;
+    m.y = hy;
+    ctx.handleEvent(m);
+    REQUIRE(t->cursorAt(bx + 40.0f, hy) == Cursor::ResizeH);
+    REQUIRE(ctx.cursor() == Cursor::ResizeH);
+
+    InputEvent u;
+    u.type = InputEvent::MouseUp;
+    u.x = bx + 40.0f;
+    u.y = hy;
+    ctx.handleEvent(u);
+    // Released, so the persistence is gone. Checked at the divider's *old* position
+    // rather than where the pointer ended: the drag moved the boundary to bx + 40, so
+    // asking there would still — correctly — say ResizeH.
+    REQUIRE(t->cursorAt(bx, hy) == Cursor::Default);
+}
+
+TEST_CASE("A widget that overrides only cursor() still gets its cursor") {
+    // The position-aware overload must not break widgets whose cursor is the same
+    // everywhere — a split-pane divider, say, which overrides the no-argument form.
+    struct Splitter : Widget {
+        Cursor cursor() const override { return Cursor::ResizeV; }
+    };
+    Splitter s;
+    REQUIRE(s.cursorAt(0.0f, 0.0f) == Cursor::ResizeV);
+
+    // And through a base pointer, which is how Context asks.
+    Widget* w = &s;
+    REQUIRE(w->cursorAt(12.0f, 34.0f) == Cursor::ResizeV);
+}
+
+TEST_CASE("Table asks for no resize cursor when resizing is off") {
+    StubRenderer r;
+    Context ctx;
+    auto tb = evenTable();
+    tb->resizableColumns = false;
+    Table* t = tb.get();
+    ctx.setRoot(std::move(tb));
+    ctx.frame(r, 0.016f, -1, -1);
+
+    REQUIRE(t->cursorAt(t->rect.x + (t->rect.w - 12.0f) * 0.5f, t->rect.y + 10.0f) == Cursor::Default);
+}
+
 TEST_CASE("Table header still sorts away from a boundary") {
     // The resize hit zone is a few pixels wide; everywhere else in the header must go
     // on sorting, or the feature costs the table its primary interaction.
