@@ -139,6 +139,18 @@ public:
 
     /// Mouse cursor to show while this widget is the hover/press target (#222).
     virtual Cursor cursor() const { return Cursor::Default; }
+    /// Desired cursor, given where the pointer is.
+    ///
+    /// A distinct name rather than an overload of `cursor()`: a derived class that
+    /// overrides only `cursor()` would *hide* an overload, so `derived->cursor(x, y)`
+    /// would stop compiling for everyone below it. Override this when a widget has
+    /// more than one hit zone — a table wants a resize cursor over a column boundary
+    /// and the arrow over its cells, and `hovered` alone cannot tell those apart.
+    ///
+    /// Coordinates are in the same space as `rect`. Defaults to the position-
+    /// independent answer, so widgets whose cursor is the same everywhere need only
+    /// override `cursor()`.
+    virtual Cursor cursorAt(float /*x*/, float /*y*/) const { return cursor(); }
 
     /// Return `true` if this widget edits text, so the host starts platform text
     /// input and places the IME candidate window at @ref caretRect.

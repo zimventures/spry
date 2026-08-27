@@ -418,6 +418,19 @@ public:
         return VirtualList::onMouseUp(x, y, button);
     }
 
+    /// A resize cursor over a boundary, and for the whole drag once one starts.
+    ///
+    /// Context asks the *pressed* widget while the pointer is held, so the cursor
+    /// stays put when a drag wanders off the divider it began on — which is where a
+    /// drag spends most of its life.
+    Cursor cursorAt(float x, float y) const override {
+        if (resizeCol_ >= 0)
+            return Cursor::ResizeH;
+        if (!resizableColumns || headerHeight() <= 0.0f || y >= rect.y + headerHeight())
+            return Cursor::Default;
+        return dividerAt(x - rect.x) >= 0 ? Cursor::ResizeH : Cursor::Default;
+    }
+
     /// Index of the column boundary within `grab` pixels of `localX`, or -1.
     ///
     /// Public so a caller can mirror the hit zone — a cursor change, say — without
