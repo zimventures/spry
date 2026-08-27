@@ -1,6 +1,7 @@
 // Headless tests for the data/container widgets (#215): list/table/tree selection
 // + sorting + expansion, tab switching, and scroll (virtualized and generic),
 // driven through Context with a stub renderer for deterministic text metrics.
+#include <catch2/catch_approx.hpp>
 #include <catch2/catch_test_macros.hpp>
 
 #include <cstring>
@@ -240,6 +241,132 @@ TEST_CASE("Table sorts by a clicked column, numerically, toggling direction") {
     REQUIRE(t->dataRow(0) == 1); // amy / 10
     clickAt(ctx, hx, hy); // toggle to descending
     REQUIRE(t->dataRow(0) == 0); // bob / 30
+}
+
+// --- resizable columns ---------------------------------------------------------
+
+namespace {
+
+/// Press, move, release — the gesture a column resize is made of.
+void dragFromTo(Context& ctx, float x0, float y0, float x1, float y1) {
+    InputEvent d;
+    d.type = InputEvent::MouseDown;
+    d.x = x0;
+    d.y = y0;
+    ctx.handleEvent(d);
+
+    InputEvent m;
+    m.type = InputEvent::MouseMove;
+    m.x = x1;
+    m.y = y1;
+    ctx.handleEvent(m);
+
+    InputEvent u;
+    u.type = InputEvent::MouseUp;
+    u.x = x1;
+    u.y = y1;
+    ctx.handleEvent(u);
+}
+
+/// Where the first column boundary is, found by asking the table rather than by
+/// recomputing its geometry.
+float boundaryX(const Table& t) {
+    for (float x = 1.0f; x < t.rect.w; x += 1.0f) {
+        if (t.dividerAt(x) == 0)
+            return x;
+    }
+    return 0.0f;
+}
+
+/// A two-column table whose header boundary sits at the midpoint.
+std::unique_ptr<Table> evenTable() {
+    auto tb = std::make_unique<Table>();
+    tb->columns = {{"Name", 1.0f}, {"Size", 1.0f}};
+    tb->rows = {{"bob", "30"}, {"amy", "10"}};
+    tb->resizableColumns = true;
+    return tb;
+}
+
+} // namespace
+
+TEST_CASE("Table resizes a column when its header boundary is dragged") {
+    StubRenderer r;
+    Context ctx;
+    auto tb = evenTable();
+    Table* t = tb.get();
+    ctx.setRoot(std::move(tb));
+    ctx.frame(r, 0.016f, -1, -1);
+
+    const float boundary = t->rect.x + boundaryX(*t);
+    REQUIRE(boundary > t->rect.x);
+
+    const float before = t->columns[0].weight;
+    dragFromTo(ctx, boundary, t->rect.y + 10.0f, boundary + 60.0f, t->rect.y + 10.0f);
+
+    // Wider on the left, narrower on the right — and the pair still sums to what it
+    // did, so no other column moves.
+    REQUIRE(t->columns[0].weight > before);
+    REQUIRE(t->columns[1].weight < before);
+    REQUIRE(t->columns[0].weight + t->columns[1].weight == Catch::Approx(2.0f));
+}
+
+TEST_CASE("Table resizing never squeezes a column below the minimum") {
+    // A column dragged to nothing cannot be dragged back, so the drag stops at the
+    // limit rather than inverting or collapsing.
+    StubRenderer r;
+    Context ctx;
+    auto tb = evenTable();
+    Table* t = tb.get();
+    ctx.setRoot(std::move(tb));
+    ctx.frame(r, 0.016f, -1, -1);
+
+    const float bodyW = boundaryX(*t) * 2.0f; // the boundary sits at the midpoint
+    const float boundary = t->rect.x + boundaryX(*t);
+    dragFromTo(ctx, boundary, t->rect.y + 10.0f, boundary + bodyW, t->rect.y + 10.0f);
+
+    const float total = t->columns[0].weight + t->columns[1].weight;
+    const float rightPx = bodyW * (t->columns[1].weight / total);
+    REQUIRE(rightPx >= t->minColumnWidth - 0.5f);
+
+    // And the same going the other way.
+    dragFromTo(ctx, boundary, t->rect.y + 10.0f, boundary - bodyW, t->rect.y + 10.0f);
+    const float total2 = t->columns[0].weight + t->columns[1].weight;
+    const float leftPx = bodyW * (t->columns[0].weight / total2);
+    REQUIRE(leftPx >= t->minColumnWidth - 0.5f);
+}
+
+TEST_CASE("Table header still sorts away from a boundary") {
+    // The resize hit zone is a few pixels wide; everywhere else in the header must go
+    // on sorting, or the feature costs the table its primary interaction.
+    StubRenderer r;
+    Context ctx;
+    auto tb = evenTable();
+    Table* t = tb.get();
+    ctx.setRoot(std::move(tb));
+    ctx.frame(r, 0.016f, -1, -1);
+
+    clickAt(ctx, t->rect.x + t->rect.w * 0.75f, t->rect.y + 10.0f);
+    REQUIRE(t->sortCol == 1);
+    REQUIRE(t->dataRow(0) == 1); // amy / 10
+}
+
+TEST_CASE("Table columns are fixed unless resizing is asked for") {
+    // Off by default: an existing table keeps the widths its author chose, and gains
+    // no new hit zones in its header.
+    StubRenderer r;
+    Context ctx;
+    auto tb = evenTable();
+    tb->resizableColumns = false;
+    Table* t = tb.get();
+    ctx.setRoot(std::move(tb));
+    ctx.frame(r, 0.016f, -1, -1);
+
+    REQUIRE(t->dividerAt(t->rect.w * 0.5f) == -1);
+
+    // Nothing to grab, so drag from where the boundary would have been.
+    const float boundary = t->rect.x + (t->rect.w - 12.0f) * 0.5f;
+    dragFromTo(ctx, boundary, t->rect.y + 10.0f, boundary + 60.0f, t->rect.y + 10.0f);
+    REQUIRE(t->columns[0].weight == Catch::Approx(1.0f));
 }
 
 TEST_CASE("Table re-sorts when its cells change in place") {

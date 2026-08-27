@@ -289,6 +289,18 @@ public:
     float scale = 1.3f;    ///< Text scale.
     int sortCol = -1;      ///< Currently-sorted column index; -1 = unsorted.
     bool sortAsc = true;   ///< Sort direction (ascending when true).
+    /// Let the operator drag the boundaries between header cells to re-share the
+    /// width. Off by default, so an existing table keeps the widths its author chose
+    /// and gains no new hit zones in its header.
+    ///
+    /// A drag moves width between the *two adjacent* columns and leaves the rest
+    /// alone, so pulling one boundary cannot reflow the whole table. Widths stay
+    /// proportional afterwards, which is what keeps them sensible when the pane is
+    /// resized.
+    bool resizableColumns = false;
+    /// Narrowest a column may be dragged, in pixels. Below about this a header is
+    /// unreadable, and a column dragged to nothing cannot be dragged back.
+    float minColumnWidth = 44.0f;
 
     Table() { rowHeight = 28.0f; }
 
@@ -319,15 +331,23 @@ protected:
         r.fillRect(hr.x, hr.y, hr.w, hr.h, th.color(tokens::Surface, {40, 43, 62}));
         float x = hr.x;
         float total = totalWeight();
+        const Color dim = th.color(tokens::TextDim, {150, 154, 170});
         for (int c = 0; c < (int)columns.size(); ++c) {
             float cw = hr.w * (columns[c].weight / total);
             std::string t = columns[c].title;
             if (c == sortCol) t += sortAsc ? "  ^" : "  v";
             r.pushClip(Rect{x, hr.y, cw, hr.h});
-            r.text(x + 10.0f, hr.y + (hr.h - textLineH(scale)) * 0.5f, scale, th.color(tokens::TextDim, {150, 154, 170}),
-                   t.c_str());
+            r.text(x + 10.0f, hr.y + (hr.h - textLineH(scale)) * 0.5f, scale, dim, t.c_str());
             r.popClip();
             x += cw;
+            // The grabbable boundary, drawn only where there is one — the last column's
+            // right edge is the table, not a divider. Without this the hit zone is
+            // invisible and nobody discovers the drag.
+            if (resizableColumns && c + 1 < (int)columns.size()) {
+                const bool active = resizeCol_ == c;
+                r.fillRect(x - 0.5f, hr.y + 5.0f, 1.0f, hr.h - 10.0f,
+                           Color{dim.r, dim.g, dim.b, static_cast<unsigned char>(active ? 220 : 90)});
+            }
         }
         Color line = th.color(tokens::TextDim, {90, 94, 110});
         r.fillRect(hr.x, hr.y + hr.h - 1.0f, hr.w, 1.0f, Color{line.r, line.g, line.b, 120});
@@ -351,6 +371,72 @@ protected:
             x += cw;
         }
     }
+public:
+    bool onMouseDown(float x, float y, int button, bool shift, bool ctrl) override {
+        // Checked before the base, which would read a header press as a sort.
+        if (resizableColumns && headerHeight() > 0.0f && y < rect.y + headerHeight()) {
+            const int divider = dividerAt(x - rect.x);
+            if (divider >= 0) {
+                resizeCol_ = divider;
+                resizeX_ = x;
+                resizeA_ = columns[static_cast<std::size_t>(divider)].weight;
+                resizeB_ = columns[static_cast<std::size_t>(divider) + 1].weight;
+                return true;
+            }
+        }
+        return VirtualList::onMouseDown(x, y, button, shift, ctrl);
+    }
+
+    void onMouseDrag(float x, float y) override {
+        if (resizeCol_ < 0) {
+            VirtualList::onMouseDrag(x, y);
+            return;
+        }
+        const float bodyW = rect.w - kScrollW;
+        if (bodyW <= 0.0f)
+            return;
+
+        // Pixels to weight, using the *pre-drag* total: the two columns trade with
+        // each other and the sum is unchanged, so the conversion stays fixed for the
+        // whole gesture rather than drifting as the weights move.
+        const float perPx = totalWeight() / bodyW;
+        const float minW = minColumnWidth * perPx;
+        float dw = (x - resizeX_) * perPx;
+        // Clamped so neither side can be squeezed below the minimum — and so a drag
+        // that runs past the limit simply stops there instead of inverting.
+        dw = std::max(minW - resizeA_, std::min(dw, resizeB_ - minW));
+
+        columns[static_cast<std::size_t>(resizeCol_)].weight = resizeA_ + dw;
+        columns[static_cast<std::size_t>(resizeCol_) + 1].weight = resizeB_ - dw;
+    }
+
+    bool onMouseUp(float x, float y, int button) override {
+        if (resizeCol_ >= 0) {
+            resizeCol_ = -1;
+            return true;
+        }
+        return VirtualList::onMouseUp(x, y, button);
+    }
+
+    /// Index of the column boundary within `grab` pixels of `localX`, or -1.
+    ///
+    /// Public so a caller can mirror the hit zone — a cursor change, say — without
+    /// duplicating the column arithmetic.
+    int dividerAt(float localX, float grab = 4.0f) const {
+        if (!resizableColumns || columns.size() < 2)
+            return -1;
+        const float bodyW = rect.w - kScrollW;
+        const float total = totalWeight();
+        float x = 0.0f;
+        for (int c = 0; c + 1 < (int)columns.size(); ++c) {
+            x += bodyW * (columns[static_cast<std::size_t>(c)].weight / total);
+            if (localX >= x - grab && localX <= x + grab)
+                return c;
+        }
+        return -1;
+    }
+
+protected:
     void drawRow(Renderer& r, const Theme& th, int i, Rect rr, bool sel, bool hov) override {
         if (sel) {
             Color a = th.color(tokens::Accent, {96, 126, 205});
@@ -374,6 +460,11 @@ protected:
     }
 
 private:
+    int resizeCol_ = -1;    // column left of the boundary being dragged, or -1
+    float resizeX_ = 0.0f;  // pointer x when the drag started
+    float resizeA_ = 0.0f;  // that column's weight when the drag started
+    float resizeB_ = 0.0f;  // and its right-hand neighbour's
+
     float totalWeight() const {
         float t = 0.0f;
         for (const auto& c : columns) t += c.weight;
