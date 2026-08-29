@@ -10,6 +10,7 @@
 #include "data.h"
 #include "input.h"
 #include "layout.h"
+#include "numberfield.h"
 #include "overlay.h"
 #include "renderer.h"
 #include "reorderable.h"
