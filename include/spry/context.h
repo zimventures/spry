@@ -400,6 +400,15 @@ private:
                 if (subtreeContains(it->get(), pressed_)) pressed_ = nullptr;
                 if (subtreeContains(it->get(), hovered_)) hovered_ = nullptr;
                 if (it->get() == tip_) tip_ = nullptr;
+                // tipTarget_ as well, and not by identity: it names a widget *inside*
+                // the overlay, not the overlay itself. Missing it left the hover timer
+                // holding a freed widget, which animationsActive() then dereferenced
+                // every frame — so closing any menu or modal with the pointer resting
+                // on something inside it armed a use-after-free.
+                if (subtreeContains(it->get(), tipTarget_)) {
+                    tipTarget_ = nullptr;
+                    tipTimer_ = 0.0f;
+                }
                 it = overlays_.erase(it);
             } else {
                 ++it;
