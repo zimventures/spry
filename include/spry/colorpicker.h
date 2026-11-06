@@ -200,6 +200,7 @@ public:
         });
         picker->anchorX = rect.x;
         picker->anchorY = rect.y + rect.h + 4.0f;
+        picker->addOwner(life_); // it writes back into this field
         ctx->addOverlay(std::move(picker));
     }
 
@@ -218,6 +219,10 @@ public:
             r.text(rect.x + sw + 11.0f, rect.y + (rect.h - textLineH(scale)) * 0.5f, scale,
                    th.color(tokens::Text, {226, 229, 242}), hex().c_str());
     }
+
+private:
+    /// Ends with the field, taking an open picker with it.
+    std::shared_ptr<const int> life_ = std::make_shared<const int>(0);
 };
 
 /// @}

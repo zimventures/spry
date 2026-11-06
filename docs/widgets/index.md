@@ -258,6 +258,46 @@ any widget's `tooltip` field and `Context` shows one after a hover delay.
 ctx.addOverlay(std::make_unique<Toast>("Saved to disk"));
 ```
 
+### Overlay owners
+
+A menu or dialog usually calls back into the view that opened it, and it can outlive
+that view: it keeps fading out after the view is closed, and it can still be clicked.
+Give the overlay an **owner** and `Context` drops it the moment the owner goes. It drops
+it before the overlay can be drawn or clicked again, and never fires its `onClosed`.
+
+An owner is any `shared_ptr` the view holds; the overlay keeps a `weak_ptr` to it.
+Usually you set it once on the view's root widget, and every overlay opened from inside
+that subtree inherits it:
+
+```cpp
+struct FileBrowser {
+    std::shared_ptr<int> alive = std::make_shared<int>(0);
+    std::unique_ptr<Widget> build() {
+        auto root = std::make_unique<Box>();
+        root->overlayOwner = alive;   // menus and dialogs opened in here act for this browser
+        // …
+        return root;
+    }
+};
+```
+
+An overlay can act for several things, and goes when **any** of them does. It acts for:
+
+- any owner given with `overlay->addOwner(token)`, or set as the overlay's own
+  `overlayOwner`;
+- the innermost `Context::OwnerScope`, for overlays opened outside event handling (a
+  view's per-frame work, a timer). An empty scope leaves the one around it in force;
+- during `handleEvent`, the nearest `Widget::overlayOwner` above the widget handling the
+  event. If there is none and that widget is inside an overlay, it takes that overlay's
+  owners, so a dialog opened from a menu item acts for the menu's owners.
+
+An overlay opened from another overlay's `onClosed` acts for exactly that overlay's
+owners. An overlay with no owner behaves exactly as before.
+
+`Combo` and `ColorField` own their dropdown and picker, so a dropdown goes when its
+combo does, as when a scene is rebuilt with it open, as well as when the view around it
+goes.
+
 ---
 
 The full interactive gallery is

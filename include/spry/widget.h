@@ -55,6 +55,10 @@ public:
     /// only this widget steps aside. A child that wants hover, a tooltip, a press or
     /// a drag must leave it `true`.
     bool interactive = true;
+    /// What overlays opened from this subtree act for. `Context` gives an overlay
+    /// the nearest one above the widget that opened it, and drops the overlay once
+    /// it has gone — see `Overlay::addOwner()`. Empty (the default) ⇒ inherit.
+    std::weak_ptr<const void> overlayOwner;
 
     /// Adopt `child` as the last child; returns the raw pointer.
     Widget* add(std::unique_ptr<Widget> child);

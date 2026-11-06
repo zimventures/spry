@@ -107,11 +107,52 @@ public:
     /// Push a transient layer (modal/menu/tooltip/toast). It draws above the root
     /// and — if interactive — captures input until dismissed. `Context` removes it
     /// once its close animation finishes. Returns a borrowed pointer to it.
+    ///
+    /// Besides any owners it was given (`Overlay::addOwner()`, or its own
+    /// `overlayOwner`), the overlay acts for what opened it, and goes when any of
+    /// them does:
+    /// - the innermost @ref OwnerScope;
+    /// - during @ref handleEvent, the nearest `Widget::overlayOwner` above the
+    ///   widget handling the event, or, if that widget is in an overlay with none
+    ///   above it, that overlay's owners.
     Overlay* addOverlay(std::unique_ptr<Overlay> o) {
+        o->addOwner(o->overlayOwner);
+        for (auto& owner : inferOwners()) o->addOwner(std::move(owner));
         Overlay* p = o.get();
         overlays_.push_back(std::move(o));
         return p;
     }
+
+    /// While alive, overlays added to `ctx` act for `owner` too: for code that opens
+    /// them outside @ref handleEvent, such as a view's per-frame work. Scopes nest
+    /// and the innermost counts; an empty `owner` leaves the enclosing one in force.
+    /// Keep one on the stack: scopes must end in the reverse order they began.
+    class OwnerScope {
+    public:
+        /// Overlays added to `ctx` until this ends also act for `owner`.
+        OwnerScope(Context& ctx, std::weak_ptr<const void> owner) : ctx_(ctx) {
+            std::vector<std::weak_ptr<const void>> owners;
+            if (Overlay::isOwner(owner)) owners.push_back(std::move(owner));
+            pushed_ = !owners.empty();
+            if (pushed_) ctx_.scopes_.push_back(std::move(owners));
+        }
+        ~OwnerScope() {
+            if (pushed_) ctx_.scopes_.pop_back();
+        }
+        OwnerScope(const OwnerScope&) = delete;
+        OwnerScope& operator=(const OwnerScope&) = delete;
+
+    private:
+        friend class Context;
+        // Exactly `owners`, empty or not: what an overlay's own update runs under.
+        struct Exactly {};
+        OwnerScope(Context& ctx, const std::vector<std::weak_ptr<const void>>& owners, Exactly)
+            : ctx_(ctx), pushed_(true) {
+            ctx_.scopes_.push_back(owners);
+        }
+        Context& ctx_;
+        bool pushed_ = false;
+    };
     /// True if any interactive overlay (menu/modal) is up.
     bool hasInteractiveOverlay() const { return topInteractiveOverlay() != nullptr; }
     /// Topmost interactive overlay that isn't fully closed yet (a mid-close
@@ -158,6 +199,7 @@ public:
     /// Feed one translated platform event (the host's half of the loop).
     void handleEvent(const InputEvent& e) {
         if (!root_) return;
+        dropOrphans(); // before anything can route to one
         Context* prev = current_();
         current_() = this;
         struct Guard {
@@ -174,9 +216,10 @@ public:
             case InputEvent::MouseMove:
                 // While a widget holds the press, route moves to it as a drag
                 // (selection); otherwise it's just hover tracking.
-                if (pressed_)
+                if (pressed_) {
+                    Handling h(*this, pressed_);
                     pressed_->onMouseDrag(e.x, e.y);
-                else
+                } else
                     updateHover(ir->hitTest(e.x, e.y));
                 break;
             case InputEvent::MouseDown: {
@@ -194,12 +237,14 @@ public:
                 setFocus(hit && hit->focusable ? hit : nullptr);
                 if (hit) {
                     hit->pressed = true;
+                    Handling h(*this, hit);
                     hit->onMouseDown(e.x, e.y, e.button, e.shift, e.ctrl);
                 }
                 break;
             }
             case InputEvent::MouseUp:
                 if (pressed_) {
+                    Handling h(*this, pressed_);
                     pressed_->pressed = false;
                     pressed_->onMouseUp(e.x, e.y, e.button);
                     if (ir->hitTest(e.x, e.y) == pressed_) pressed_->onClick();
@@ -212,21 +257,30 @@ public:
                 } else if (e.key == Key::Tab) {
                     moveFocus(e.shift ? -1 : 1);
                 } else if (focused_) {
+                    Handling h(*this, focused_);
                     bool consumed = focused_->onKey(e.key, e.shift, e.ctrl, e.alt);
                     if (!consumed && (e.key == Key::Enter || e.key == Key::Space)) focused_->onClick();
                 }
                 break;
             case InputEvent::Text:
-                if (focused_ && e.text) focused_->onText(e.text);
+                if (focused_ && e.text) {
+                    Handling h(*this, focused_);
+                    focused_->onText(e.text);
+                }
                 break;
             case InputEvent::TextEditing:
-                if (focused_) focused_->onTextEditing(e.text ? e.text : "");
+                if (focused_) {
+                    Handling h(*this, focused_);
+                    focused_->onTextEditing(e.text ? e.text : "");
+                }
                 break;
             case InputEvent::Wheel:
                 // Bubble from the widget under the pointer up the parent chain
                 // until a scroll container consumes it.
-                for (Widget* w = ir->hitTest(e.x, e.y); w; w = w->parent())
+                for (Widget* w = ir->hitTest(e.x, e.y); w; w = w->parent()) {
+                    Handling h(*this, w);
                     if (w->onWheel(0.0f, e.wheel)) break;
+                }
                 break;
         }
     }
@@ -244,6 +298,7 @@ public:
         mouseX_ = mouseX;
         mouseY_ = mouseY;
         if (!root_) return;
+        dropOrphans();
         trans_ = std::min(1.0f, trans_ + dt * 4.0f);
         displayed_ = trans_ >= 1.0f ? to_ : lerp(from_, to_, easeOutCubic(trans_));
 
@@ -252,7 +307,8 @@ public:
         Rect full{0, 0, (float)w, (float)h};
         assignStackSlots();
         root_->arrange(r, full);
-        for (auto& o : overlays_) o->arrange(r, full); // overlays fill the window
+        for (auto& o : overlays_)
+            if (!o->orphaned()) o->arrange(r, full); // overlays fill the window
 
         if (pressed_)
             pressed_->onMouseDrag(mouseX, mouseY); // sustain drag-select without per-move events
@@ -261,10 +317,18 @@ public:
         updateTooltip(dt);
 
         root_->update(dt);
-        for (auto& o : overlays_) o->update(dt);
+        // By index: an onClosed can open another overlay, which would invalidate an
+        // iterator. Anything it opens acts for the same owner.
+        for (std::size_t i = 0; i < overlays_.size(); ++i) {
+            Overlay* o = overlays_[i].get();
+            if (o->orphaned()) continue; // an owner went this frame
+            OwnerScope scope(*this, o->owners(), OwnerScope::Exactly{}); // its own, even none
+            o->update(dt);
+        }
 
         root_->draw(r, displayed_);
-        for (auto& o : overlays_) o->draw(r, displayed_); // drawn on top, in push order
+        for (auto& o : overlays_)
+            if (!o->orphaned()) o->draw(r, displayed_); // drawn on top, in push order
         pruneOverlays();
 
         // Drive platform text input from focus: caret rects are valid only after
@@ -298,6 +362,8 @@ public:
         if (root_ && root_->animating())
             return true;
         for (const auto& o : overlays_) {
+            if (o->orphaned())
+                return true; // still on screen until the next frame drops it
             if (o->animating())
                 return true;
         }
@@ -323,7 +389,7 @@ private:
     }
     Overlay* topInteractiveOverlay() const {
         for (auto it = overlays_.rbegin(); it != overlays_.rend(); ++it)
-            if ((*it)->interactive && !(*it)->closed()) return it->get();
+            if ((*it)->interactive && !(*it)->closed() && !(*it)->orphaned()) return it->get();
         return nullptr;
     }
     // Number the stacked() overlays (toasts) so the newest sits at slot 0 (bottom)
@@ -377,7 +443,7 @@ private:
     Widget* inputRootAt(float x, float y) const {
         for (auto it = overlays_.rbegin(); it != overlays_.rend(); ++it) {
             Overlay* o = it->get();
-            if (!o->interactive || o->closed())
+            if (!o->interactive || o->closed() || o->orphaned())
                 continue;
             if (!o->passThrough || o->contentRect().contains(x, y))
                 return o;
@@ -392,11 +458,23 @@ private:
             if (subtreeContains(c.get(), w)) return true;
         return false;
     }
-    void pruneOverlays() {
+    void pruneOverlays() { removeOverlaysIf([](const Overlay& o) { return o.closed(); }, true); }
+    // Drop overlays an owner of which has gone, at once and without onClosed — nor
+    // focus-lost: whatever those would reach is likely gone with the owner.
+    void dropOrphans() { removeOverlaysIf([](const Overlay& o) { return o.orphaned(); }, false); }
+    template <class Pred>
+    void removeOverlaysIf(Pred pred, bool notify) {
         for (auto it = overlays_.begin(); it != overlays_.end();) {
-            if ((*it)->closed()) {
+            if (pred(**it)) {
                 // Drop focus/press/hover/tooltip if they pointed into the removed overlay.
-                if (subtreeContains(it->get(), focused_)) setFocus(nullptr);
+                if (subtreeContains(it->get(), focused_)) {
+                    if (notify) {
+                        setFocus(nullptr);
+                    } else {
+                        focused_->focused = false;
+                        focused_ = nullptr;
+                    }
+                }
                 if (subtreeContains(it->get(), pressed_)) pressed_ = nullptr;
                 if (subtreeContains(it->get(), hovered_)) hovered_ = nullptr;
                 if (it->get() == tip_) tip_ = nullptr;
@@ -415,6 +493,33 @@ private:
             }
         }
     }
+    // What an overlay being added acts for, besides what it was told (see addOverlay).
+    std::vector<std::weak_ptr<const void>> inferOwners() const {
+        std::vector<std::weak_ptr<const void>> owners;
+        if (!scopes_.empty()) owners = scopes_.back();
+        if (current_() != this || !handling_) return owners;
+        Widget* top = nullptr;
+        for (Widget* w = handling_; w; w = w->parent()) {
+            if (Overlay::isOwner(w->overlayOwner)) {
+                owners.push_back(w->overlayOwner);
+                return owners;
+            }
+            top = w;
+        }
+        for (const auto& o : overlays_)
+            if (o.get() == top) // opened from inside an overlay
+                owners.insert(owners.end(), o->owners().begin(), o->owners().end());
+        return owners;
+    }
+    // Names the widget an event is being handed to, for inferOwners().
+    struct Handling {
+        Handling(Context& c, Widget* w) : c_(c), prev_(c.handling_) { c_.handling_ = w; }
+        ~Handling() { c_.handling_ = prev_; }
+        Handling(const Handling&) = delete;
+        Handling& operator=(const Handling&) = delete;
+        Context& c_;
+        Widget* prev_;
+    };
     void moveFocus(int dir) {
         std::vector<Widget*> f;
         inputRoot()->collectFocusable(f);
@@ -437,6 +542,8 @@ private:
 
     std::unique_ptr<Widget> root_;
     std::vector<std::unique_ptr<Overlay>> overlays_;
+    std::vector<std::vector<std::weak_ptr<const void>>> scopes_; ///< Open @ref OwnerScope owners, innermost last.
+    Widget* handling_ = nullptr; ///< The widget an event is being handed to, if any.
     Widget* hovered_ = nullptr;
     Widget* pressed_ = nullptr;
     // Remembered each frame so cursor() can be asked between events — the host
