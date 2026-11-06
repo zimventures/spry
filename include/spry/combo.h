@@ -131,8 +131,12 @@ private:
         menu->minWidth = rect.w;
         for (int i = 0; i < (int)options.size(); ++i)
             menu->addItem(options[i], [this, i] { commit(i); });
+        menu->setOwner(life_); // its items call back into this combo
         ctx->addOverlay(std::move(menu));
     }
+
+    /// Ends with the combo, taking an open dropdown with it.
+    std::shared_ptr<const int> life_ = std::make_shared<const int>(0);
 };
 
 /// @}

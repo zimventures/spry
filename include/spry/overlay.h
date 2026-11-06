@@ -50,6 +50,25 @@ public:
     }
     /// True once the close animation has finished.
     bool closed() const { return phase_ == Phase::Closed; }
+
+    /// Ties the overlay to whatever it acts for: an object holding a `shared_ptr`
+    /// to the token. A menu or dialog usually calls back into the view that opened
+    /// it, and can outlive that view while it fades out. Once the owner has gone,
+    /// `Context` drops the overlay before anything else reaches it: it isn't drawn
+    /// or clicked again, and its @ref onClosed never fires, as that is usually what
+    /// calls back. Left unset, `Context` fills it in from whatever opened the
+    /// overlay (see `Widget::overlayOwner` and `Context::OwnerScope`). An overlay
+    /// with no owner behaves as it always has.
+    void setOwner(std::weak_ptr<const void> owner) { owner_ = std::move(owner); }
+    /// The owner token, or an empty one if there is none.
+    const std::weak_ptr<const void>& owner() const { return owner_; }
+    /// True if `w` names an owner, alive or not, rather than being empty.
+    static bool isOwner(const std::weak_ptr<const void>& w) {
+        const std::weak_ptr<const void> none;
+        return w.owner_before(none) || none.owner_before(w);
+    }
+    /// True once an owner it was given has gone.
+    bool orphaned() const { return isOwner(owner_) && owner_.expired(); }
     /// Open-ness in [0,1] — drives the fade/offset (0 = hidden, 1 = fully open).
     float presence() const { return appear_.value < 0 ? 0 : (appear_.value > 1 ? 1 : appear_.value); }
 
@@ -132,6 +151,9 @@ protected:
     Phase phase_ = Phase::Opening;    ///< Current lifecycle @ref Phase.
     Widget* content_ = nullptr;       ///< The content widget (owned via `children_`).
     Rect contentRect_{};              ///< The content's placed rectangle.
+
+private:
+    std::weak_ptr<const void> owner_; ///< See @ref setOwner.
 };
 
 /// A centered modal: scrim behind, panel rises + fades in. Supply the content via
