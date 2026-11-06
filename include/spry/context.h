@@ -129,6 +129,7 @@ public:
     /// Keep one on the stack: scopes must end in the reverse order they began.
     class OwnerScope {
     public:
+        /// Overlays added to `ctx` until this ends also act for `owner`.
         OwnerScope(Context& ctx, std::weak_ptr<const void> owner) : ctx_(ctx) {
             std::vector<std::weak_ptr<const void>> owners;
             if (Overlay::isOwner(owner)) owners.push_back(std::move(owner));

@@ -77,6 +77,7 @@ public:
     /// Whether the box holds a number. False while it is empty.
     bool valid() const { return !entry_->text().empty(); }
 
+    /// Show `v`, clamped to the range, and report it through `onValue`.
     void setValue(int v) {
         const int clamped = std::clamp(v, lo_, hi_);
         entry_->setText(std::to_string(clamped));
@@ -91,7 +92,9 @@ public:
         if (valid())
             setValue(value());
     }
+    /// The lowest value allowed.
     int minValue() const { return lo_; }
+    /// The highest value allowed.
     int maxValue() const { return hi_; }
 
     /// How much one step, or one Up/Down keypress, moves the value.
@@ -100,6 +103,7 @@ public:
     /// The text box itself, for a placeholder or an explicit width.
     TextField& field() { return *entry_; }
 
+    /// Move the value by `delta` steps (negative steps down), clamped to the range.
     void step(int delta) {
         // From the *current* value, so stepping out of an empty box starts at the
         // minimum rather than at whatever was there before it was cleared.
