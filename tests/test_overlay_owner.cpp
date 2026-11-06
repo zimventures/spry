@@ -415,12 +415,7 @@ TEST_CASE("a colour field's picker goes with the field") {
 TEST_CASE("closeOverlaysFor closes what an owner opened, as chosen, and leaves the rest") {
     StubRenderer r;
     Context ctx;
-    auto root = std::make_unique<Box>();
-    int rootClicks = 0;
-    Button* under = root->emplace<Button>("Under", [&rootClicks] { ++rootClicks; });
-    under->prefW = 800;
-    under->prefH = 600;
-    ctx.setRoot(std::move(root));
+    ctx.setRoot(std::make_unique<Box>());
 
     auto owner = std::make_shared<int>(0), other = std::make_shared<int>(0);
     int hits = 0, menuClosed = 0, dialogClosed = 0, strayClosed = 0;
@@ -452,7 +447,7 @@ TEST_CASE("closeOverlaysFor closes what an owner opened, as chosen, and leaves t
     ctx.closeOverlaysFor(other, [](const Overlay&) { return false; }); // chooses nothing
     CHECK(s->interactive);
 
-    d->requestClose(); // out of the way, so the click below meets only the fading menu
+    d->requestClose();
     s->requestClose();
     pump(ctx, r, 2);
     clickAt(ctx, x, y); // where the menu's item was, mid-fade
@@ -462,6 +457,32 @@ TEST_CASE("closeOverlaysFor closes what an owner opened, as chosen, and leaves t
     CHECK(dialogClosed == 1);
     CHECK(strayClosed == 1);
     CHECK(ctx.overlayCount() == 0);
+}
+
+TEST_CASE("a click where a closed overlay is still fading reaches what is beneath") {
+    StubRenderer r;
+    Context ctx;
+    auto root = std::make_unique<Box>();
+    int rootClicks = 0;
+    Button* under = root->emplace<Button>("Under", [&rootClicks] { ++rootClicks; });
+    under->prefW = 800;
+    under->prefH = 600;
+    ctx.setRoot(std::move(root));
+    auto owner = std::make_shared<int>(0);
+    int hits = 0;
+    auto menu = menuCounting(hits);
+    menu->addOwner(owner);
+    Menu* m = static_cast<Menu*>(ctx.addOverlay(std::move(menu)));
+    pump(ctx, r, 3);
+    Widget* item = m->content()->children()[0].get();
+
+    ctx.closeOverlaysFor(owner);
+    CHECK_FALSE(ctx.hasInteractiveOverlay());
+    pump(ctx, r, 2);
+    REQUIRE(ctx.overlayCount() == 1); // still fading
+    clickOn(ctx, item);
+    CHECK(hits == 0);
+    CHECK(rootClicks == 1); // the view now in sight
 }
 
 TEST_CASE("closeOverlaysFor with no filter closes everything the owner opened") {
@@ -487,4 +508,108 @@ TEST_CASE("closeOverlaysFor with no filter closes everything the owner opened") 
     CHECK(unowned->interactive);
     pump(ctx, r, 80);
     CHECK(ctx.overlayCount() == 1);
+}
+
+TEST_CASE("closeOverlaysFor copes with a chooser that opens an overlay") {
+    StubRenderer r;
+    Context ctx;
+    ctx.setRoot(std::make_unique<Box>());
+    auto owner = std::make_shared<int>(0);
+    int hits = 0;
+    for (int i = 0; i < 3; ++i) {
+        auto menu = menuCounting(hits);
+        menu->addOwner(owner);
+        ctx.addOverlay(std::move(menu));
+    }
+    // Enough to make the list reallocate: what a range-for over it would not survive.
+    ctx.closeOverlaysFor(owner, [&](const Overlay&) {
+        for (int i = 0; i < 16; ++i) ctx.addOverlay(std::make_unique<Modal>());
+        return true;
+    });
+    pump(ctx, r, 80);
+    CHECK(ctx.overlayCount() == 48); // the three closed; what the chooser opened is up
+}
+
+TEST_CASE("a closed overlay's widgets stop looking hovered while it fades") {
+    StubRenderer r;
+    Context ctx;
+    ctx.setRoot(std::make_unique<Box>());
+    auto owner = std::make_shared<int>(0);
+    int hits = 0;
+    auto menu = menuCounting(hits);
+    menu->addOwner(owner);
+    Menu* m = static_cast<Menu*>(ctx.addOverlay(std::move(menu)));
+    pump(ctx, r, 3);
+    Widget* item = m->content()->children()[0].get();
+    InputEvent move;
+    move.type = InputEvent::MouseMove;
+    move.x = item->rect.x + 5;
+    move.y = item->rect.y + 5;
+    ctx.handleEvent(move);
+    REQUIRE(item->hovered);
+
+    ctx.closeOverlaysFor(owner);
+    CHECK_FALSE(item->hovered);
+}
+
+TEST_CASE("a press dropped by its own onMouseUp gets no click") {
+    StubRenderer r;
+    Context ctx;
+    struct Dropper : Widget {
+        Context* ctx = nullptr;
+        int clicks = 0;
+        bool onMouseUp(float, float, int) override {
+            ctx->dropInteractionWithin(this);
+            return true;
+        }
+        void onClick() override { ++clicks; }
+    };
+    auto root = std::make_unique<Box>();
+    Dropper* d = root->emplace<Dropper>();
+    d->ctx = &ctx;
+    d->prefW = 100;
+    d->prefH = 100;
+    ctx.setRoot(std::move(root));
+    pump(ctx, r, 1);
+
+    InputEvent down;
+    down.type = InputEvent::MouseDown;
+    down.x = d->rect.x + 5;
+    down.y = d->rect.y + 5;
+    ctx.handleEvent(down);
+    InputEvent up;
+    up.type = InputEvent::MouseUp;
+    up.x = 5000; // released off every widget: hitTest finds nothing
+    up.y = 5000;
+    ctx.handleEvent(up); // before: nullptr == nullptr, then onClick on null
+    InputEvent again = down;
+    ctx.handleEvent(again);
+    up.x = down.x;
+    up.y = down.y;
+    ctx.handleEvent(up); // released on it, but it dropped its own press
+    CHECK(d->clicks == 0);
+}
+
+TEST_CASE("the documented chooser closes a colour picker and a menu, not a dialog") {
+    StubRenderer r;
+    Context ctx;
+    auto owner = std::make_shared<int>(0);
+    auto root = std::make_unique<Box>();
+    root->overlayOwner = owner;
+    ColorField* f = root->emplace<ColorField>(Color{10, 20, 30});
+    ctx.setRoot(std::move(root));
+    pump(ctx, r, 1);
+    clickOn(ctx, f);
+    REQUIRE(ctx.hasInteractiveOverlay());
+    Overlay* picker = ctx.topOverlay();
+    auto dialog = std::make_unique<Modal>();
+    dialog->setContent(std::make_unique<Box>());
+    dialog->addOwner(owner);
+    Overlay* d = ctx.addOverlay(std::move(dialog));
+
+    ctx.closeOverlaysFor(owner, [](const Overlay& o) {
+        return o.interactive && dynamic_cast<const Modal*>(&o) == nullptr;
+    });
+    CHECK_FALSE(picker->interactive);
+    CHECK(d->interactive);
 }

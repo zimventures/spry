@@ -300,11 +300,16 @@ goes.
 
 An owner that goes out of sight rather than away, such as a tab being switched from,
 can close what it opened with `ctx.closeOverlaysFor(owner, which)`. `which` picks the
-overlays to close, for example only menus, so a dialog can stay up. Unlike a drop, these
-close normally: they stop taking input at once, fade out, and fire `onClosed`.
+overlays to close, for example everything but its dialogs, so those can stay up. Unlike a
+drop, these close normally: they stop taking input at once (a click where one is still
+drawn reaches what is beneath), fade out, and fire `onClosed`, unless the owner goes
+before they finish.
 
 ```cpp
-ctx.closeOverlaysFor(tab.alive, [](const Overlay& o) { return dynamic_cast<const Menu*>(&o); });
+// Menus, dropdowns and pickers, but not dialogs, and not toasts or tooltips.
+ctx.closeOverlaysFor(tab.alive, [](const Overlay& o) {
+    return o.interactive && dynamic_cast<const Modal*>(&o) == nullptr;
+});
 ```
 
 ---
