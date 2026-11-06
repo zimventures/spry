@@ -57,6 +57,13 @@ std::unique_ptr<Menu> menuCounting(int& hits) {
     return menu;
 }
 
+// True if `o` acts for `owner`.
+bool actsFor(const Overlay* o, const std::shared_ptr<int>& owner) {
+    for (const auto& w : o->owners())
+        if (w.lock() == owner) return true;
+    return false;
+}
+
 } // namespace
 
 TEST_CASE("an overlay whose owner has gone is dropped before the next event reaches it") {
@@ -73,7 +80,7 @@ TEST_CASE("an overlay whose owner has gone is dropped before the next event reac
     auto owner = std::make_shared<int>(0);
     auto menu = menuCounting(hits);
     menu->onClosed = [&closed] { ++closed; };
-    menu->setOwner(owner);
+    menu->addOwner(owner);
     Menu* m = static_cast<Menu*>(ctx.addOverlay(std::move(menu)));
     pump(ctx, r, 3);
     Widget* item = m->content()->children()[0].get();
@@ -90,7 +97,7 @@ TEST_CASE("an overlay whose owner has gone is dropped before the next event reac
     CHECK(closed == 0); // and onClosed never fired
 }
 
-TEST_CASE("an orphaned overlay is dropped by the next frame without an event") {
+TEST_CASE("an orphaned overlay keeps frames coming until the next frame drops it") {
     StubRenderer r;
     Context ctx;
     ctx.setRoot(std::make_unique<Box>());
@@ -99,15 +106,44 @@ TEST_CASE("an orphaned overlay is dropped by the next frame without an event") {
     auto modal = std::make_unique<Modal>();
     modal->setContent(std::make_unique<Box>());
     modal->onClosed = [&closed] { ++closed; };
-    modal->setOwner(owner);
+    modal->addOwner(owner);
     ctx.addOverlay(std::move(modal));
-    pump(ctx, r, 3);
+    pump(ctx, r, 80);
+    REQUIRE_FALSE(ctx.animationsActive()); // settled
 
     owner.reset();
+    CHECK(ctx.animationsActive()); // drawn last frame: an on-demand host must draw once more
     pump(ctx, r, 1);
     CHECK(ctx.overlayCount() == 0);
     CHECK_FALSE(ctx.animationsActive());
     CHECK(closed == 0);
+}
+
+TEST_CASE("dropping an orphan doesn't tell its focused widget it lost focus") {
+    StubRenderer r;
+    Context ctx;
+    ctx.setRoot(std::make_unique<Box>());
+    struct Watch : Widget {
+        int* lost;
+        explicit Watch(int* l) : lost(l) { focusable = true; }
+        void onFocusChanged(bool on) override {
+            if (!on) ++*lost;
+        }
+    };
+    int lost = 0;
+    auto owner = std::make_shared<int>(0);
+    auto modal = std::make_unique<Modal>();
+    auto* w = static_cast<Watch*>(modal->setContent(std::make_unique<Watch>(&lost)));
+    modal->addOwner(owner);
+    ctx.addOverlay(std::move(modal));
+    pump(ctx, r, 3);
+    ctx.setFocus(w);
+
+    owner.reset();
+    pump(ctx, r, 1);
+    CHECK(ctx.overlayCount() == 0);
+    CHECK(ctx.focused() == nullptr);
+    CHECK(lost == 0);
 }
 
 TEST_CASE("an overlay with no owner is left alone") {
@@ -117,8 +153,18 @@ TEST_CASE("an overlay with no owner is left alone") {
     int hits = 0;
     ctx.addOverlay(menuCounting(hits));
     pump(ctx, r, 3);
-    CHECK_FALSE(Overlay::isOwner(ctx.topOverlay()->owner()));
+    CHECK(ctx.topOverlay()->owners().empty());
     CHECK(ctx.hasInteractiveOverlay());
+}
+
+TEST_CASE("an overlay's own overlayOwner counts as an owner") {
+    Context ctx;
+    ctx.setRoot(std::make_unique<Box>());
+    auto owner = std::make_shared<int>(0);
+    auto modal = std::make_unique<Modal>();
+    modal->overlayOwner = owner;
+    Overlay* m = ctx.addOverlay(std::move(modal));
+    CHECK(actsFor(m, owner));
 }
 
 TEST_CASE("an overlay opened from a click acts for the nearest owner above the widget") {
@@ -136,7 +182,8 @@ TEST_CASE("an overlay opened from a click acts for the nearest owner above the w
 
     clickOn(ctx, open);
     REQUIRE(ctx.hasInteractiveOverlay());
-    CHECK(ctx.topOverlay()->owner().lock() == inner);
+    CHECK(actsFor(ctx.topOverlay(), inner));
+    CHECK_FALSE(actsFor(ctx.topOverlay(), outer));
 
     inner.reset();
     CHECK_FALSE(ctx.hasInteractiveOverlay());
@@ -159,7 +206,43 @@ TEST_CASE("an overlay opened from a key press acts for the focused widget's owne
     enter.key = Key::Enter;
     ctx.handleEvent(enter);
     REQUIRE(ctx.hasInteractiveOverlay());
-    CHECK(ctx.topOverlay()->owner().lock() == owner);
+    CHECK(actsFor(ctx.topOverlay(), owner));
+}
+
+TEST_CASE("an overlay opened from a wheel handler acts for that widget, not the focused one") {
+    StubRenderer r;
+    Context ctx;
+    auto a = std::make_shared<int>(0), b = std::make_shared<int>(0);
+    struct Wheely : Widget {
+        bool onWheel(float, float) override {
+            Context::current()->addOverlay(std::make_unique<Modal>());
+            return true;
+        }
+    };
+    auto root = std::make_unique<Box>();
+    root->axis = Axis::Column;
+    Box* viewA = root->emplace<Box>();
+    viewA->overlayOwner = a;
+    Button* focusedInA = viewA->emplace<Button>("A");
+    Box* viewB = root->emplace<Box>();
+    viewB->overlayOwner = b;
+    viewB->grow = 1;
+    Wheely* wheely = viewB->emplace<Wheely>();
+    wheely->prefW = 200;
+    wheely->prefH = 200;
+    ctx.setRoot(std::move(root));
+    pump(ctx, r, 1);
+    ctx.setFocus(focusedInA);
+
+    InputEvent wheel;
+    wheel.type = InputEvent::Wheel;
+    wheel.x = wheely->rect.x + 10;
+    wheel.y = wheely->rect.y + 10;
+    wheel.wheel = 1;
+    ctx.handleEvent(wheel);
+    REQUIRE(ctx.overlayCount() == 1);
+    CHECK(actsFor(ctx.topOverlay(), b));
+    CHECK_FALSE(actsFor(ctx.topOverlay(), a));
 }
 
 TEST_CASE("an overlay opened from inside another acts for the same owner") {
@@ -175,59 +258,98 @@ TEST_CASE("an overlay opened from inside another acts for the same owner") {
         dialog->setContent(std::make_unique<Box>());
         Context::current()->addOverlay(std::move(dialog));
     });
-    menu->setOwner(owner);
+    menu->addOwner(owner);
     Menu* m = static_cast<Menu*>(ctx.addOverlay(std::move(menu)));
     pump(ctx, r, 3);
 
     clickOn(ctx, m->content()->children()[0].get());
     REQUIRE(ctx.overlayCount() == 2);
-    CHECK(ctx.topOverlay()->owner().lock() == owner); // the dialog, not the closing menu
+    CHECK(actsFor(ctx.topOverlay(), owner)); // the dialog, not the closing menu
 }
 
-TEST_CASE("an OwnerScope names the owner outside event handling; the innermost wins; setOwner beats both") {
+TEST_CASE("an OwnerScope adds its owner; the innermost counts; an empty one leaves the outer in force") {
     Context ctx;
     ctx.setRoot(std::make_unique<Box>());
     auto a = std::make_shared<int>(0), b = std::make_shared<int>(0), c = std::make_shared<int>(0);
     Overlay* inA = nullptr;
     Overlay* inB = nullptr;
     Overlay* told = nullptr;
+    Overlay* inEmpty = nullptr;
     {
         Context::OwnerScope sa(ctx, a);
         inA = ctx.addOverlay(std::make_unique<Modal>());
         {
+            Context::OwnerScope empty(ctx, {});
+            inEmpty = ctx.addOverlay(std::make_unique<Modal>());
+        }
+        {
             Context::OwnerScope sb(ctx, b);
             inB = ctx.addOverlay(std::make_unique<Modal>());
             auto explicitly = std::make_unique<Modal>();
-            explicitly->setOwner(c);
+            explicitly->addOwner(c);
             told = ctx.addOverlay(std::move(explicitly));
         }
     }
     Overlay* after = ctx.addOverlay(std::make_unique<Modal>());
-    CHECK(inA->owner().lock() == a);
-    CHECK(inB->owner().lock() == b);
-    CHECK(told->owner().lock() == c);
-    CHECK_FALSE(Overlay::isOwner(after->owner())); // no scope, no event: unowned
+    CHECK(actsFor(inA, a));
+    CHECK(actsFor(inEmpty, a));
+    CHECK(actsFor(inB, b));
+    CHECK_FALSE(actsFor(inB, a));
+    CHECK(actsFor(told, c)); // told, and in scope: both
+    CHECK(actsFor(told, b));
+    CHECK(after->owners().empty()); // no scope, no event: unowned
 }
 
-TEST_CASE("an overlay opened from another's onClosed acts for the same owner") {
+TEST_CASE("during an event, a scope's owner and the widget's both count") {
+    StubRenderer r;
+    Context ctx;
+    auto shell = std::make_shared<int>(0), view = std::make_shared<int>(0);
+    auto root = std::make_unique<Box>();
+    root->overlayOwner = view;
+    int hits = 0;
+    Button* open = root->emplace<Button>("Open", [&] { Context::current()->addOverlay(menuCounting(hits)); });
+    ctx.setRoot(std::move(root));
+    pump(ctx, r, 1);
+    {
+        Context::OwnerScope s(ctx, shell); // a host wrapping its dispatch
+        clickOn(ctx, open);
+    }
+    REQUIRE(ctx.hasInteractiveOverlay());
+    CHECK(actsFor(ctx.topOverlay(), view));
+    CHECK(actsFor(ctx.topOverlay(), shell));
+}
+
+TEST_CASE("an overlay opened from another's onClosed acts for exactly that one's owners") {
     StubRenderer r;
     Context ctx;
     ctx.setRoot(std::make_unique<Box>());
-    auto owner = std::make_shared<int>(0);
-    auto first = std::make_unique<Modal>();
-    first->setContent(std::make_unique<Box>());
-    first->onClosed = [&ctx] {
+    auto owner = std::make_shared<int>(0), host = std::make_shared<int>(0);
+    const auto chain = [&ctx] {
         auto next = std::make_unique<Modal>();
         next->setContent(std::make_unique<Box>());
         ctx.addOverlay(std::move(next));
     };
-    first->setOwner(owner);
-    Overlay* f = ctx.addOverlay(std::move(first));
+    auto owned = std::make_unique<Modal>();
+    owned->setContent(std::make_unique<Box>());
+    owned->onClosed = chain;
+    owned->addOwner(owner);
+    Overlay* o = ctx.addOverlay(std::move(owned));
+    auto unowned = std::make_unique<Modal>();
+    unowned->setContent(std::make_unique<Box>());
+    unowned->onClosed = chain;
+    Overlay* u = ctx.addOverlay(std::move(unowned));
     pump(ctx, r, 3);
-    f->requestClose();
-    pump(ctx, r, 80);
-    REQUIRE(ctx.overlayCount() == 1);
-    CHECK(ctx.topOverlay()->owner().lock() == owner);
+    o->requestClose();
+    u->requestClose();
+    {
+        Context::OwnerScope s(ctx, host); // a host wrapping frame() in its own scope
+        pump(ctx, r, 80);
+    }
+    REQUIRE(ctx.overlayCount() == 2); // both follow-ups are up
+    owner.reset();
+    pump(ctx, r, 1);
+    REQUIRE(ctx.overlayCount() == 1);          // the owned one's went with its owner
+    CHECK(ctx.topOverlay()->owners().empty()); // the unowned one's took nothing from the host
 }
 
 TEST_CASE("a combo's dropdown goes with the combo") {
@@ -253,6 +375,22 @@ TEST_CASE("a combo's dropdown goes with the combo") {
     clickAt(ctx, x, y); // where "Blue" was: before this, a use-after-free on the combo
     CHECK(changes == 0);
     CHECK(ctx.overlayCount() == 0);
+}
+
+TEST_CASE("a combo's dropdown also goes with the view around it") {
+    StubRenderer r;
+    Context ctx;
+    auto view = std::make_shared<int>(0);
+    auto root = std::make_unique<Box>();
+    root->overlayOwner = view;
+    Combo* c = root->emplace<Combo>(std::vector<std::string>{"Red", "Green"}, 0);
+    ctx.setRoot(std::move(root));
+    pump(ctx, r, 1);
+
+    clickAt(ctx, c->rect.x + 5, c->rect.y + c->rect.h * 0.5f);
+    REQUIRE(ctx.hasInteractiveOverlay());
+    view.reset(); // the view goes; its widgets haven't been freed yet
+    CHECK_FALSE(ctx.hasInteractiveOverlay());
 }
 
 TEST_CASE("a colour field's picker goes with the field") {

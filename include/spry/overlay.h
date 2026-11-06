@@ -3,6 +3,7 @@
 #include <memory>
 #include <string>
 #include <utility>
+#include <vector>
 
 #include "anim.h"
 #include "box.h"
@@ -51,24 +52,33 @@ public:
     /// True once the close animation has finished.
     bool closed() const { return phase_ == Phase::Closed; }
 
-    /// Ties the overlay to whatever it acts for: an object holding a `shared_ptr`
-    /// to the token. A menu or dialog usually calls back into the view that opened
-    /// it, and can outlive that view while it fades out. Once the owner has gone,
-    /// `Context` drops the overlay before anything else reaches it: it isn't drawn
-    /// or clicked again, and its @ref onClosed never fires, as that is usually what
-    /// calls back. Left unset, `Context` fills it in from whatever opened the
-    /// overlay (see `Widget::overlayOwner` and `Context::OwnerScope`). An overlay
-    /// with no owner behaves as it always has.
-    void setOwner(std::weak_ptr<const void> owner) { owner_ = std::move(owner); }
-    /// The owner token, or an empty one if there is none.
-    const std::weak_ptr<const void>& owner() const { return owner_; }
+    /// Ties the overlay to something it acts for: an object holding a `shared_ptr`
+    /// to `owner`. A menu or dialog usually calls back into the view that opened it,
+    /// and can outlive that view while it fades out. Once *any* of its owners has
+    /// gone, `Context` drops the overlay before anything else reaches it: it isn't
+    /// drawn or clicked again, and its @ref onClosed never fires, as that is usually
+    /// what calls back. An overlay can act for several things (a combo's dropdown
+    /// acts for the combo and for the view around it), so this adds to any it has.
+    ///
+    /// `Context` adds owners of its own when the overlay is pushed: see
+    /// `Context::addOverlay()`. Setting `overlayOwner` on the overlay itself counts
+    /// too. An overlay with no owner behaves as it always has.
+    void addOwner(std::weak_ptr<const void> owner) {
+        if (isOwner(owner)) owners_.push_back(std::move(owner));
+    }
+    /// The owners added so far.
+    const std::vector<std::weak_ptr<const void>>& owners() const { return owners_; }
     /// True if `w` names an owner, alive or not, rather than being empty.
     static bool isOwner(const std::weak_ptr<const void>& w) {
         const std::weak_ptr<const void> none;
         return w.owner_before(none) || none.owner_before(w);
     }
-    /// True once an owner it was given has gone.
-    bool orphaned() const { return isOwner(owner_) && owner_.expired(); }
+    /// True once any owner it was given has gone.
+    bool orphaned() const {
+        for (const auto& o : owners_)
+            if (o.expired()) return true;
+        return false;
+    }
     /// Open-ness in [0,1] — drives the fade/offset (0 = hidden, 1 = fully open).
     float presence() const { return appear_.value < 0 ? 0 : (appear_.value > 1 ? 1 : appear_.value); }
 
@@ -153,7 +163,7 @@ protected:
     Rect contentRect_{};              ///< The content's placed rectangle.
 
 private:
-    std::weak_ptr<const void> owner_; ///< See @ref setOwner.
+    std::vector<std::weak_ptr<const void>> owners_; ///< See @ref addOwner.
 };
 
 /// A centered modal: scrim behind, panel rises + fades in. Supply the content via

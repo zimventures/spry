@@ -131,7 +131,7 @@ private:
         menu->minWidth = rect.w;
         for (int i = 0; i < (int)options.size(); ++i)
             menu->addItem(options[i], [this, i] { commit(i); });
-        menu->setOwner(life_); // its items call back into this combo
+        menu->addOwner(life_); // its items call back into this combo
         ctx->addOverlay(std::move(menu));
     }
 

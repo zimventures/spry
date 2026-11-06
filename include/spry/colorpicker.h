@@ -200,7 +200,7 @@ public:
         });
         picker->anchorX = rect.x;
         picker->anchorY = rect.y + rect.h + 4.0f;
-        picker->setOwner(life_); // it writes back into this field
+        picker->addOwner(life_); // it writes back into this field
         ctx->addOverlay(std::move(picker));
     }
 

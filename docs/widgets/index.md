@@ -281,19 +281,22 @@ struct FileBrowser {
 };
 ```
 
-`Context` picks the owner in this order:
+An overlay can act for several things, and goes when **any** of them does. It acts for:
 
-1. one set with `overlay->setOwner(token)`;
-2. the innermost `Context::OwnerScope`, for overlays opened outside event handling
-   (a view's per-frame work, a timer);
-3. during `handleEvent`, the nearest `Widget::overlayOwner` above the widget handling
-   the event, or the owner of the overlay that widget is in (a dialog opened from a
-   menu item acts for the menu's owner).
+- any owner given with `overlay->addOwner(token)`, or set as the overlay's own
+  `overlayOwner`;
+- the innermost `Context::OwnerScope`, for overlays opened outside event handling (a
+  view's per-frame work, a timer). An empty scope leaves the one around it in force;
+- during `handleEvent`, the nearest `Widget::overlayOwner` above the widget handling the
+  event. If there is none and that widget is inside an overlay, it takes that overlay's
+  owners, so a dialog opened from a menu item acts for the menu's owners.
 
-An overlay opened from another overlay's `onClosed` acts for the same owner. An overlay
-with no owner behaves exactly as before. `Combo` and `ColorField` own their own dropdown
-and picker, so rebuilding a scene with one open no longer leaves it pointing at a freed
-widget.
+An overlay opened from another overlay's `onClosed` acts for exactly that overlay's
+owners. An overlay with no owner behaves exactly as before.
+
+`Combo` and `ColorField` own their dropdown and picker, so a dropdown goes when its
+combo does, as when a scene is rebuilt with it open, as well as when the view around it
+goes.
 
 ---
 
