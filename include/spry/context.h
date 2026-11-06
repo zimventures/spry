@@ -123,6 +123,36 @@ public:
         return p;
     }
 
+    /// Start closing every overlay that acts for `owner` (see `Overlay::addOwner()`)
+    /// and that `which` accepts — all of them if it is empty. For a view that is
+    /// going out of sight rather than away, such as a tab being switched from:
+    /// a menu left up would float over whatever is shown instead.
+    ///
+    /// Each one stops taking input at once — it no longer counts for
+    /// @ref hasInteractiveOverlay, and a click where it is drawn reaches what is
+    /// beneath, the view now in sight — then fades out as usual and fires its
+    /// `onClosed`, unless its owner goes first, which drops it as always.
+    void closeOverlaysFor(const std::weak_ptr<const void>& owner,
+                          const std::function<bool(const Overlay&)>& which = {}) {
+        if (!Overlay::isOwner(owner)) return;
+        // Chosen first, then closed: `which` and the focus change below run caller
+        // code, which may open an overlay and so reallocate the list.
+        std::vector<Overlay*> chosen;
+        for (auto& o : overlays_)
+            if (!o->closed() && !o->orphaned() && actsFor(*o, owner)) chosen.push_back(o.get());
+        if (which)
+            chosen.erase(std::remove_if(chosen.begin(), chosen.end(), [&](Overlay* o) { return !which(*o); }),
+                         chosen.end());
+        for (Overlay* o : chosen) {
+            // It keeps drawing while it fades, so its widgets mustn't look hovered or held.
+            if (hovered_ && subtreeContains(o, hovered_)) hovered_->hovered = false;
+            if (pressed_ && subtreeContains(o, pressed_)) pressed_->pressed = false;
+            dropInteractionWithin(o);
+            o->interactive = false;
+            o->requestClose();
+        }
+    }
+
     /// While alive, overlays added to `ctx` act for `owner` too: for code that opens
     /// them outside @ref handleEvent, such as a view's per-frame work. Scopes nest
     /// and the innermost counts; an empty `owner` leaves the enclosing one in force.
@@ -156,8 +186,9 @@ public:
     /// True if any interactive overlay (menu/modal) is up.
     bool hasInteractiveOverlay() const { return topInteractiveOverlay() != nullptr; }
     /// Topmost interactive overlay that isn't fully closed yet (a mid-close
-    /// animation still counts), or `nullptr` — for hosts that need to know a
-    /// menu/modal is up, and for inspecting overlay content.
+    /// animation still counts, except one closed by @ref closeOverlaysFor), or
+    /// `nullptr` — for hosts that need to know a menu/modal is up, and for
+    /// inspecting overlay content.
     Overlay* topOverlay() const { return topInteractiveOverlay(); }
     /// Number of overlays currently on the stack (including closing ones).
     std::size_t overlayCount() const { return overlays_.size(); }
@@ -243,11 +274,13 @@ public:
                 break;
             }
             case InputEvent::MouseUp:
-                if (pressed_) {
-                    Handling h(*this, pressed_);
-                    pressed_->pressed = false;
-                    pressed_->onMouseUp(e.x, e.y, e.button);
-                    if (ir->hitTest(e.x, e.y) == pressed_) pressed_->onClick();
+                if (Widget* p = pressed_) {
+                    Handling h(*this, p);
+                    p->pressed = false;
+                    p->onMouseUp(e.x, e.y, e.button);
+                    // onMouseUp may have dropped the press (closing the overlay p is in,
+                    // say), and then p may be on its way out: no click for it.
+                    if (pressed_ == p && ir->hitTest(e.x, e.y) == p) p->onClick();
                     pressed_ = nullptr;
                 }
                 break;
@@ -492,6 +525,12 @@ private:
                 ++it;
             }
         }
+    }
+    // Whether `o` has `owner` among its owners.
+    static bool actsFor(const Overlay& o, const std::weak_ptr<const void>& owner) {
+        for (const auto& w : o.owners())
+            if (Overlay::sameOwner(w, owner)) return true;
+        return false;
     }
     // What an overlay being added acts for, besides what it was told (see addOverlay).
     std::vector<std::weak_ptr<const void>> inferOwners() const {

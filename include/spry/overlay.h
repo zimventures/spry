@@ -68,11 +68,13 @@ public:
     }
     /// The owners added so far.
     const std::vector<std::weak_ptr<const void>>& owners() const { return owners_; }
-    /// True if `w` names an owner, alive or not, rather than being empty.
-    static bool isOwner(const std::weak_ptr<const void>& w) {
-        const std::weak_ptr<const void> none;
-        return w.owner_before(none) || none.owner_before(w);
+    /// True if `a` and `b` name the same owner — the same token, alive or not, not
+    /// just an equal value. Two empty ones count as the same.
+    static bool sameOwner(const std::weak_ptr<const void>& a, const std::weak_ptr<const void>& b) {
+        return !a.owner_before(b) && !b.owner_before(a);
     }
+    /// True if `w` names an owner, alive or not, rather than being empty.
+    static bool isOwner(const std::weak_ptr<const void>& w) { return !sameOwner(w, {}); }
     /// True once any owner it was given has gone.
     bool orphaned() const {
         for (const auto& o : owners_)

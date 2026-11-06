@@ -298,6 +298,20 @@ owners. An overlay with no owner behaves exactly as before.
 combo does, as when a scene is rebuilt with it open, as well as when the view around it
 goes.
 
+An owner that goes out of sight rather than away, such as a tab being switched from,
+can close what it opened with `ctx.closeOverlaysFor(owner, which)`. `which` picks the
+overlays to close, for example everything but its dialogs, so those can stay up. Unlike a
+drop, these close normally: they stop taking input at once (a click where one is still
+drawn reaches what is beneath), fade out, and fire `onClosed`, unless the owner goes
+before they finish.
+
+```cpp
+// Menus, dropdowns and pickers, but not dialogs, and not toasts or tooltips.
+ctx.closeOverlaysFor(tab.alive, [](const Overlay& o) {
+    return o.interactive && dynamic_cast<const Modal*>(&o) == nullptr;
+});
+```
+
 ---
 
 The full interactive gallery is
