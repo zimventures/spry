@@ -590,6 +590,44 @@ TEST_CASE("a press dropped by its own onMouseUp gets no click") {
     CHECK(d->clicks == 0);
 }
 
+TEST_CASE("an Enter that loses focus in onKey gets no click, here or elsewhere") {
+    StubRenderer r;
+    Context ctx;
+    struct Keyed : Widget {
+        Context* ctx = nullptr;
+        Widget* passTo = nullptr; // where onKey moves focus; null drops it
+        int clicks = 0;
+        bool onKey(Key, bool, bool, bool) override {
+            if (passTo) ctx->setFocus(passTo);
+            else ctx->dropInteractionWithin(this);
+            return false; // not consumed: Enter would fall through to onClick
+        }
+        void onClick() override { ++clicks; }
+    };
+    auto root = std::make_unique<Box>();
+    Keyed* a = root->emplace<Keyed>();
+    Keyed* b = root->emplace<Keyed>();
+    a->ctx = b->ctx = &ctx;
+    a->focusable = b->focusable = true;
+    ctx.setRoot(std::move(root));
+    pump(ctx, r, 1);
+
+    InputEvent enter;
+    enter.type = InputEvent::KeyDown;
+    enter.key = Key::Enter;
+    ctx.setFocus(a);
+    ctx.handleEvent(enter); // before: onClick on a null focused_
+    CHECK(ctx.focused() == nullptr);
+    CHECK(a->clicks == 0);
+
+    a->passTo = b;
+    ctx.setFocus(a);
+    ctx.handleEvent(enter); // before: b clicked by a key pressed on a
+    CHECK(ctx.focused() == b);
+    CHECK(a->clicks == 0);
+    CHECK(b->clicks == 0);
+}
+
 TEST_CASE("the documented chooser closes a colour picker and a menu, not a dialog") {
     StubRenderer r;
     Context ctx;

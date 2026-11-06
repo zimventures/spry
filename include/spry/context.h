@@ -289,10 +289,12 @@ public:
                     ov->requestClose();
                 } else if (e.key == Key::Tab) {
                     moveFocus(e.shift ? -1 : 1);
-                } else if (focused_) {
-                    Handling h(*this, focused_);
-                    bool consumed = focused_->onKey(e.key, e.shift, e.ctrl, e.alt);
-                    if (!consumed && (e.key == Key::Enter || e.key == Key::Space)) focused_->onClick();
+                } else if (Widget* f = focused_) {
+                    Handling h(*this, f);
+                    bool consumed = f->onKey(e.key, e.shift, e.ctrl, e.alt);
+                    // Only while it still has focus: onKey may have dropped it (closing its
+                    // overlay) or moved it, and the click belongs to neither null nor another.
+                    if (!consumed && focused_ == f && (e.key == Key::Enter || e.key == Key::Space)) f->onClick();
                 }
                 break;
             case InputEvent::Text:
