@@ -123,6 +123,23 @@ public:
         return p;
     }
 
+    /// Start closing every overlay that acts for `owner` (see `Overlay::addOwner()`)
+    /// and that `which` accepts — all of them if it is empty. For a view that is
+    /// going out of sight rather than away, such as a tab being switched from:
+    /// a menu left up would float over whatever is shown instead. Each one stops
+    /// taking input at once, fades out as usual, and fires its `onClosed`.
+    void closeOverlaysFor(const std::weak_ptr<const void>& owner,
+                          const std::function<bool(const Overlay&)>& which = {}) {
+        if (!Overlay::isOwner(owner)) return;
+        for (auto& o : overlays_) {
+            if (o->closed() || o->orphaned() || !actsFor(*o, owner)) continue;
+            if (which && !which(*o)) continue;
+            dropInteractionWithin(o.get());
+            o->interactive = false;
+            o->requestClose();
+        }
+    }
+
     /// While alive, overlays added to `ctx` act for `owner` too: for code that opens
     /// them outside @ref handleEvent, such as a view's per-frame work. Scopes nest
     /// and the innermost counts; an empty `owner` leaves the enclosing one in force.
@@ -492,6 +509,12 @@ private:
                 ++it;
             }
         }
+    }
+    // Whether `o` has `owner` among its owners: the same token, not just an equal one.
+    static bool actsFor(const Overlay& o, const std::weak_ptr<const void>& owner) {
+        for (const auto& w : o.owners())
+            if (!w.owner_before(owner) && !owner.owner_before(w)) return true;
+        return false;
     }
     // What an overlay being added acts for, besides what it was told (see addOverlay).
     std::vector<std::weak_ptr<const void>> inferOwners() const {

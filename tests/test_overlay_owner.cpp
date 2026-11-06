@@ -411,3 +411,80 @@ TEST_CASE("a colour field's picker goes with the field") {
     pump(ctx, r, 1);
     CHECK(ctx.overlayCount() == 0);
 }
+
+TEST_CASE("closeOverlaysFor closes what an owner opened, as chosen, and leaves the rest") {
+    StubRenderer r;
+    Context ctx;
+    auto root = std::make_unique<Box>();
+    int rootClicks = 0;
+    Button* under = root->emplace<Button>("Under", [&rootClicks] { ++rootClicks; });
+    under->prefW = 800;
+    under->prefH = 600;
+    ctx.setRoot(std::move(root));
+
+    auto owner = std::make_shared<int>(0), other = std::make_shared<int>(0);
+    int hits = 0, menuClosed = 0, dialogClosed = 0, strayClosed = 0;
+    auto dialog = std::make_unique<Modal>();
+    dialog->setContent(std::make_unique<Box>());
+    dialog->onClosed = [&dialogClosed] { ++dialogClosed; };
+    dialog->addOwner(owner);
+    Overlay* d = ctx.addOverlay(std::move(dialog));
+    auto stray = menuCounting(hits); // someone else's, out of the way of the click below
+    stray->anchorX = 500;
+    stray->anchorY = 400;
+    stray->onClosed = [&strayClosed] { ++strayClosed; };
+    stray->addOwner(other);
+    Overlay* s = ctx.addOverlay(std::move(stray));
+    auto menu = menuCounting(hits); // acts for both: matched by either
+    menu->onClosed = [&menuClosed] { ++menuClosed; };
+    menu->addOwner(other);
+    menu->addOwner(owner);
+    Menu* m = static_cast<Menu*>(ctx.addOverlay(std::move(menu)));
+    pump(ctx, r, 3);
+    Widget* item = m->content()->children()[0].get();
+    const float x = item->rect.x + item->rect.w * 0.5f, y = item->rect.y + item->rect.h * 0.5f;
+
+    ctx.closeOverlaysFor(owner, [](const Overlay& o) { return dynamic_cast<const Menu*>(&o) != nullptr; });
+    CHECK_FALSE(m->interactive); // not even while it fades
+    CHECK(d->interactive);       // a dialog wasn't chosen
+    CHECK(s->interactive);       // nor someone else's menu
+
+    ctx.closeOverlaysFor(other, [](const Overlay&) { return false; }); // chooses nothing
+    CHECK(s->interactive);
+
+    d->requestClose(); // out of the way, so the click below meets only the fading menu
+    s->requestClose();
+    pump(ctx, r, 2);
+    clickAt(ctx, x, y); // where the menu's item was, mid-fade
+    CHECK(hits == 0);
+    pump(ctx, r, 80);
+    CHECK(menuClosed == 1); // a close, not a drop: onClosed fires, once
+    CHECK(dialogClosed == 1);
+    CHECK(strayClosed == 1);
+    CHECK(ctx.overlayCount() == 0);
+}
+
+TEST_CASE("closeOverlaysFor with no filter closes everything the owner opened") {
+    StubRenderer r;
+    Context ctx;
+    ctx.setRoot(std::make_unique<Box>());
+    auto owner = std::make_shared<int>(0);
+    int hits = 0;
+    auto menu = menuCounting(hits);
+    menu->addOwner(owner);
+    Overlay* m = ctx.addOverlay(std::move(menu));
+    auto dialog = std::make_unique<Modal>();
+    dialog->setContent(std::make_unique<Box>());
+    dialog->addOwner(owner);
+    Overlay* d = ctx.addOverlay(std::move(dialog));
+    Overlay* unowned = ctx.addOverlay(menuCounting(hits));
+    pump(ctx, r, 3);
+
+    ctx.closeOverlaysFor(owner);
+    ctx.closeOverlaysFor({}); // an empty owner matches nothing, including the unowned
+    CHECK_FALSE(m->interactive);
+    CHECK_FALSE(d->interactive);
+    CHECK(unowned->interactive);
+    pump(ctx, r, 80);
+    CHECK(ctx.overlayCount() == 1);
+}
