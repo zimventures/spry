@@ -132,7 +132,11 @@ public:
     /// Scroll wheel over this widget; `dy` is in notches (+ = up). Return `true` to
     /// consume — `Context` bubbles up the parent chain until something does (#215).
     virtual bool onWheel(float /*dx*/, float /*dy*/) { return false; }
-    /// A key was pressed while this widget is focused.
+    /// A key was pressed while this widget is focused. Return `true` to consume it;
+    /// an unconsumed Enter or Space then clicks the widget (@ref onClick). Not if this
+    /// moves or drops focus, or lets widgets go (closing its own overlay, say): no
+    /// click follows, and the text the key types isn't delivered to whatever has
+    /// focus now (#70).
     virtual bool onKey(Key /*key*/, bool /*shift*/, bool /*ctrl*/, bool /*alt*/) { return false; }
     /// Committed UTF-8 text was entered while this widget is focused.
     virtual void onText(const char* /*utf8*/) {}

@@ -4,6 +4,7 @@
 #include <catch2/catch_test_macros.hpp>
 
 #include <cstring>
+#include <functional>
 #include <memory>
 #include <string>
 #include <utility>
@@ -588,6 +589,166 @@ TEST_CASE("a press dropped by its own onMouseUp gets no click") {
     up.y = down.y;
     ctx.handleEvent(up); // released on it, but it dropped its own press
     CHECK(d->clicks == 0);
+}
+
+// A dispatch doesn't carry on with a target its handler took away (#70).
+
+namespace {
+
+// Focusable; onKey runs `act` and leaves Enter unconsumed, so it falls through to a click.
+struct Keyed : Widget {
+    std::function<void()> act;
+    int clicks = 0;
+    Keyed() { focusable = true; }
+    bool onKey(Key, bool, bool, bool) override {
+        if (act) act();
+        return false;
+    }
+    void onClick() override { ++clicks; }
+};
+
+InputEvent keyDown(Key k) {
+    InputEvent e;
+    e.type = InputEvent::KeyDown;
+    e.key = k;
+    return e;
+}
+
+} // namespace
+
+TEST_CASE("an Enter whose onKey moves or drops focus gets no click, here or elsewhere") {
+    StubRenderer r;
+    Context ctx;
+    auto root = std::make_unique<Box>();
+    Keyed* a = root->emplace<Keyed>();
+    Keyed* b = root->emplace<Keyed>();
+    ctx.setRoot(std::move(root));
+    pump(ctx, r, 1);
+
+    ctx.setFocus(a);
+    ctx.handleEvent(keyDown(Key::Enter)); // leaves focus alone: clicked, as ever
+    CHECK(a->clicks == 1);
+
+    a->act = [&] { ctx.dropInteractionWithin(a); };
+    ctx.handleEvent(keyDown(Key::Enter)); // before: onClick on a null focused_
+    CHECK(ctx.focused() == nullptr);
+
+    a->act = [&] { ctx.setFocus(b); };
+    ctx.setFocus(a);
+    ctx.handleEvent(keyDown(Key::Enter)); // before: b clicked by a key pressed on a
+    CHECK(ctx.focused() == b);
+
+    a->act = [&] {
+        ctx.setFocus(nullptr);
+        ctx.setFocus(a); // and back: focus was still lost in between
+    };
+    ctx.setFocus(a);
+    ctx.handleEvent(keyDown(Key::Enter));
+    CHECK(ctx.focused() == a);
+    CHECK(a->clicks == 1);
+    CHECK(b->clicks == 0);
+}
+
+TEST_CASE("an Enter whose onKey closes its own overlay for its owner gets no click") {
+    // The shell's path: a key in a menu or dialog hides its tab, and that closes what
+    // the tab opened, the overlay holding the focused widget included.
+    StubRenderer r;
+    Context ctx;
+    ctx.setRoot(std::make_unique<Box>());
+    auto owner = std::make_shared<int>(0);
+    auto dialog = std::make_unique<Modal>();
+    auto content = std::make_unique<Box>();
+    Keyed* k = content->emplace<Keyed>();
+    dialog->setContent(std::move(content));
+    dialog->addOwner(owner);
+    ctx.addOverlay(std::move(dialog));
+    pump(ctx, r, 3);
+    k->act = [&] { ctx.closeOverlaysFor(owner); };
+    ctx.setFocus(k);
+
+    ctx.handleEvent(keyDown(Key::Enter));
+    CHECK(ctx.focused() == nullptr);
+    CHECK(k->clicks == 0);
+    pump(ctx, r, 80);
+    CHECK(ctx.overlayCount() == 0);
+}
+
+TEST_CASE("a menu dismissed by Escape or an outside click acts on no Enter while it fades") {
+    StubRenderer r;
+    Context ctx;
+    ctx.setRoot(std::make_unique<Box>());
+    int hits = 0;
+    for (bool byEscape : {true, false}) {
+        Menu* m = static_cast<Menu*>(ctx.addOverlay(menuCounting(hits)));
+        pump(ctx, r, 3);
+        ctx.setFocus(m->content()->children()[0].get()); // its item, as Tab would
+        if (byEscape) ctx.handleEvent(keyDown(Key::Escape));
+        else clickAt(ctx, 700, 500); // well clear of the menu
+        CHECK(ctx.focused() == nullptr);
+        CHECK_FALSE(ctx.hasInteractiveOverlay());
+        ctx.handleEvent(keyDown(Key::Enter)); // mid-fade
+        pump(ctx, r, 80);
+        CHECK(ctx.overlayCount() == 0);
+    }
+    CHECK(hits == 0);
+}
+
+TEST_CASE("the text of a key whose onKey moved focus isn't typed where focus went") {
+    StubRenderer r;
+    Context ctx;
+    auto root = std::make_unique<Box>();
+    Keyed* k = root->emplace<Keyed>();
+    TextField* field = root->emplace<TextField>();
+    ctx.setRoot(std::move(root));
+    pump(ctx, r, 1);
+    k->act = [&] { ctx.setFocus(field); };
+    ctx.setFocus(k);
+
+    InputEvent space;
+    space.type = InputEvent::Text;
+    space.text = " ";
+    ctx.handleEvent(keyDown(Key::Space));
+    ctx.handleEvent(space); // SDL's text for that same key: not for the field
+    CHECK(field->text().empty());
+    ctx.handleEvent(space); // only that one: the next is typed
+    CHECK(field->text() == " ");
+
+    ctx.handleEvent(keyDown(Key::Space)); // the field has it now: its own keys type
+    ctx.handleEvent(space);
+    CHECK(field->text() == "  ");
+}
+
+TEST_CASE("a wheel event stops bubbling once its handler lets widgets go") {
+    StubRenderer r;
+    Context ctx;
+    struct Wheely : Widget {
+        const std::function<void()>* act = nullptr; // held outside: it frees this widget
+        bool onWheel(float, float) override {
+            (*act)(); // and its parent: nothing of either may be read after
+            return false;
+        }
+    };
+    auto root = std::make_unique<Box>();
+    Box* rootBox = root.get();
+    Box* mid = root->emplace<Box>();
+    Wheely* w = mid->emplace<Wheely>();
+    w->prefW = 200;
+    w->prefH = 200;
+    ctx.setRoot(std::move(root));
+    pump(ctx, r, 1);
+    const std::function<void()> letGo = [&ctx, rootBox, mid] {
+        ctx.dropInteractionWithin(mid);
+        rootBox->clearChildren();
+    };
+    w->act = &letGo;
+
+    InputEvent wheel;
+    wheel.type = InputEvent::Wheel;
+    wheel.x = w->rect.x + 10;
+    wheel.y = w->rect.y + 10;
+    wheel.wheel = 1;
+    ctx.handleEvent(wheel); // before: the loop read the freed widget's parent()
+    CHECK(rootBox->children().empty());
 }
 
 TEST_CASE("the documented chooser closes a colour picker and a menu, not a dialog") {

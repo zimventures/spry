@@ -45,6 +45,7 @@ public:
         // (don't deref — those widgets are destroyed).
         hovered_ = pressed_ = focused_ = nullptr;
         tipTarget_ = nullptr;
+        ++epoch_;
     }
     /// The current root widget, or `nullptr`.
     Widget* root() const { return root_.get(); }
@@ -84,6 +85,7 @@ public:
     /// Move keyboard focus to `w` (or `nullptr` to clear), firing focus callbacks.
     void setFocus(Widget* w) {
         if (w == focused_) return;
+        ++epoch_;
         if (focused_) {
             focused_->focused = false;
             focused_->onFocusChanged(false);
@@ -143,14 +145,7 @@ public:
         if (which)
             chosen.erase(std::remove_if(chosen.begin(), chosen.end(), [&](Overlay* o) { return !which(*o); }),
                          chosen.end());
-        for (Overlay* o : chosen) {
-            // It keeps drawing while it fades, so its widgets mustn't look hovered or held.
-            if (hovered_ && subtreeContains(o, hovered_)) hovered_->hovered = false;
-            if (pressed_ && subtreeContains(o, pressed_)) pressed_->pressed = false;
-            dropInteractionWithin(o);
-            o->interactive = false;
-            o->requestClose();
-        }
+        for (Overlay* o : chosen) dismiss(o);
     }
 
     /// While alive, overlays added to `ctx` act for `owner` too: for code that opens
@@ -186,7 +181,8 @@ public:
     /// True if any interactive overlay (menu/modal) is up.
     bool hasInteractiveOverlay() const { return topInteractiveOverlay() != nullptr; }
     /// Topmost interactive overlay that isn't fully closed yet (a mid-close
-    /// animation still counts, except one closed by @ref closeOverlaysFor), or
+    /// animation still counts, except one dismissed by Escape, by a click outside it
+    /// or by @ref closeOverlaysFor), or
     /// `nullptr` — for hosts that need to know a menu/modal is up, and for
     /// inspecting overlay content.
     Overlay* topOverlay() const { return topInteractiveOverlay(); }
@@ -197,6 +193,7 @@ public:
     /// dynamic list). Without this those pointers would dangle and the next
     /// `setFocus()` etc. would touch freed widgets. The subtree isn't modified.
     void dropInteractionWithin(Widget* subtree) {
+        ++epoch_; // widgets are about to go, whether or not any of these were in them
         if (subtreeContains(subtree, focused_)) setFocus(nullptr);
         if (subtreeContains(subtree, pressed_)) pressed_ = nullptr;
         if (subtreeContains(subtree, hovered_)) hovered_ = nullptr;
@@ -212,6 +209,7 @@ public:
     /// Drop all overlays immediately (e.g. when a host view is hidden). Clears any
     /// focus/press/hover/tooltip that pointed into them.
     void clearOverlays() {
+        ++epoch_;
         for (auto& o : overlays_) {
             if (subtreeContains(o.get(), focused_)) setFocus(nullptr);
             if (subtreeContains(o.get(), pressed_)) pressed_ = nullptr;
@@ -230,6 +228,9 @@ public:
     /// Feed one translated platform event (the host's half of the loop).
     void handleEvent(const InputEvent& e) {
         if (!root_) return;
+        // Only the event straight after: the text SDL sends for the key that moved focus.
+        const bool skipText = skipText_;
+        skipText_ = false;
         dropOrphans(); // before anything can route to one
         Context* prev = current_();
         current_() = this;
@@ -260,7 +261,7 @@ public:
                 // content, so such clicks already fell through to the overlay/root beneath.
                 Overlay* iro = ir != root_.get() ? static_cast<Overlay*>(ir) : nullptr;
                 if (iro && !iro->contentRect().contains(e.x, e.y)) {
-                    if (iro->dismissOnOutsideClick) iro->requestClose();
+                    if (iro->dismissOnOutsideClick) dismiss(iro);
                     break;
                 }
                 Widget* hit = ir->hitTest(e.x, e.y);
@@ -279,24 +280,28 @@ public:
                     p->pressed = false;
                     p->onMouseUp(e.x, e.y, e.button);
                     // onMouseUp may have dropped the press (closing the overlay p is in,
-                    // say), and then p may be on its way out: no click for it.
-                    if (pressed_ == p && ir->hitTest(e.x, e.y) == p) p->onClick();
+                    // say), and then p, or ir, may be on its way out: no click for it.
+                    if (h.intact() && pressed_ == p && ir->hitTest(e.x, e.y) == p) p->onClick();
                     pressed_ = nullptr;
                 }
                 break;
             case InputEvent::KeyDown:
                 if (ov && e.key == Key::Escape && ov->dismissOnEscape) {
-                    ov->requestClose();
+                    dismiss(ov); // nor is an item in it chosen by an Enter while it fades
                 } else if (e.key == Key::Tab) {
                     moveFocus(e.shift ? -1 : 1);
-                } else if (focused_) {
-                    Handling h(*this, focused_);
-                    bool consumed = focused_->onKey(e.key, e.shift, e.ctrl, e.alt);
-                    if (!consumed && (e.key == Key::Enter || e.key == Key::Space)) focused_->onClick();
+                } else if (Widget* f = focused_) {
+                    Handling h(*this, f);
+                    bool consumed = f->onKey(e.key, e.shift, e.ctrl, e.alt);
+                    // Not if onKey moved or dropped focus (closing its overlay, say): the
+                    // click would go to another widget, or to one on its way out.
+                    if (!consumed && h.intact() && (e.key == Key::Enter || e.key == Key::Space)) f->onClick();
+                    // Nor the text this key types, to whatever has focus now.
+                    if (focused_ != f) skipText_ = true;
                 }
                 break;
             case InputEvent::Text:
-                if (focused_ && e.text) {
+                if (focused_ && e.text && !skipText) {
                     Handling h(*this, focused_);
                     focused_->onText(e.text);
                 }
@@ -310,9 +315,12 @@ public:
             case InputEvent::Wheel:
                 // Bubble from the widget under the pointer up the parent chain
                 // until a scroll container consumes it.
-                for (Widget* w = ir->hitTest(e.x, e.y); w; w = w->parent()) {
+                for (Widget* w = ir->hitTest(e.x, e.y); w;) {
+                    Widget* next = w->parent();
                     Handling h(*this, w);
-                    if (w->onWheel(0.0f, e.wheel)) break;
+                    // Stop if onWheel let widgets go: w, or the chain above it, may be among them.
+                    if (w->onWheel(0.0f, e.wheel) || !h.intact()) break;
+                    w = next;
                 }
                 break;
         }
@@ -499,6 +507,7 @@ private:
     void removeOverlaysIf(Pred pred, bool notify) {
         for (auto it = overlays_.begin(); it != overlays_.end();) {
             if (pred(**it)) {
+                ++epoch_;
                 // Drop focus/press/hover/tooltip if they pointed into the removed overlay.
                 if (subtreeContains(it->get(), focused_)) {
                     if (notify) {
@@ -550,15 +559,28 @@ private:
                 owners.insert(owners.end(), o->owners().begin(), o->owners().end());
         return owners;
     }
-    // Names the widget an event is being handed to, for inferOwners().
+    // Names the widget an event is being handed to, for inferOwners(), and tells the
+    // dispatch whether the handler left it alone (#70): one that moved focus, or let
+    // widgets go, may have taken the target, or what was found with it, away.
     struct Handling {
-        Handling(Context& c, Widget* w) : c_(c), prev_(c.handling_) { c_.handling_ = w; }
+        Handling(Context& c, Widget* w) : c_(c), prev_(c.handling_), epoch_(c.epoch_) { c_.handling_ = w; }
         ~Handling() { c_.handling_ = prev_; }
         Handling(const Handling&) = delete;
         Handling& operator=(const Handling&) = delete;
+        bool intact() const { return c_.epoch_ == epoch_; }
         Context& c_;
         Widget* prev_;
+        unsigned epoch_;
     };
+    // Closes `o` and takes input from it at once, though it fades out: nothing in it is
+    // clicked, keyed or left looking hovered or held meanwhile.
+    void dismiss(Overlay* o) {
+        if (hovered_ && subtreeContains(o, hovered_)) hovered_->hovered = false;
+        if (pressed_ && subtreeContains(o, pressed_)) pressed_->pressed = false;
+        dropInteractionWithin(o);
+        o->interactive = false;
+        o->requestClose();
+    }
     void moveFocus(int dir) {
         std::vector<Widget*> f;
         inputRoot()->collectFocusable(f);
@@ -583,6 +605,8 @@ private:
     std::vector<std::unique_ptr<Overlay>> overlays_;
     std::vector<std::vector<std::weak_ptr<const void>>> scopes_; ///< Open @ref OwnerScope owners, innermost last.
     Widget* handling_ = nullptr; ///< The widget an event is being handed to, if any.
+    unsigned epoch_ = 0;         ///< Moves whenever focus does, or widgets may be let go.
+    bool skipText_ = false;      ///< Drop the next event if it's Text: its key moved focus.
     Widget* hovered_ = nullptr;
     Widget* pressed_ = nullptr;
     // Remembered each frame so cursor() can be asked between events — the host
