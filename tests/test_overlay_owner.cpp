@@ -718,6 +718,40 @@ TEST_CASE("the text of a key whose onKey moved focus isn't typed where focus wen
     CHECK(field->text() == "  ");
 }
 
+TEST_CASE("the first character typed after an Enter that moved focus reaches the field") {
+    // Enter types nothing, and a host may forward neither KeyUp nor a bare letter's
+    // KeyDown (Cleat forwards neither): the next event is the user's first character.
+    StubRenderer r;
+    Context ctx;
+    auto root = std::make_unique<Box>();
+    TextField* field = nullptr;
+    Button* open = root->emplace<Button>("New folder", [&] { ctx.setFocus(field); }); // as a dialog would
+    field = root->emplace<TextField>();
+    Keyed* k = root->emplace<Keyed>();
+    ctx.setRoot(std::move(root));
+    pump(ctx, r, 1);
+
+    InputEvent p;
+    p.type = InputEvent::Text;
+    p.text = "p";
+    ctx.setFocus(open);
+    ctx.handleEvent(keyDown(Key::Enter)); // its click moves focus
+    ctx.handleEvent(p);
+    CHECK(field->text() == "p");
+
+    k->act = [&] { ctx.setFocus(field); }; // and from onKey
+    ctx.setFocus(k);
+    ctx.handleEvent(keyDown(Key::Enter));
+    ctx.handleEvent(p);
+    CHECK(field->text() == "pp");
+
+    ctx.setFocus(k); // Space does type: its text is skipped, but only until the frame
+    ctx.handleEvent(keyDown(Key::Space));
+    pump(ctx, r, 1);
+    ctx.handleEvent(p);
+    CHECK(field->text() == "ppp");
+}
+
 TEST_CASE("a wheel event stops bubbling once its handler lets widgets go") {
     StubRenderer r;
     Context ctx;

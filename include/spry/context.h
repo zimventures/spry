@@ -296,8 +296,9 @@ public:
                     // Not if onKey moved or dropped focus (closing its overlay, say): the
                     // click would go to another widget, or to one on its way out.
                     if (!consumed && h.intact() && (e.key == Key::Enter || e.key == Key::Space)) f->onClick();
-                    // Nor the text this key types, to whatever has focus now.
-                    if (focused_ != f) skipText_ = true;
+                    // Nor the text this key types, to whatever has focus now. Only a key
+                    // that types: Enter types nothing, and the next Text is then the user's.
+                    if (focused_ != f && typesText(e)) skipText_ = true;
                 }
                 break;
             case InputEvent::Text:
@@ -339,6 +340,7 @@ public:
         mouseX_ = mouseX;
         mouseY_ = mouseY;
         if (!root_) return;
+        skipText_ = false; // a key's text comes with it, never a frame later
         dropOrphans();
         trans_ = std::min(1.0f, trans_ + dt * 4.0f);
         displayed_ = trans_ >= 1.0f ? to_ : lerp(from_, to_, easeOutCubic(trans_));
@@ -572,6 +574,24 @@ private:
         Widget* prev_;
         unsigned epoch_;
     };
+    // Whether SDL follows this KeyDown with Text: a hint, so a host that forwards
+    // only some keys never leaves a skip armed for the next thing the user types.
+    static bool typesText(const InputEvent& e) {
+        switch (e.key) {
+            case Key::Space:
+            case Key::None:
+                return true;
+            case Key::A:
+            case Key::C:
+            case Key::V:
+            case Key::X:
+            case Key::Y:
+            case Key::Z:
+                return !e.ctrl;
+            default:
+                return false;
+        }
+    }
     // Closes `o` and takes input from it at once, though it fades out: nothing in it is
     // clicked, keyed or left looking hovered or held meanwhile.
     void dismiss(Overlay* o) {
@@ -606,7 +626,7 @@ private:
     std::vector<std::vector<std::weak_ptr<const void>>> scopes_; ///< Open @ref OwnerScope owners, innermost last.
     Widget* handling_ = nullptr; ///< The widget an event is being handed to, if any.
     unsigned epoch_ = 0;         ///< Moves whenever focus does, or widgets may be let go.
-    bool skipText_ = false;      ///< Drop the next event if it's Text: its key moved focus.
+    bool skipText_ = false;      ///< Drop the next event if it's Text: its key moved focus. Until frame().
     Widget* hovered_ = nullptr;
     Widget* pressed_ = nullptr;
     // Remembered each frame so cursor() can be asked between events — the host
